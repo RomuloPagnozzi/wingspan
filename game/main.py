@@ -37,29 +37,29 @@ def get_player_index(s: GameState) -> int:
     return index
 
 
-def get_actions(s: GameState, player: Player) -> List[Action]:
-    actions = []
-    if not player.action_cubes:
-        return actions
+# def get_actions(s: GameState, player: Player) -> List[Action]:
+#     actions = []
+#     if not player.action_cubes:
+#         return actions
 
-    if player.bird_hand:
-        actions.extend(_get_play_bird_actions(player))
+#     if player.bird_hand:
+#         actions.extend(_get_play_bird_actions(player))
 
-    available_egg_capacity = any(
-        [
-            spot.bird.eggs < spot.bird.egg_limit
-            for row in player.board
-            for spot in row
-            if spot.bird is not None
-        ]
-    )
-    if available_egg_capacity:
-        actions.extend(_get_lay_eggs_actions(player))
+#     available_egg_capacity = any(
+#         [
+#             spot.bird.eggs < spot.bird.egg_limit
+#             for row in player.board
+#             for spot in row
+#             if spot.bird is not None
+#         ]
+#     )
+#     if available_egg_capacity:
+#         actions.extend(_get_lay_eggs_actions(player))
 
-    # actions.extend(_get_gain_food_actions(player, s))
+#     # actions.extend(_get_gain_food_actions(player, s))
 
-    # Draw birds
-    return actions
+#     # Draw birds
+#     return actions
 
 
 # def _get_gain_food_actions(player: Player, s: GameState) -> List[Action]:
@@ -322,20 +322,20 @@ def _get_food_combinations(feeder: Dict, resource_amount: int) -> List:
 
 from .helper import print_board_resources, print_board_birds, print_board_bird_stats
 
-s: GameState = initiate_state(2)
-s.players[0].board[0][0].bird = s.bird_deck.pop()
+# s: GameState = initiate_state(2)
+# s.players[0].board[0][0].bird = s.bird_deck.pop()
 # s.players[0].board[0][1].bird = s.bird_deck.pop()
 # s.players[0].board[0][2].bird = s.bird_deck.pop()
 # s.players[0].board[0][3].bird = s.bird_deck.pop()
 # s.players[0].board[0][4].bird = s.bird_deck.pop()
-s.players[0].board[1][0].bird = s.bird_deck.pop()
-s.players[0].board[1][0].bird.eggs = 1
-s.players[0].board[1][1].bird = s.bird_deck.pop()
-s.players[0].board[1][1].bird.stashed_food = 3
-s.players[0].board[1][1].bird.tucked_cards = 2
-print_board_birds(s.players[0].board)
-print_board_bird_stats(s.players[0].board)
-print(s.players[0].board[1][1].bird)
+# s.players[0].board[1][0].bird = s.bird_deck.pop()
+# s.players[0].board[1][0].bird.eggs = 1
+# s.players[0].board[1][1].bird = s.bird_deck.pop()
+# s.players[0].board[1][1].bird.stashed_food = 3
+# s.players[0].board[1][1].bird.tucked_cards = 2
+# print_board_birds(s.players[0].board)
+# print_board_bird_stats(s.players[0].board)
+# print(s.players[0].board[1][1].bird)
 # print("birds")
 # played_birds = [spot.bird for row in s.players[0].board for spot in row if spot.bird]
 # for bird in played_birds:
@@ -358,3 +358,38 @@ print(s.players[0].board[1][1].bird)
 # print(set(x for l in f.values() for x in l))
 # unique = print(f.values())
 # print(unique)
+
+from .engine import get_actions, transition_state
+
+# Test basic action flow
+s = initiate_state(2)
+current_player = s.players[s.current_player_index]
+
+print("=== INITIAL STATE ===")
+print(f"Current player: {s.current_player_index}")
+print(f"Decision phase: {s.decision_phase}")
+print(f"Player food before: {current_player.food}")
+print(f"Feeder before: {s.feeder}")
+print("Available actions:", get_actions(s))
+
+# Try selecting gain_food
+s2 = transition_state(s, "gain_food")
+print("\n=== AFTER GAIN_FOOD SELECTION ===")
+print(f"Decision phase: {s2.decision_phase}")
+print(f"Decision data: {s2.decision_data}")
+print("New actions:", get_actions(s2))
+
+# Try selecting a die
+if get_actions(s2):
+    selected_action = get_actions(s2)[0]
+    print(f"\n=== SELECTING DIE: {selected_action} ===")
+
+    s3 = transition_state(s2, selected_action)
+    current_player_after = s3.players[s3.current_player_index]
+
+    print("=== AFTER DIE SELECTION ===")
+    print(f"Decision phase: {s3.decision_phase}")
+    print(f"Decision data: {s3.decision_data}")
+    print(f"Player food after: {current_player_after.food}")
+    print(f"Feeder after: {s3.feeder}")
+    print("Available actions:", get_actions(s3))

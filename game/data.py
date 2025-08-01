@@ -133,6 +133,9 @@ class GameState:
     bird_tray: List = field(default_factory=lambda: [], init=False)
     feeder: Dict = field(default_factory=roll_feeder, init=False)
     round: int = field(default=0, init=False)
+    current_player_index: int = field(default=0, init=False)
+    decision_phase: str = field(default="main_turn", init=False)
+    decision_data: Dict = field(default_factory=dict, init=False)
 
 
 def initiate_state(n_players):
@@ -147,6 +150,7 @@ def initiate_state(n_players):
             p.first_player = True
         p.bird_hand = [s.bird_deck.pop(-1) for _ in range(5)]
         p.bonus_hand = [s.bonus_deck.pop(-1) for _ in range(2)]
+    s.current_player_index = first_player
     return s
 
 
