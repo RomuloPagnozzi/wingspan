@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Set
 import random
 import pickle
 
@@ -14,7 +14,7 @@ class Bird:
     id: int
     name: str
     habitats: List[str]
-    cost: List[Optional[Dict[str, int]]]
+    cost: List[Dict[str, int]]
     points: int
     nest: str
     egg_limit: int
@@ -23,7 +23,7 @@ class Bird:
     eggs: int = field(default=0, init=False)
     stashed_food: int = field(default=0, init=False)
     tucked_cards: int = field(default=0, init=False)
-    
+
     def __str__(self) -> str:
         cost_str = " or ".join(
             f"{{{', '.join(f'{k}: {v}' for k, v in cost.items())}}}" if cost else "free"
@@ -47,7 +47,7 @@ class Spot:
     resource_amount: int
     extra_resource: bool
     egg_cost: int
-    bird: Bird = None
+    bird: Bird | None = None
 
 
 def build_board() -> List[List[Spot]]:
@@ -101,9 +101,7 @@ class Player:
 
 def load_deck(type: str) -> List:
     deck = []
-    with open(
-        f"/Users/romulo/Documents/Projects/wingspan/game/assets/{type}.pickle", "rb"
-    ) as f:
+    with open(f"game/assets/{type}.pickle", "rb") as f:
         deck.extend(pickle.load(f))
     random.shuffle(deck)
     return deck
@@ -153,9 +151,11 @@ def initiate_state(n_players):
 
 
 def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
-    played_birds = [spot.bird for row in player.board for spot in row]
+    played_birds = [
+        spot.bird for row in player.board for spot in row if spot.bird is not None
+    ]
 
-    if all(bird is None for bird in played_birds):
+    if not played_birds:
         return 0
 
     if bonus.valid_birds_ids:
@@ -195,21 +195,23 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
             return len([bird for bird in played_birds if bird.eggs >= 1])
         case 23:
             return len(player.bird_hand)
-
-    raise NotImplementedError
+        case _:
+            raise NotImplementedError
 
 
 def score_bonus_card(bonus: Bonus, player: Player) -> int:
     n_birds = _count_bonus_birds(bonus, player)
+    if not n_birds:
+        return 0
     score_params = bonus.score_params
-    per_bird = score_params.get("per_bird")
-    if per_bird:
-        return per_bird * n_birds
-    if n_birds >= score_params.get("upper_bound"):
-        return score_params.get("upper_score")
-    if n_birds >= score_params.get("lower_bound"):
-        return score_params.get("lower_score")
-    return 0
+    if "per_bird" in score_params:
+        return score_params["per_bird"] * n_birds
+    else:
+        if n_birds >= score_params["upper_bound"]:
+            return score_params["upper_score"]
+        elif n_birds >= score_params["lower_bound"]:
+            return score_params["lower_score"]
+        return 0
 
 
 @dataclass(slots=True, frozen=True)

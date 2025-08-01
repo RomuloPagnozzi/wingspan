@@ -1,4 +1,4 @@
-from game.data import GameState, Action, initiate_state, Spot, Player, Bird, roll_feeder
+from .data import GameState, Action, initiate_state, Spot, Player, Bird, roll_feeder
 from itertools import (
     cycle,
     islice,
@@ -7,6 +7,14 @@ from itertools import (
     product,
 )
 from typing import List, Optional, Dict
+
+
+def _find_leftmost_empty_spot(board_row: List[Spot]) -> Optional[Spot]:
+    """Find the leftmost empty spot in a board row."""
+    for spot in board_row:
+        if spot.bird is None:
+            return spot
+    return None
 
 
 def get_player_index(s: GameState) -> int:
@@ -48,44 +56,40 @@ def get_actions(s: GameState, player: Player) -> List[Action]:
     if available_egg_capacity:
         actions.extend(_get_lay_eggs_actions(player))
 
-    actions.extend(_get_gain_food_actions(player, s))
+    # actions.extend(_get_gain_food_actions(player, s))
 
     # Draw birds
     return actions
 
 
-def _get_gain_food_actions(player: Player, s: GameState) -> List[Action]:
-    food_spot: Spot = [
-        next((spot for spot in player.board[0] if spot.bird is None), None)
-    ][0]
-    if food_spot:
-        resource_amount = food_spot.resource_amount
-        extra_resource = food_spot.extra_resource
-    else:
-        resource_amount = 3
-        extra_resource = True
+# def _get_gain_food_actions(player: Player, s: GameState) -> List[Action]:
+#     food_spot: Optional[Spot] = _find_leftmost_empty_spot(player.board[0])
+#     if food_spot:
+#         resource_amount = food_spot.resource_amount
+#         extra_resource = food_spot.extra_resource
+#     else:
+#         resource_amount = 3
+#         extra_resource = True
 
-    if not player.bird_hand:
-        extra_resource = False
+#     if not player.bird_hand:
+#         extra_resource = False
 
-    available_food = len(s.feeder)
-    # unique_tokens = set(token for dice in s.feeder.values() for token in dice)
-    # if unique_tokens == 1:
-    #     reroll = True
+#     available_food = len(s.feeder)
+#     # unique_tokens = set(token for dice in s.feeder.values() for token in dice)
+#     # if unique_tokens == 1:
+#     #     reroll = True
 
-    if resource_amount <= available_food:
-        actions = []
-        food_combinations = _get_food_combinations(s.feeder, resource_amount)
-        for comb in food_combinations:
-            actions.append(Action("gain_food", {"food": comb}))
+#     if resource_amount <= available_food:
+#         actions = []
+#         food_combinations = _get_food_combinations(s.feeder, resource_amount)
+#         for comb in food_combinations:
+#             actions.append(Action("gain_food", {"food": comb}))
 
-    return actions
+#     return actions
 
 
 def _get_lay_eggs_actions(player: Player) -> List[Action]:
-    egg_spot: Spot = [
-        next((spot for spot in player.board[1] if spot.bird is None), None)
-    ][0]
+    egg_spot: Optional[Spot] = _find_leftmost_empty_spot(player.board[1])
     if egg_spot:
         resource_amount = egg_spot.resource_amount
         extra_resource = egg_spot.extra_resource
@@ -208,7 +212,7 @@ def _get_play_bird_actions(player: Player) -> List[Action]:
 
 def _is_bird_affordable(bird: Bird, food: Dict[str, int]) -> bool:
     if not bird.cost:
-        True
+        return True
 
     total_food = sum(food.values())
 
@@ -316,7 +320,7 @@ def _get_food_combinations(feeder: Dict, resource_amount: int) -> List:
 # Terminal - checks if state s is a terminal state
 # Utility - final numerical value for terminal state s
 
-from game.helper import print_board_resources, print_board_birds, print_board_bird_stats
+from .helper import print_board_resources, print_board_birds, print_board_bird_stats
 
 s: GameState = initiate_state(2)
 s.players[0].board[0][0].bird = s.bird_deck.pop()
@@ -331,7 +335,7 @@ s.players[0].board[1][1].bird.stashed_food = 3
 s.players[0].board[1][1].bird.tucked_cards = 2
 print_board_birds(s.players[0].board)
 print_board_bird_stats(s.players[0].board)
-print(s.players[0].board[1][0].bird)
+print(s.players[0].board[1][1].bird)
 # print("birds")
 # played_birds = [spot.bird for row in s.players[0].board for spot in row if spot.bird]
 # for bird in played_birds:
