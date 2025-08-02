@@ -432,6 +432,39 @@ if s2_after.decision_phase == "extra_food_decision":
             f"Birds in hand (should be 4): {len(s2_discard.players[s2_discard.current_player_index].bird_hand)}"
         )
 
+# Test 3: Reroll mechanics
+print("\n=== TEST 3: REROLL MECHANICS ===")
+s3 = initiate_state(2)
+
+# Force all dice to show same food type for testing
+s3.feeder = {0: ["fish"], 1: ["fish"], 2: ["fish"], 3: ["fish"], 4: ["fish"]}
+
+s3_after = transition_state(s3, "gain_food")
+print(f"Decision phase: {s3_after.decision_phase}")
+print(f"Available actions: {get_actions(s3_after)}")
+print(f"Should include 'reroll_all': {'reroll_all' in get_actions(s3_after)}")
+
+if "reroll_all" in get_actions(s3_after):
+    s3_reroll = transition_state(s3_after, "reroll_all")
+    print(f"After reroll - Phase: {s3_reroll.decision_phase}")
+    print(f"Food still needed: {s3_reroll.decision_data}")
+    print(f"New feeder: {list(s3_reroll.feeder.keys())} dice available")
+
+# Test 4: Empty feeder auto-refill
+print("\n=== TEST 4: EMPTY FEEDER AUTO-REFILL ===")
+s4 = initiate_state(2)
+
+# Set up feeder with only 1 die to test auto-refill
+s4.feeder = {0: ["fish"]}
+
+s4_after = transition_state(s4, "gain_food")
+print(f"Feeder before selection: {s4_after.feeder}")
+
+# Select the only die
+s4_select = transition_state(s4_after, "select_die_0_fish")
+print(f"Feeder after selection (should be refilled): {len(s4_select.feeder)} dice")
+print(f"Food needed: {s4_select.decision_data.get('food_needed', 'Done')}")
+
 print("\n" + "=" * 60)
 print("TESTING COMPLETE")
 print("=" * 60)

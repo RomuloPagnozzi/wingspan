@@ -1,6 +1,6 @@
 from typing import List
 import copy
-from .data import GameState, Spot
+from .data import GameState, Spot, roll_feeder
 
 
 def _find_leftmost_empty_spot(board_row: List[Spot]) -> Spot | None:
@@ -102,7 +102,10 @@ def _get_food_collection_actions(state: GameState) -> List[str]:
     for die_index, food_types in state.feeder.items():
         for food_type in food_types:
             actions.append(f"select_die_{die_index}_{food_type}")
-        # TODO: Add reroll action when appropriate
+
+    if len(set(tuple(sorted(die_face)) for die_face in state.feeder.values())) == 1:
+        actions.append("reroll_all")
+
     return actions
 
 
@@ -123,11 +126,18 @@ def _handle_food_collection_action(state: GameState, action: str) -> GameState:
 
         del state.feeder[die_index]
 
+        if not state.feeder:
+            state.feeder = roll_feeder()
+
         state.decision_data["food_needed"] -= 1
 
         if not state.decision_data["food_needed"]:
             state.decision_phase = "main_turn"
             state.decision_data = {}
+        return state
+
+    elif action == "reroll_all":
+        state.feeder = roll_feeder()
         return state
 
     raise NotImplementedError(
