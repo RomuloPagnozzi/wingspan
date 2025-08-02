@@ -361,35 +361,77 @@ from .helper import print_board_resources, print_board_birds, print_board_bird_s
 
 from .engine import get_actions, transition_state
 
-# Test basic action flow
-s = initiate_state(2)
-current_player = s.players[s.current_player_index]
+print("=" * 60)
+print("COMPREHENSIVE GAIN_FOOD TESTING")
+print("=" * 60)
 
-print("=== INITIAL STATE ===")
-print(f"Current player: {s.current_player_index}")
-print(f"Decision phase: {s.decision_phase}")
-print(f"Player food before: {current_player.food}")
-print(f"Feeder before: {s.feeder}")
-print("Available actions:", get_actions(s))
+# Test 1: Basic gain_food with no extra resource available
+print("\n=== TEST 1: NO EXTRA RESOURCE (should go directly to collecting_food) ===")
+s1 = initiate_state(2)
+current_player = s1.players[s1.current_player_index]
 
-# Try selecting gain_food
-s2 = transition_state(s, "gain_food")
-print("\n=== AFTER GAIN_FOOD SELECTION ===")
-print(f"Decision phase: {s2.decision_phase}")
-print(f"Decision data: {s2.decision_data}")
-print("New actions:", get_actions(s2))
+print(f"Current player: {s1.current_player_index}")
+print(f"Birds in hand: {len(current_player.bird_hand)}")
+print(
+    f"Forest spot pattern: {[(i, spot.extra_resource) for i, spot in enumerate(current_player.board[0])]}"
+)
 
-# Try selecting a die
-if get_actions(s2):
-    selected_action = get_actions(s2)[0]
-    print(f"\n=== SELECTING DIE: {selected_action} ===")
+s1_after = transition_state(s1, "gain_food")
+print(f"Decision phase: {s1_after.decision_phase}")
+print(f"Decision data: {s1_after.decision_data}")
+print(f"Available actions: {get_actions(s1_after)[:3]}...")  # Show first 3
 
-    s3 = transition_state(s2, selected_action)
-    current_player_after = s3.players[s3.current_player_index]
+# Test food collection
+if s1_after.decision_phase == "collecting_food":
+    selected_action = get_actions(s1_after)[0]
+    print(f"Selecting: {selected_action}")
+    s1_final = transition_state(s1_after, selected_action)
+    print(
+        f"After selection - Phase: {s1_final.decision_phase}, Data: {s1_final.decision_data}"
+    )
 
-    print("=== AFTER DIE SELECTION ===")
-    print(f"Decision phase: {s3.decision_phase}")
-    print(f"Decision data: {s3.decision_data}")
-    print(f"Player food after: {current_player_after.food}")
-    print(f"Feeder after: {s3.feeder}")
-    print("Available actions:", get_actions(s3))
+# Test 2: With extra resource available
+print("\n=== TEST 2: EXTRA RESOURCE AVAILABLE (should go to extra_food_decision) ===")
+s2 = initiate_state(2)
+current_player = s2.players[s2.current_player_index]
+
+# Place bird in position 0 to make position 1 (extra_resource=True) the leftmost empty
+current_player.board[0][0].bird = s2.bird_deck.pop()
+
+print(f"Current player: {s2.current_player_index}")
+print(f"Birds in hand: {len(current_player.bird_hand)}")
+print(f"Bird placed at position 0: {current_player.board[0][0].bird is not None}")
+print(f"Position 1 extra_resource: {current_player.board[0][1].extra_resource}")
+
+s2_after = transition_state(s2, "gain_food")
+print(f"Decision phase: {s2_after.decision_phase}")
+print(f"Decision data: {s2_after.decision_data}")
+print(f"Available actions: {get_actions(s2_after)}")
+
+# Test both paths
+if s2_after.decision_phase == "extra_food_decision":
+    # Test skip trade path
+    print(f"\n--- Testing SKIP_TRADE path ---")
+    s2_skip = transition_state(s2_after, "skip_trade")
+    print(f"Phase: {s2_skip.decision_phase}, Food needed: {s2_skip.decision_data}")
+
+    # Test trade bird path
+    print(f"\n--- Testing TRADE_BIRD path ---")
+    s2_trade = transition_state(s2_after, "trade_bird")
+    print(f"Phase: {s2_trade.decision_phase}")
+    print(f"Available birds to discard: {get_actions(s2_trade)[:3]}...")  # Show first 3
+
+    # Test discarding a bird
+    if get_actions(s2_trade):
+        discard_action = get_actions(s2_trade)[0]
+        print(f"Discarding: {discard_action}")
+        s2_discard = transition_state(s2_trade, discard_action)
+        print(f"After discard - Phase: {s2_discard.decision_phase}")
+        print(f"Food needed (should be base+1): {s2_discard.decision_data}")
+        print(
+            f"Birds in hand (should be 4): {len(s2_discard.players[s2_discard.current_player_index].bird_hand)}"
+        )
+
+print("\n" + "=" * 60)
+print("TESTING COMPLETE")
+print("=" * 60)
