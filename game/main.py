@@ -1,4 +1,4 @@
-from .data import GameState, Action, initiate_state, Spot, Player, Bird, roll_feeder
+from .data import GameState, Action, Spot, Player, Bird
 from itertools import (
     cycle,
     islice,
@@ -214,16 +214,18 @@ def _is_bird_affordable(bird: Bird, food: Dict[str, int]) -> bool:
     if not bird.cost:
         return True
 
-    total_food = sum(food.values())
+    total_available = sum(food.values())
 
     for cost in bird.cost:
-        if all(
-            food.get(type, 0) >= amount
-            for type, amount in cost.items()
-            if type != "wild"
-        ):
-            if total_food >= sum(cost.values()):
-                return True
+        cost_copy = cost.copy()
+        tokens_needed = cost_copy.pop("wild", 0)
+
+        for food_type, amount in cost_copy.items():
+            direct = min(amount, food.get(food_type, 0))
+            tokens_needed += direct + (amount - direct) * 2
+
+        if total_available >= tokens_needed:
+            return True
 
     return False
 
@@ -319,152 +321,3 @@ def _get_food_combinations(feeder: Dict, resource_amount: int) -> List:
 # Result - return state after action a taken in state s
 # Terminal - checks if state s is a terminal state
 # Utility - final numerical value for terminal state s
-
-from .helper import print_board_resources, print_board_birds, print_board_bird_stats
-
-# s: GameState = initiate_state(2)
-# s.players[0].board[0][0].bird = s.bird_deck.pop()
-# s.players[0].board[0][1].bird = s.bird_deck.pop()
-# s.players[0].board[0][2].bird = s.bird_deck.pop()
-# s.players[0].board[0][3].bird = s.bird_deck.pop()
-# s.players[0].board[0][4].bird = s.bird_deck.pop()
-# s.players[0].board[1][0].bird = s.bird_deck.pop()
-# s.players[0].board[1][0].bird.eggs = 1
-# s.players[0].board[1][1].bird = s.bird_deck.pop()
-# s.players[0].board[1][1].bird.stashed_food = 3
-# s.players[0].board[1][1].bird.tucked_cards = 2
-# print_board_birds(s.players[0].board)
-# print_board_bird_stats(s.players[0].board)
-# print(s.players[0].board[1][1].bird)
-# print("birds")
-# played_birds = [spot.bird for row in s.players[0].board for spot in row if spot.bird]
-# for bird in played_birds:
-#     print(bird)
-# print("actions")
-# actions = get_actions(s, s.players[0])
-# for action in actions:
-#     print(action)
-# print(len(actions))
-
-# s: GameState = initiate_state(2)
-# s.players[0].board[0][0].bird = s.bird_deck.pop()
-# s.players[0].board[0][1].bird = s.bird_deck.pop()
-# actions = get_actions(s, s.players[0])
-# for action in actions:
-#     print(action)
-
-# s: GameState = initiate_state(2)
-# f = s.feeder
-# print(set(x for l in f.values() for x in l))
-# unique = print(f.values())
-# print(unique)
-
-from .engine import get_actions, transition_state
-
-print("=" * 60)
-print("COMPREHENSIVE GAIN_FOOD TESTING")
-print("=" * 60)
-
-# Test 1: Basic gain_food with no extra resource available
-print("\n=== TEST 1: NO EXTRA RESOURCE (should go directly to collecting_food) ===")
-s1 = initiate_state(2)
-current_player = s1.players[s1.current_player_index]
-
-print(f"Current player: {s1.current_player_index}")
-print(f"Birds in hand: {len(current_player.bird_hand)}")
-print(
-    f"Forest spot pattern: {[(i, spot.extra_resource) for i, spot in enumerate(current_player.board[0])]}"
-)
-
-s1_after = transition_state(s1, "gain_food")
-print(f"Decision phase: {s1_after.decision_phase}")
-print(f"Decision data: {s1_after.decision_data}")
-print(f"Available actions: {get_actions(s1_after)[:3]}...")  # Show first 3
-
-# Test food collection
-if s1_after.decision_phase == "collecting_food":
-    selected_action = get_actions(s1_after)[0]
-    print(f"Selecting: {selected_action}")
-    s1_final = transition_state(s1_after, selected_action)
-    print(
-        f"After selection - Phase: {s1_final.decision_phase}, Data: {s1_final.decision_data}"
-    )
-
-# Test 2: With extra resource available
-print("\n=== TEST 2: EXTRA RESOURCE AVAILABLE (should go to extra_food_decision) ===")
-s2 = initiate_state(2)
-current_player = s2.players[s2.current_player_index]
-
-# Place bird in position 0 to make position 1 (extra_resource=True) the leftmost empty
-current_player.board[0][0].bird = s2.bird_deck.pop()
-
-print(f"Current player: {s2.current_player_index}")
-print(f"Birds in hand: {len(current_player.bird_hand)}")
-print(f"Bird placed at position 0: {current_player.board[0][0].bird is not None}")
-print(f"Position 1 extra_resource: {current_player.board[0][1].extra_resource}")
-
-s2_after = transition_state(s2, "gain_food")
-print(f"Decision phase: {s2_after.decision_phase}")
-print(f"Decision data: {s2_after.decision_data}")
-print(f"Available actions: {get_actions(s2_after)}")
-
-# Test both paths
-if s2_after.decision_phase == "extra_food_decision":
-    # Test skip trade path
-    print(f"\n--- Testing SKIP_TRADE path ---")
-    s2_skip = transition_state(s2_after, "skip_trade")
-    print(f"Phase: {s2_skip.decision_phase}, Food needed: {s2_skip.decision_data}")
-
-    # Test trade bird path
-    print(f"\n--- Testing TRADE_BIRD path ---")
-    s2_trade = transition_state(s2_after, "trade_bird")
-    print(f"Phase: {s2_trade.decision_phase}")
-    print(f"Available birds to discard: {get_actions(s2_trade)[:3]}...")  # Show first 3
-
-    # Test discarding a bird
-    if get_actions(s2_trade):
-        discard_action = get_actions(s2_trade)[0]
-        print(f"Discarding: {discard_action}")
-        s2_discard = transition_state(s2_trade, discard_action)
-        print(f"After discard - Phase: {s2_discard.decision_phase}")
-        print(f"Food needed (should be base+1): {s2_discard.decision_data}")
-        print(
-            f"Birds in hand (should be 4): {len(s2_discard.players[s2_discard.current_player_index].bird_hand)}"
-        )
-
-# Test 3: Reroll mechanics
-print("\n=== TEST 3: REROLL MECHANICS ===")
-s3 = initiate_state(2)
-
-# Force all dice to show same food type for testing
-s3.feeder = {0: ["fish"], 1: ["fish"], 2: ["fish"], 3: ["fish"], 4: ["fish"]}
-
-s3_after = transition_state(s3, "gain_food")
-print(f"Decision phase: {s3_after.decision_phase}")
-print(f"Available actions: {get_actions(s3_after)}")
-print(f"Should include 'reroll_all': {'reroll_all' in get_actions(s3_after)}")
-
-if "reroll_all" in get_actions(s3_after):
-    s3_reroll = transition_state(s3_after, "reroll_all")
-    print(f"After reroll - Phase: {s3_reroll.decision_phase}")
-    print(f"Food still needed: {s3_reroll.decision_data}")
-    print(f"New feeder: {list(s3_reroll.feeder.keys())} dice available")
-
-# Test 4: Empty feeder auto-refill
-print("\n=== TEST 4: EMPTY FEEDER AUTO-REFILL ===")
-s4 = initiate_state(2)
-
-# Set up feeder with only 1 die to test auto-refill
-s4.feeder = {0: ["fish"]}
-
-s4_after = transition_state(s4, "gain_food")
-print(f"Feeder before selection: {s4_after.feeder}")
-
-# Select the only die
-s4_select = transition_state(s4_after, "select_die_0_fish")
-print(f"Feeder after selection (should be refilled): {len(s4_select.feeder)} dice")
-print(f"Food needed: {s4_select.decision_data.get('food_needed', 'Done')}")
-
-print("\n" + "=" * 60)
-print("TESTING COMPLETE")
-print("=" * 60)

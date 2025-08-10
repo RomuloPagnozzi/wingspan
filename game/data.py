@@ -134,8 +134,8 @@ class GameState:
     feeder: Dict = field(default_factory=roll_feeder, init=False)
     round: int = field(default=0, init=False)
     current_player_index: int = field(default=0, init=False)
-    decision_phase: str = field(default="main_turn", init=False)
-    decision_data: Dict = field(default_factory=dict, init=False)
+    action_phase: str = field(default="main_turn", init=False)
+    action_data: Dict = field(default_factory=dict, init=False)
 
 
 def initiate_state(n_players):
