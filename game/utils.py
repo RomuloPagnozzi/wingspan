@@ -1,5 +1,6 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple, Generator
 from .data import Spot, Player, Bird
+from itertools import combinations_with_replacement, product
 
 
 def find_leftmost_empty_spot(board_row: List[Spot]) -> Spot | None:
@@ -10,62 +11,225 @@ def find_leftmost_empty_spot(board_row: List[Spot]) -> Spot | None:
     return None
 
 
-def is_bird_affordable(bird: Bird, food: Dict[str, int]) -> bool:
-    """Checks if bird can be paid by player's food supply."""
-    if not bird.cost:
-        return True
-
-    for cost in bird.cost:
-        cost_copy = cost.copy()
-        tokens_needed = cost_copy.pop("wild", 0)
-        available_for_trading = food.copy()
-
-        for food_type, amount in cost_copy.items():
-            if amount == 0:
-                continue
-
-            available = available_for_trading.get(food_type, 0)
-            if available >= amount:
-                available_for_trading[food_type] -= amount
-            else:
-                if available > 0:
-                    available_for_trading[food_type] = 0
-                tokens_needed += (amount - available) * 2
-
-        if sum(available_for_trading.values()) >= tokens_needed:
-            return True
-
-    return False
-
-
 def can_play_a_bird(player: Player) -> bool:
     """Check if player has at least one playable bird."""
-    if not player.bird_hand:
+    try:
+        next(generate_playable_bird_spots(player))
+        return True
+    except StopIteration:
         return False
 
-    empty_spots = [find_leftmost_empty_spot(row) for row in player.board]
+
+def generate_playable_bird_spots(
+    player: Player,
+) -> Generator[Tuple[Bird, Spot], None, None]:
+    """Generator that yields all valid (bird, spot) combinations."""
+    if not player.bird_hand:
+        return
+
+    empty_spots: List[Spot] = []
+    for row in player.board:
+        spot = find_leftmost_empty_spot(row)
+        if spot is not None:
+            empty_spots.append(spot)
+
     if not empty_spots:
-        return False
+        return
 
     played_birds = [
         spot.bird for row in player.board for spot in row if spot.bird is not None
     ]
-    available_eggs = 0
-    if played_birds:
-        available_eggs += sum(bird.eggs for bird in played_birds)
+    available_eggs = sum(bird.eggs for bird in played_birds) if played_birds else 0
 
-    available_spots = [
-        spot
-        for spot in empty_spots
-        if spot is not None and spot.egg_cost <= available_eggs
-    ]
+    available_spots = [spot for spot in empty_spots if spot.egg_cost <= available_eggs]
+
     if not available_spots:
+        return
+
+    for bird in player.bird_hand:
+        if not can_afford_bird(bird.cost, player.food):
+            continue
+
+        for spot in available_spots:
+            if spot.habitat in bird.habitats:
+                yield (bird, spot)
+
+
+def get_egg_payment_combinations(
+    birds: Dict[int, int], egg_cost: int
+) -> List[Dict[int, int]]:
+    """Generate all valid ways to pay egg cost using available eggs from birds."""
+
+    if egg_cost <= 0:
+        raise ValueError(f"Invalid egg cost: {egg_cost}. Must be positive.")
+
+    if not birds:
+        raise ValueError("No birds with eggs available to pay egg cost.")
+
+    if sum(birds.values()) < egg_cost:
+        raise ValueError(
+            f"Not enough eggs available. Need {egg_cost}, have {sum(birds.values())}"
+        )
+
+    combinations = []
+
+    def find_combinations(remaining, combination, index):
+        if remaining == 0:
+            combinations.append(combination.copy())
+            return
+
+        for i in range(index, len(birds)):
+            id, amount = list(birds.items())[i]
+            for count in range(1, amount + 1):
+                combination[id] = count
+                find_combinations(remaining - count, combination, i + 1)
+                del combination[id]
+
+    find_combinations(egg_cost, {}, 0)
+    return combinations
+
+
+def can_afford_bird(
+    cost_options: List[Dict[str, int]], resources: Dict[str, int]
+) -> bool:
+    """Check if we can afford a bird using any of its cost options."""
+    try:
+        next(generate_food_payments(cost_options, resources))
+        return True
+    except StopIteration:
         return False
 
-    available_habitats = set(spot.habitat for spot in available_spots)
-    for bird in player.bird_hand:
-        if set(bird.habitats).intersection(available_habitats) and is_bird_affordable(
-            bird, player.food
-        ):
-            return True
-    return False
+
+def generate_food_payments(
+    cost_options: List[Dict[str, int]], resources: Dict[str, int]
+) -> Generator[Dict[str, int], None, None]:
+    """Generator that yields all valid ways to pay bird food cost with available resources."""
+    if not cost_options:
+        yield {}
+        return
+
+    seen_payments = set()
+    for cost_option in cost_options:
+        for payment in _generate_food_payments_for_cost_option(cost_option, resources):
+            payment_key = frozenset(payment.items())
+            if payment_key not in seen_payments:
+                seen_payments.add(payment_key)
+                yield payment
+
+
+def _generate_food_payments_for_cost_option(
+    cost: Dict[str, int], resources: Dict[str, int]
+) -> Generator[Dict[str, int], None, None]:
+    """Generate all valid ways to pay a single food cost option with available resources."""
+    remaining_cost = cost.copy()
+    remaining_resources = resources.copy()
+
+    wild_cost = remaining_cost.pop("wild", 0)
+
+    exact_payment = {}
+    for food_type in list(remaining_cost.keys()):
+        if food_type in remaining_resources:
+            matches_used = min(
+                remaining_cost[food_type], remaining_resources[food_type]
+            )
+            if matches_used > 0:
+                exact_payment[food_type] = matches_used
+                remaining_cost[food_type] -= matches_used
+                remaining_resources[food_type] -= matches_used
+
+                if remaining_cost[food_type] == 0:
+                    del remaining_cost[food_type]
+                if remaining_resources[food_type] == 0:
+                    del remaining_resources[food_type]
+
+    if remaining_cost:
+        yield from _generate_2_to_1_trade_combinations(
+            remaining_cost, remaining_resources, exact_payment, wild_cost
+        )
+    elif wild_cost > 0:
+        yield from _generate_wild_payments(
+            exact_payment, remaining_resources, wild_cost
+        )
+    else:
+        yield exact_payment
+
+
+def _generate_2_to_1_trade_combinations(
+    remaining_cost: Dict[str, int],
+    remaining_resources: Dict[str, int],
+    exact_payment: Dict[str, int],
+    wild_cost: int,
+) -> Generator[Dict[str, int], None, None]:
+    """Generate all valid 2:1 trade combinations for remaining costs."""
+
+    total_units_needed = sum(remaining_cost.values())
+
+    tradeable_foods = [
+        food for food, amount in remaining_resources.items() if amount >= 2
+    ]
+
+    if not tradeable_foods:
+        return
+
+    for trade_assignment in product(tradeable_foods, repeat=total_units_needed):
+
+        trade_usage = {}
+        for food in trade_assignment:
+            trade_usage[food] = trade_usage.get(food, 0) + 2
+
+        valid = True
+        for food_type, needed in trade_usage.items():
+            if remaining_resources.get(food_type, 0) < needed:
+                valid = False
+                break
+
+        if not valid:
+            continue
+
+        payment = exact_payment.copy()
+        for food_type, used in trade_usage.items():
+            payment[food_type] = payment.get(food_type, 0) + used
+
+        resources_after_trades = remaining_resources.copy()
+        for food_type, used in trade_usage.items():
+            resources_after_trades[food_type] -= used
+            if resources_after_trades[food_type] == 0:
+                del resources_after_trades[food_type]
+
+        if wild_cost > 0:
+            yield from _generate_wild_payments(
+                payment, resources_after_trades, wild_cost
+            )
+        else:
+            yield payment
+
+
+def _generate_wild_payments(
+    base_payment: Dict[str, int], remaining: Dict[str, int], wild_count: int
+) -> Generator[Dict[str, int], None, None]:
+    """Generate all ways to pay wild cost with remaining resources."""
+    available_foods = []
+    for food_type, amount in remaining.items():
+        available_foods.extend([food_type] * amount)
+
+    if len(available_foods) < wild_count:
+        return
+
+    for wild_selection in combinations_with_replacement(
+        sorted(set(available_foods)), wild_count
+    ):
+        wild_usage = {}
+        for food in wild_selection:
+            wild_usage[food] = wild_usage.get(food, 0) + 1
+
+        valid = True
+        for food_type, needed in wild_usage.items():
+            if remaining.get(food_type, 0) < needed:
+                valid = False
+                break
+
+        if valid:
+            payment = base_payment.copy()
+            for food_type, count in wild_usage.items():
+                payment[food_type] = payment.get(food_type, 0) + count
+            yield payment

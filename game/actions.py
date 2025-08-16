@@ -1,6 +1,12 @@
 from typing import List
 from .data import GameState
-from .utils import can_play_a_bird
+from .utils import (
+    can_play_a_bird,
+    generate_playable_bird_spots,
+    get_egg_payment_combinations,
+    generate_food_payments,
+)
+import json
 
 
 def get_actions(state: GameState) -> List[str]:
@@ -14,6 +20,12 @@ def get_actions(state: GameState) -> List[str]:
             return ["trade_bird", "skip_trade"]
         case "select_bird_to_discard":
             return _get_bird_discard_actions(state)
+        case "play_bird":
+            return _get_play_bird_actions(state)
+        case "pay_egg_cost":
+            return _get_pay_egg_cost_actions(state)
+        case "pay_food_cost":
+            return _get_pay_food_cost_actions(state)
         case _:
             raise NotImplementedError
 
@@ -62,3 +74,40 @@ def _get_bird_discard_actions(state: GameState) -> List[str]:
     """Return birds that can be discarded for extra food."""
     current_player = state.players[state.current_player_index]
     return [f"discard_bird_{bird.id}" for bird in current_player.bird_hand]
+
+
+def _get_play_bird_actions(state: GameState) -> List[str]:
+    """Return birds that can be played with their target spots."""
+    current_player = state.players[state.current_player_index]
+    return [
+        f"play_bird_{bird.id}_at_{spot.row}_{spot.col}"
+        for bird, spot in generate_playable_bird_spots(current_player)
+    ]
+
+
+def _get_pay_egg_cost_actions(state: GameState) -> List[str]:
+    """Return egg payment combinations."""
+    egg_cost = state.action_data.get("egg_cost")
+    if not egg_cost:
+        raise ValueError(f"No egg cost found in {state.action_data}.")
+
+    current_player = state.players[state.current_player_index]
+    birds_with_eggs = {
+        spot.bird.id: spot.bird.eggs
+        for row in current_player.board
+        for spot in row
+        if spot.bird is not None and spot.bird.eggs > 0
+    }
+    combinations = get_egg_payment_combinations(birds_with_eggs, egg_cost)
+    return [json.dumps(comb) for comb in combinations]
+
+
+def _get_pay_food_cost_actions(state: GameState) -> List[str]:
+    """Return food payment combinations."""
+    food_cost = state.action_data.get("food_cost")
+    if not food_cost:
+        raise ValueError(f"No food cost found in {state.action_data}.")
+
+    current_player = state.players[state.current_player_index]
+    combinations = generate_food_payments(food_cost, current_player.food)
+    return [json.dumps(comb) for comb in combinations]
