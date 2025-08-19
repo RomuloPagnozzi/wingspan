@@ -89,6 +89,65 @@ def get_egg_payment_combinations(
     return combinations
 
 
+def get_egg_distribution_combinations(
+    birds_capacity: Dict[int, int], eggs_to_distribute: int
+) -> List[Dict[int, int]]:
+    """Generate all valid ways to distribute eggs to birds based on their available capacity."""
+
+    if eggs_to_distribute <= 0:
+        raise ValueError(
+            f"Invalid eggs to distribute: {eggs_to_distribute}. Must be positive."
+        )
+
+    if not birds_capacity:
+        raise ValueError("No birds available to receive eggs.")
+
+    available_birds = {
+        bird_id: capacity
+        for bird_id, capacity in birds_capacity.items()
+        if capacity > 0
+    }
+
+    if not available_birds:
+        raise ValueError("No birds have available egg capacity.")
+
+    total_capacity = sum(available_birds.values())
+
+    if eggs_to_distribute >= total_capacity:
+        return [dict(available_birds)]
+
+    combinations = []
+    bird_ids = list(available_birds.keys())
+
+    def find_distributions(
+        remaining_eggs: int, distribution: Dict[int, int], bird_index: int
+    ) -> None:
+        if bird_index == len(bird_ids):
+            if remaining_eggs == 0:
+                combinations.append(dict(distribution))
+            return
+
+        bird_id = bird_ids[bird_index]
+        capacity = available_birds[bird_id]
+        max_eggs_for_bird = min(capacity, remaining_eggs)
+        remaining_capacity = sum(
+            available_birds[bird_ids[i]] for i in range(bird_index + 1, len(bird_ids))
+        )
+
+        for eggs_to_bird in range(max_eggs_for_bird + 1):
+            remaining_after = remaining_eggs - eggs_to_bird
+
+            if remaining_after <= remaining_capacity:
+                if eggs_to_bird > 0:
+                    distribution[bird_id] = eggs_to_bird
+                find_distributions(remaining_after, distribution, bird_index + 1)
+                if eggs_to_bird > 0:
+                    del distribution[bird_id]
+
+    find_distributions(eggs_to_distribute, {}, 0)
+    return combinations
+
+
 def can_afford_bird(
     cost_options: List[Dict[str, int]], resources: Dict[str, int]
 ) -> bool:

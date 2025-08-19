@@ -13,10 +13,22 @@ def transition_state(state: GameState, action: str) -> GameState:
             return _handle_main_turn(new_state, action)
         case "collecting_food":
             return _handle_food_collection(new_state, action)
+        case "laying_eggs":
+            return _handle_egg_laying(new_state, action)
+        case "drawing_cards":
+            return _handle_card_draw(new_state, action)
         case "extra_food_action":
             return _handle_extra_food_action(new_state, action)
+        case "extra_lay_eggs_action":
+            return _handle_extra_lay_eggs_action(new_state, action)
+        case "extra_card_draw_action":
+            return _handle_extra_card_action(new_state, action)
         case "select_bird_to_discard":
             return _handle_bird_discard_action(new_state, action)
+        case "select_food_to_discard":
+            return _handle_food_discard_action(new_state, action)
+        case "select_egg_to_discard":
+            return _handle_select_egg_discard_action(new_state, action)
         case "play_bird":
             return _handle_play_bird(new_state, action)
         case "pay_egg_cost":
@@ -36,9 +48,9 @@ def _handle_main_turn(state: GameState, action: str) -> GameState:
             state.action_phase = "play_bird"
             return state
         case "lay_eggs":
-            raise NotImplementedError
+            return _handle_lay_eggs(state)
         case "draw_cards":
-            raise NotImplementedError
+            return _handle_draw_cards(state)
         case _:
             raise ValueError(f"Unknown main turn action {action}")
 
@@ -46,10 +58,12 @@ def _handle_main_turn(state: GameState, action: str) -> GameState:
 def _handle_gain_food(state: GameState) -> GameState:
     """Handles main turn action gain food."""
     current_player = state.players[state.current_player_index]
-    food_spot = find_leftmost_empty_spot(current_player.board[0])
+    forest_spot = find_leftmost_empty_spot(current_player.board[0])
 
-    can_trade = food_spot and food_spot.extra_resource and current_player.bird_hand
-    base_amount = food_spot.resource_amount if food_spot else 3
+    can_trade = current_player.bird_hand and (
+        not forest_spot or (forest_spot and forest_spot.extra_resource)
+    )
+    base_amount = forest_spot.resource_amount if forest_spot else 3
 
     if can_trade:
         state.action_phase = "extra_food_action"
@@ -58,6 +72,32 @@ def _handle_gain_food(state: GameState) -> GameState:
         state.action_phase = "collecting_food"
         state.action_data = {"food_needed": base_amount}
     return state
+
+
+def _handle_lay_eggs(state: GameState) -> GameState:
+    """Handles main turn action lay eggs."""
+    current_player = state.players[state.current_player_index]
+    grassland_spot = find_leftmost_empty_spot(current_player.board[1])
+
+    can_trade = current_player.food and (
+        not grassland_spot or (grassland_spot and grassland_spot.extra_resource)
+    )
+    base_amount = grassland_spot.resource_amount if grassland_spot else 4
+
+    if can_trade:
+        state.action_phase = "extra_lay_eggs_action"
+        state.action_data = {"base_eggs_amount": base_amount}
+    else:
+        state.action_phase = "laying_eggs"
+        state.action_data = {"eggs_needed": base_amount}
+    return state
+
+
+def _handle_draw_cards(state: GameState) -> GameState:
+    """Handles main turn action draw cards."""
+    # check if player can trade egg for extra card
+    # either go to phase "extra card draw action" or "drawing cards action"
+    raise NotImplementedError
 
 
 def _handle_food_collection(state: GameState, action: str) -> GameState:
@@ -83,6 +123,7 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
         state.action_data["food_needed"] -= 1
 
         if not state.action_data["food_needed"]:
+            current_player.action_cubes -= 1
             state.action_phase = "main_turn"
             state.action_data = {}
         return state
@@ -94,6 +135,42 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
     raise NotImplementedError(
         f"Current state {state.action_phase, state.action_data, action}"
     )
+
+
+def _handle_egg_laying(state: GameState, action: str) -> GameState:
+    """Handle laying eggs in birds."""
+    eggs_to_lay = {int(k): v for k, v in json.loads(action).items()}
+    current_player = state.players[state.current_player_index]
+    relevant_board_birds = [
+        spot.bird
+        for row in current_player.board
+        for spot in row
+        if spot.bird is not None and spot.bird.id in eggs_to_lay.keys()
+    ]
+    bird_capacity = {
+        bird.id: bird.egg_limit - bird.eggs for bird in relevant_board_birds
+    }
+
+    if eggs_to_lay.keys() != bird_capacity.keys():
+        raise ValueError(
+            f"Birds from board {bird_capacity.keys()} and eggs_to_lay {eggs_to_lay.keys()} do not match."
+        )
+
+    if not all(bird_capacity[k] >= eggs_to_lay[k] for k in eggs_to_lay):
+        raise ValueError(f"Not enough capacity in birds to lay eggs.")
+
+    for bird in relevant_board_birds:
+        bird.eggs += eggs_to_lay[bird.id]
+
+    current_player.action_cubes -= 1
+    state.action_phase = "main_turn"
+    state.action_data = {}
+    return state
+
+
+def _handle_card_draw(state: GameState, action: str) -> GameState:
+    """Handle drawing cards."""
+    raise NotImplementedError
 
 
 def _handle_extra_food_action(state: GameState, action: str) -> GameState:
@@ -110,6 +187,28 @@ def _handle_extra_food_action(state: GameState, action: str) -> GameState:
             return state
         case _:
             raise ValueError(f"Unknown extra food action: {action}")
+
+
+def _handle_extra_lay_eggs_action(state: GameState, action: str) -> GameState:
+    """Handle player's choice about trading food token for extra egg."""
+    base_amount = state.action_data["base_eggs_amount"]
+
+    match action:
+        case "trade_food":
+            state.action_phase = "select_food_to_discard"
+            return state
+        case "skip_trade":
+            state.action_phase = "laying_eggs"
+            state.action_data = {"eggs_needed": base_amount}
+            return state
+        case _:
+            raise ValueError(f"Unknown extra lay eggs action: {action}")
+
+
+def _handle_extra_card_action(state: GameState, action: str) -> GameState:
+    """Handle player's choice about trading egg for extra card."""
+    # either goes to "select_egg_to_discard" or "drawing_cards"
+    raise NotImplementedError
 
 
 def _handle_bird_discard_action(state: GameState, action: str) -> GameState:
@@ -137,6 +236,33 @@ def _handle_bird_discard_action(state: GameState, action: str) -> GameState:
         return state
 
     raise ValueError(f"Unknown bird discard action: {action}")
+
+
+def _handle_food_discard_action(state: GameState, action: str) -> GameState:
+    """Handle discarding a food token for extra eggs."""
+    if action.startswith("discard_food_"):
+        food_key = action.split("_")[2]
+        current_player = state.players[state.current_player_index]
+
+        if food_key not in current_player.food or current_player.food[food_key] <= 0:
+            raise ValueError(
+                f"Food {food_key} not in player's food stash {current_player.food}"
+            )
+
+        current_player.food[food_key] -= 1
+
+        base_amount = state.action_data["base_eggs_amount"]
+        state.action_phase = "laying_eggs"
+        state.action_data = {"eggs_needed": base_amount + 1}
+
+        return state
+
+    raise ValueError(f"Unknown food discard action: {action}")
+
+
+def _handle_select_egg_discard_action(state: GameState, action: str) -> GameState:
+    """Handle discarding an egg for extra card."""
+    raise NotImplementedError
 
 
 def _handle_play_bird(state: GameState, action: str) -> GameState:
@@ -242,6 +368,8 @@ def _handle_pay_food_cost(state: GameState, action: str) -> GameState:
 
     for food, amount in payment.items():
         current_player.food[food] -= amount
+        if current_player.food[food] == 0:
+            del current_player.food[food]
 
     state.action_data["food_paid"] = True
     state.action_phase = state.action_data["callback"]["action_phase"]
