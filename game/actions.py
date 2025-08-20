@@ -6,6 +6,7 @@ from .utils import (
     get_egg_payment_combinations,
     generate_food_payments,
     get_egg_distribution_combinations,
+    get_card_draw_combinations,
 )
 import json
 
@@ -102,7 +103,13 @@ def _get_egg_laying_actions(state: GameState) -> List[str]:
 
 def _get_card_draw_actions(state: GameState) -> List[str]:
     """Return possible card draw actions."""
-    raise NotImplementedError
+    cards_needed = state.action_data.get("cards_needed")
+    if not cards_needed:
+        raise ValueError(f"No cards needed found in {state.action_data}.")
+
+    available_tray_bird_ids = [bird.id for bird in state.bird_tray]
+    combinations = get_card_draw_combinations(cards_needed, available_tray_bird_ids)
+    return [json.dumps(comb) for comb in combinations]
 
 
 def _get_bird_discard_actions(state: GameState) -> List[str]:
@@ -119,7 +126,15 @@ def _get_food_discard_actions(state: GameState) -> List[str]:
 
 def _get_egg_discard_actions(state: GameState) -> List[str]:
     """Return eggs that can be discarded for extra card."""
-    raise NotImplementedError
+    current_player = state.players[state.current_player_index]
+    actions = []
+
+    for row in current_player.board:
+        for spot in row:
+            if spot.bird is not None and spot.bird.eggs > 0:
+                actions.append(f"discard_egg_{spot.bird.id}")
+
+    return actions
 
 
 def _get_play_bird_actions(state: GameState) -> List[str]:

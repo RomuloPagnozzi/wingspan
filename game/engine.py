@@ -95,9 +95,28 @@ def _handle_lay_eggs(state: GameState) -> GameState:
 
 def _handle_draw_cards(state: GameState) -> GameState:
     """Handles main turn action draw cards."""
-    # check if player can trade egg for extra card
-    # either go to phase "extra card draw action" or "drawing cards action"
-    raise NotImplementedError
+    current_player = state.players[state.current_player_index]
+    wetland_spot = find_leftmost_empty_spot(current_player.board[2])
+
+    played_birds = [
+        spot.bird
+        for row in current_player.board
+        for spot in row
+        if spot.bird is not None
+    ]
+    available_eggs = sum(bird.eggs for bird in played_birds) if played_birds else 0
+    can_trade = available_eggs and (
+        not wetland_spot or (wetland_spot and wetland_spot.extra_resource)
+    )
+    base_amount = wetland_spot.resource_amount if wetland_spot else 3
+
+    if can_trade:
+        state.action_phase = "extra_card_draw_action"
+        state.action_data = {"base_cards_amount": base_amount}
+    else:
+        state.action_phase = "drawing_cards"
+        state.action_data = {"cards_needed": base_amount}
+    return state
 
 
 def _handle_food_collection(state: GameState, action: str) -> GameState:
@@ -170,7 +189,27 @@ def _handle_egg_laying(state: GameState, action: str) -> GameState:
 
 def _handle_card_draw(state: GameState, action: str) -> GameState:
     """Handle drawing cards."""
-    raise NotImplementedError
+    card_selection = json.loads(action)
+    current_player = state.players[state.current_player_index]
+
+    for bird_id in card_selection["tray_birds"]:
+        for bird in state.bird_tray:
+            if bird.id == bird_id:
+                current_player.bird_hand.append(bird)
+                state.bird_tray.remove(bird)
+                break
+
+    for _ in range(card_selection["deck_cards"]):
+        if state.bird_deck:
+            current_player.bird_hand.append(state.bird_deck.pop())
+
+    while len(state.bird_tray) < 3 and state.bird_deck:
+        state.bird_tray.append(state.bird_deck.pop())
+
+    current_player.action_cubes -= 1
+    state.action_phase = "main_turn"
+    state.action_data = {}
+    return state
 
 
 def _handle_extra_food_action(state: GameState, action: str) -> GameState:
@@ -207,8 +246,18 @@ def _handle_extra_lay_eggs_action(state: GameState, action: str) -> GameState:
 
 def _handle_extra_card_action(state: GameState, action: str) -> GameState:
     """Handle player's choice about trading egg for extra card."""
-    # either goes to "select_egg_to_discard" or "drawing_cards"
-    raise NotImplementedError
+    base_amount = state.action_data["base_cards_amount"]
+
+    match action:
+        case "trade_egg":
+            state.action_phase = "select_egg_to_discard"
+            return state
+        case "skip_trade":
+            state.action_phase = "drawing_cards"
+            state.action_data = {"cards_needed": base_amount}
+            return state
+        case _:
+            raise ValueError(f"Unknown extra card action: {action}")
 
 
 def _handle_bird_discard_action(state: GameState, action: str) -> GameState:
@@ -262,7 +311,36 @@ def _handle_food_discard_action(state: GameState, action: str) -> GameState:
 
 def _handle_select_egg_discard_action(state: GameState, action: str) -> GameState:
     """Handle discarding an egg for extra card."""
-    raise NotImplementedError
+    if action.startswith("discard_egg_"):
+        parts = action.split("_")
+        bird_id = int(parts[2])
+        current_player = state.players[state.current_player_index]
+
+        bird_with_egg = None
+        for row in current_player.board:
+            for spot in row:
+                if (
+                    spot.bird is not None
+                    and spot.bird.id == bird_id
+                    and spot.bird.eggs > 0
+                ):
+                    bird_with_egg = spot.bird
+                    break
+            if bird_with_egg:
+                break
+
+        if not bird_with_egg:
+            raise ValueError(f"Bird {bird_id} not found on board or has no eggs")
+
+        bird_with_egg.eggs -= 1
+
+        base_amount = state.action_data["base_cards_amount"]
+        state.action_phase = "drawing_cards"
+        state.action_data = {"cards_needed": base_amount + 1}
+
+        return state
+
+    raise ValueError(f"Unknown egg discard action: {action}")
 
 
 def _handle_play_bird(state: GameState, action: str) -> GameState:
