@@ -1,6 +1,6 @@
 from typing import List, Dict, Tuple, Generator
 from .data import Spot, Player, Bird
-from itertools import combinations_with_replacement, product
+from itertools import combinations_with_replacement, product, combinations
 
 
 def find_leftmost_empty_spot(board_row: List[Spot]) -> Spot | None:
@@ -292,3 +292,28 @@ def _generate_wild_payments(
             for food_type, count in wild_usage.items():
                 payment[food_type] = payment.get(food_type, 0) + count
             yield payment
+
+
+def get_card_draw_combinations(
+    cards_needed: int, available_tray_bird_ids: List[int]
+) -> List[Dict]:
+    """Generate all valid ways to draw cards from mix of tray and deck."""
+
+    if cards_needed <= 0:
+        raise ValueError("Number of cards must be positive")
+
+    combinations_list = []
+    max_from_tray = min(cards_needed, len(available_tray_bird_ids))
+
+    for tray_count in range(max_from_tray + 1):
+        deck_count = cards_needed - tray_count
+
+        if tray_count == 0:
+            combinations_list.append({"tray_birds": [], "deck_cards": deck_count})
+        else:
+            for tray_bird_ids in combinations(available_tray_bird_ids, tray_count):
+                combinations_list.append(
+                    {"tray_birds": list(tray_bird_ids), "deck_cards": deck_count}
+                )
+
+    return combinations_list
