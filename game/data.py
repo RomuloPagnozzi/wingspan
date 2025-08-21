@@ -216,9 +216,3 @@ def score_bonus_card(bonus: Bonus, player: Player) -> int:
         elif n_birds >= score_params["lower_bound"]:
             return score_params["lower_score"]
         return 0
-
-
-@dataclass(slots=True, frozen=True)
-class Action:
-    type: str
-    details: Dict
