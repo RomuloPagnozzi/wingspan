@@ -95,7 +95,7 @@ class Player:
     bonus_hand: List[Bonus] = field(default_factory=lambda: [], init=False)
     food: Dict[str, int] = field(default_factory=init_food, init=False)
     board: List[List[Spot]] = field(default_factory=build_board, init=False, repr=False)
-    action_cubes: int = field(default=8, init=False)
+    action_cubes: int = field(default=9, init=False)
     first_player: bool = field(default=False, init=False)
 
 
@@ -134,7 +134,7 @@ class GameState:
     feeder: Dict = field(default_factory=roll_feeder, init=False)
     round: int = field(default=0, init=False)
     current_player_index: int = field(default=0, init=False)
-    action_phase: str = field(default="main_turn", init=False)
+    action_phase: str = field(default="game_setup", init=False)
     action_data: Dict = field(default_factory=dict, init=False)
 
 

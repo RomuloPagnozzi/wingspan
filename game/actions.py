@@ -7,6 +7,8 @@ from .utils import (
     generate_food_payments,
     get_egg_distribution_combinations,
     get_card_draw_combinations,
+    get_initial_card_combinations,
+    get_food_discard_combinations,
 )
 import json
 
@@ -14,6 +16,12 @@ import json
 def get_actions(state: GameState) -> List[str]:
     """Return list of available actions for current player."""
     match state.action_phase:
+        case "game_setup":
+            return _get_game_setup_actions(state)
+        case "selecting_initial_cards":
+            return _get_selecting_initial_cards_actions(state)
+        case "discarding_food":
+            return _get_discarding_food_actions(state)
         case "main_turn":
             return _get_main_turn_actions(state)
         case "collecting_food":
@@ -42,6 +50,37 @@ def get_actions(state: GameState) -> List[str]:
             return ["trade_egg", "skip_trade"]
         case _:
             raise NotImplementedError
+
+
+def _get_game_setup_actions(state: GameState) -> List[str]:
+    """Return setup actions."""
+    current_player = state.players[state.current_player_index]
+
+    if current_player.action_cubes == 9:
+        return ["start_setup"]
+
+    return ["end_setup"]
+
+
+def _get_selecting_initial_cards_actions(state: GameState) -> List[str]:
+    """Return all valid bird and bonus card combinations for setup."""
+    current_player = state.players[state.current_player_index]
+    combinations = get_initial_card_combinations(
+        [bird.id for bird in current_player.bird_hand],
+        [bonus.id for bonus in current_player.bonus_hand],
+    )
+    return [json.dumps(comb) for comb in combinations]
+
+
+def _get_discarding_food_actions(state: GameState) -> List[str]:
+    """Return all valid food discard combinations."""
+    amount_to_discard = state.action_data.get("amount_to_discard")
+    if not amount_to_discard:
+        raise ValueError(f"No food to discard")
+
+    current_player = state.players[state.current_player_index]
+    combinations = get_food_discard_combinations(current_player.food, amount_to_discard)
+    return [json.dumps(comb) for comb in combinations]
 
 
 def _get_main_turn_actions(state: GameState) -> List[str]:

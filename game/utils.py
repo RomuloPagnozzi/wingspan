@@ -1,6 +1,33 @@
 from typing import List, Dict, Tuple, Generator
-from .data import Spot, Player, Bird
-from itertools import combinations_with_replacement, product, combinations
+from .data import Spot, Player, Bird, GameState
+from itertools import (
+    combinations_with_replacement,
+    product,
+    combinations,
+    cycle,
+    islice,
+)
+
+
+def get_current_player_index(s: GameState) -> int:
+    """Returns current player index."""
+    players = s.players
+    first_player_index = next(
+        i for i, player in enumerate(players) if player.first_player
+    )
+    all_same_cubes = all(
+        player.action_cubes == players[0].action_cubes for player in players
+    )
+
+    if all_same_cubes:
+        return first_player_index
+
+    first_player_actions = players[first_player_index].action_cubes
+    cycle_iterator = islice(cycle(enumerate(players)), first_player_index, None, 1)
+    index, player = next(islice(cycle_iterator, None, None))
+    while player.action_cubes == first_player_actions:
+        index, player = next(islice(cycle_iterator, None, None))
+    return index
 
 
 def find_leftmost_empty_spot(board_row: List[Spot]) -> Spot | None:
@@ -297,7 +324,7 @@ def _generate_wild_payments(
 def get_card_draw_combinations(
     cards_needed: int, available_tray_bird_ids: List[int]
 ) -> List[Dict]:
-    """Generate all valid ways to draw cards from mix of tray and deck."""
+    """Return all valid ways to draw cards from mix of tray and deck."""
 
     if cards_needed <= 0:
         raise ValueError("Number of cards must be positive")
@@ -315,5 +342,55 @@ def get_card_draw_combinations(
                 combinations_list.append(
                     {"tray_birds": list(tray_bird_ids), "deck_cards": deck_count}
                 )
+
+    return combinations_list
+
+
+def get_initial_card_combinations(
+    bird_ids: List[int], bonus_ids: List[int]
+) -> List[Dict]:
+    """Return all valid combinations of birds and bonus cards for setup."""
+    if len(bonus_ids) != 2 or len(bird_ids) != 5:
+        raise ValueError(
+            "Player must have exactly 2 bonus and 5 bird cards during setup"
+        )
+
+    combinations_list = []
+
+    for bonus_id in bonus_ids:
+        for bird_count in range(len(bird_ids) + 1):
+            for bird_combination in combinations(bird_ids, bird_count):
+                combinations_list.append(
+                    {"kept_birds": list(bird_combination), "kept_bonus": bonus_id}
+                )
+
+    return combinations_list
+
+
+def get_food_discard_combinations(
+    food: Dict[str, int], amount_needed: int
+) -> List[Dict[str, int]]:
+    """Return all valid ways to discard the required amount of food tokens."""
+    if amount_needed <= 0:
+        raise ValueError("Amount needed must be positive")
+
+    if sum(food.values()) < amount_needed:
+        raise ValueError(
+            f"Not enough food to discard. Need {amount_needed}, have {sum(food.values())}"
+        )
+
+    available_food = []
+    for food_type, count in food.items():
+        available_food.extend([food_type] * count)
+
+    combinations_list = []
+
+    for food_combination in combinations(available_food, amount_needed):
+        discard_dict = {}
+        for food_type in food_combination:
+            discard_dict[food_type] = discard_dict.get(food_type, 0) + 1
+
+        if discard_dict not in combinations_list:
+            combinations_list.append(discard_dict)
 
     return combinations_list

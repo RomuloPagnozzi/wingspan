@@ -1,6 +1,6 @@
 import copy
 from .data import GameState, roll_feeder, Spot
-from .utils import find_leftmost_empty_spot
+from .utils import find_leftmost_empty_spot, get_current_player_index
 import json
 
 
@@ -9,6 +9,12 @@ def transition_state(state: GameState, action: str) -> GameState:
     new_state = copy.deepcopy(state)
 
     match new_state.action_phase:
+        case "game_setup":
+            return _handle_game_setup(new_state, action)
+        case "selecting_initial_cards":
+            return _handle_selecting_initial_cards(new_state, action)
+        case "discarding_food":
+            return _handle_discarding_food(new_state, action)
         case "main_turn":
             return _handle_main_turn(new_state, action)
         case "collecting_food":
@@ -37,6 +43,69 @@ def transition_state(state: GameState, action: str) -> GameState:
             return _handle_pay_food_cost(new_state, action)
         case _:
             raise NotImplementedError
+
+
+def _handle_game_setup(state: GameState, action: str) -> GameState:
+    """Handle game setup phase transitions."""
+    match action:
+        case "start_setup":
+            state.action_phase = "selecting_initial_cards"
+            return state
+        case "end_setup":
+            state.action_phase = "main_turn"
+            state.round = 1
+            return state
+        case _:
+            raise ValueError(f"Invalid setup action: {action}")
+
+
+def _handle_selecting_initial_cards(state: GameState, action: str) -> GameState:
+    """Handle initial card selection during setup."""
+    selection = json.loads(action)
+
+    current_player = state.players[state.current_player_index]
+    current_player.bird_hand = [
+        bird for bird in current_player.bird_hand if bird.id in selection["kept_birds"]
+    ]
+    current_player.bonus_hand = [
+        bonus
+        for bonus in current_player.bonus_hand
+        if bonus.id == selection["kept_bonus"]
+    ]
+
+    bird_amount = len(selection["kept_birds"])
+    if bird_amount:
+        state.action_data = {"amount_to_discard": bird_amount}
+        state.action_phase = "discarding_food"
+    else:
+        current_player.action_cubes = 8
+        state.action_phase = "game_setup"
+        state.current_player_index = get_current_player_index(state)
+
+    return state
+
+
+def _handle_discarding_food(state: GameState, action: str) -> GameState:
+    """Handle food discarding during setup."""
+    discard = json.loads(action)
+    current_player = state.players[state.current_player_index]
+
+    for food_type, amount in discard.items():
+        if food_type not in current_player.food:
+            raise ValueError(f"Player doesn't have {food_type} to discard")
+        if current_player.food[food_type] < amount:
+            raise ValueError(f"Not enough {food_type} to discard {amount}")
+
+        current_player.food[food_type] -= amount
+        if current_player.food[food_type] == 0:
+            del current_player.food[food_type]
+
+    current_player.action_cubes = 8
+    state.action_data = {}
+    state.action_phase = "game_setup"
+    state.current_player_index = get_current_player_index(state)
+
+    return state
 
 
 def _handle_main_turn(state: GameState, action: str) -> GameState:
