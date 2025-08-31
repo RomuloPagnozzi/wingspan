@@ -91,10 +91,10 @@ def _handle_discarding_food(state: GameState, action: str) -> GameState:
     current_player = state.players[state.current_player_index]
 
     for food_type, amount in discard.items():
-        if food_type not in current_player.food:
-            raise ValueError(f"Player doesn't have {food_type} to discard")
-        if current_player.food[food_type] < amount:
-            raise ValueError(f"Not enough {food_type} to discard {amount}")
+        if current_player.food.get(food_type, 0) < amount:
+            raise ValueError(
+                f"Not enough {food_type} to discard {amount} (have {current_player.food.get(food_type, 0)})"
+            )
 
         current_player.food[food_type] -= amount
         if current_player.food[food_type] == 0:
@@ -201,7 +201,10 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
             raise ValueError(f"Die {die_index} doesn't have {food_type}")
 
         current_player = state.players[state.current_player_index]
-        current_player.food[food_type] += 1
+        if food_type in current_player.food:
+            current_player.food[food_type] += 1
+        else:
+            current_player.food[food_type] = 1
 
         del state.feeder[die_index]
 
@@ -214,6 +217,7 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
             current_player.action_cubes -= 1
             state.action_phase = "main_turn"
             state.action_data = {}
+            state.current_player_index = get_current_player_index(state)
         return state
 
     elif action == "reroll_all":
@@ -253,6 +257,7 @@ def _handle_egg_laying(state: GameState, action: str) -> GameState:
     current_player.action_cubes -= 1
     state.action_phase = "main_turn"
     state.action_data = {}
+    state.current_player_index = get_current_player_index(state)
     return state
 
 
@@ -278,6 +283,7 @@ def _handle_card_draw(state: GameState, action: str) -> GameState:
     current_player.action_cubes -= 1
     state.action_phase = "main_turn"
     state.action_data = {}
+    state.current_player_index = get_current_player_index(state)
     return state
 
 
@@ -362,12 +368,14 @@ def _handle_food_discard_action(state: GameState, action: str) -> GameState:
         food_key = action.split("_")[2]
         current_player = state.players[state.current_player_index]
 
-        if food_key not in current_player.food or current_player.food[food_key] <= 0:
+        if current_player.food.get(food_key, 0) <= 0:
             raise ValueError(
                 f"Food {food_key} not in player's food stash {current_player.food}"
             )
 
         current_player.food[food_key] -= 1
+        if current_player.food[food_key] == 0:
+            del current_player.food[food_key]
 
         base_amount = state.action_data["base_eggs_amount"]
         state.action_phase = "laying_eggs"
@@ -467,6 +475,7 @@ def _handle_play_bird(state: GameState, action: str) -> GameState:
 
         state.action_phase = "main_turn"
         state.action_data = {}
+        state.current_player_index = get_current_player_index(state)
         return state
 
     raise ValueError(f"Unknown play bird aciton: {action}")
@@ -505,12 +514,9 @@ def _handle_pay_food_cost(state: GameState, action: str) -> GameState:
     payment = json.loads(action)
     current_player = state.players[state.current_player_index]
 
-    if not all(food in current_player.food for food in payment.keys()):
-        raise ValueError(
-            f"Food from player {current_player.food} and payment {payment.keys()} do not match."
-        )
-
-    if not all(current_player.food[food] >= amount for food, amount in payment.items()):
+    if not all(
+        current_player.food.get(food, 0) >= amount for food, amount in payment.items()
+    ):
         raise ValueError("Not enough food to pay food cost.")
 
     for food, amount in payment.items():

@@ -138,7 +138,7 @@ class GameState:
     action_data: Dict = field(default_factory=dict, init=False)
 
 
-def initiate_state(n_players):
+def initiate_state(n_players) -> GameState:
     if n_players not in [2, 3, 4, 5]:
         raise Exception("Forbidden number of players")
     s = GameState()
