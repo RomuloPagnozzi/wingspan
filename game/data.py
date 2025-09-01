@@ -24,6 +24,9 @@ class Bird:
     stashed_food: int = field(default=0, init=False)
     tucked_cards: int = field(default=0, init=False)
 
+    def __deepcopy__(self, memo):
+        return self
+
     def __str__(self) -> str:
         cost_str = " or ".join(
             f"{{{', '.join(f'{k}: {v}' for k, v in cost.items())}}}" if cost else "free"
@@ -86,6 +89,9 @@ class Bonus:
     condition: str
     score_params: Dict
     valid_birds_ids: Set[int] = field(repr=False)
+
+    def __deepcopy__(self, memo):
+        return self
 
 
 @dataclass(slots=True)
