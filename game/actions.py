@@ -15,41 +15,10 @@ import json
 
 def get_actions(state: GameState) -> List[str]:
     """Return list of available actions for current player."""
-    match state.action_phase:
-        case "game_setup":
-            return _get_game_setup_actions(state)
-        case "selecting_initial_cards":
-            return _get_selecting_initial_cards_actions(state)
-        case "discarding_food":
-            return _get_discarding_food_actions(state)
-        case "main_turn":
-            return _get_main_turn_actions(state)
-        case "collecting_food":
-            return _get_food_collection_actions(state)
-        case "laying_eggs":
-            return _get_egg_laying_actions(state)
-        case "drawing_cards":
-            return _get_card_draw_actions(state)
-        case "select_bird_to_discard":
-            return _get_bird_discard_actions(state)
-        case "select_food_to_discard":
-            return _get_food_discard_actions(state)
-        case "select_egg_to_discard":
-            return _get_egg_discard_actions(state)
-        case "play_bird":
-            return _get_play_bird_actions(state)
-        case "pay_egg_cost":
-            return _get_pay_egg_cost_actions(state)
-        case "pay_food_cost":
-            return _get_pay_food_cost_actions(state)
-        case "extra_food_action":
-            return ["trade_bird", "skip_trade"]
-        case "extra_lay_eggs_action":
-            return ["trade_food", "skip_trade"]
-        case "extra_card_draw_action":
-            return ["trade_egg", "skip_trade"]
-        case _:
-            raise NotImplementedError
+    generator = _ACTION_GENERATORS.get(state.action_phase)
+    if not generator:
+        raise NotImplementedError(f"No action generator for: {state.action_phase}")
+    return generator(state)
 
 
 def _get_game_setup_actions(state: GameState) -> List[str]:
@@ -211,3 +180,23 @@ def _get_pay_food_cost_actions(state: GameState) -> List[str]:
     current_player = state.players[state.current_player_index]
     combinations = generate_food_payments(food_cost, current_player.food)
     return [json.dumps(comb) for comb in combinations]
+
+
+_ACTION_GENERATORS = {
+    "game_setup": _get_game_setup_actions,
+    "selecting_initial_cards": _get_selecting_initial_cards_actions,
+    "discarding_food": _get_discarding_food_actions,
+    "main_turn": _get_main_turn_actions,
+    "collecting_food": _get_food_collection_actions,
+    "laying_eggs": _get_egg_laying_actions,
+    "drawing_cards": _get_card_draw_actions,
+    "select_bird_to_discard": _get_bird_discard_actions,
+    "select_food_to_discard": _get_food_discard_actions,
+    "select_egg_to_discard": _get_egg_discard_actions,
+    "play_bird": _get_play_bird_actions,
+    "pay_egg_cost": _get_pay_egg_cost_actions,
+    "pay_food_cost": _get_pay_food_cost_actions,
+    "extra_food_action": lambda state: ["trade_bird", "skip_trade"],
+    "extra_lay_eggs_action": lambda state: ["trade_food", "skip_trade"],
+    "extra_card_draw_action": lambda state: ["trade_egg", "skip_trade"],
+}

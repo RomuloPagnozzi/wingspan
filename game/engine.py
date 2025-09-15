@@ -7,42 +7,10 @@ import json
 def transition_state(state: GameState, action: str) -> GameState:
     """Return new state after applying the player's choice."""
     new_state = copy.deepcopy(state)
-
-    match new_state.action_phase:
-        case "game_setup":
-            return _handle_game_setup(new_state, action)
-        case "selecting_initial_cards":
-            return _handle_selecting_initial_cards(new_state, action)
-        case "discarding_food":
-            return _handle_discarding_food(new_state, action)
-        case "main_turn":
-            return _handle_main_turn(new_state, action)
-        case "collecting_food":
-            return _handle_food_collection(new_state, action)
-        case "laying_eggs":
-            return _handle_egg_laying(new_state, action)
-        case "drawing_cards":
-            return _handle_card_draw(new_state, action)
-        case "extra_food_action":
-            return _handle_extra_food_action(new_state, action)
-        case "extra_lay_eggs_action":
-            return _handle_extra_lay_eggs_action(new_state, action)
-        case "extra_card_draw_action":
-            return _handle_extra_card_action(new_state, action)
-        case "select_bird_to_discard":
-            return _handle_bird_discard_action(new_state, action)
-        case "select_food_to_discard":
-            return _handle_food_discard_action(new_state, action)
-        case "select_egg_to_discard":
-            return _handle_select_egg_discard_action(new_state, action)
-        case "play_bird":
-            return _handle_play_bird(new_state, action)
-        case "pay_egg_cost":
-            return _handle_pay_egg_cost(new_state, action)
-        case "pay_food_cost":
-            return _handle_pay_food_cost(new_state, action)
-        case _:
-            raise NotImplementedError
+    handler = _ACTION_HANDLERS.get(new_state.action_phase)
+    if not handler:
+        raise NotImplementedError(f"No handler for: {new_state.action_phase}")
+    return handler(new_state, action)
 
 
 def _handle_game_setup(state: GameState, action: str) -> GameState:
@@ -527,3 +495,23 @@ def _handle_pay_food_cost(state: GameState, action: str) -> GameState:
     state.action_data["food_paid"] = True
     state.action_phase = state.action_data["callback"]["action_phase"]
     return transition_state(state, state.action_data["callback"]["action"])
+
+
+_ACTION_HANDLERS = {
+    "game_setup": _handle_game_setup,
+    "selecting_initial_cards": _handle_selecting_initial_cards,
+    "discarding_food": _handle_discarding_food,
+    "main_turn": _handle_main_turn,
+    "collecting_food": _handle_food_collection,
+    "laying_eggs": _handle_egg_laying,
+    "drawing_cards": _handle_card_draw,
+    "extra_food_action": _handle_extra_food_action,
+    "extra_lay_eggs_action": _handle_extra_lay_eggs_action,
+    "extra_card_draw_action": _handle_extra_card_action,
+    "select_bird_to_discard": _handle_bird_discard_action,
+    "select_food_to_discard": _handle_food_discard_action,
+    "select_egg_to_discard": _handle_select_egg_discard_action,
+    "play_bird": _handle_play_bird,
+    "pay_egg_cost": _handle_pay_egg_cost,
+    "pay_food_cost": _handle_pay_food_cost,
+}
