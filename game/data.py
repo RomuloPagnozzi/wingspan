@@ -19,7 +19,6 @@ class Bird:
     nest: str
     egg_limit: int
     wingspan: int
-    power: Dict = field(repr=False)
     eggs: int = field(default=0, init=False)
     stashed_food: int = field(default=0, init=False)
     tucked_cards: int = field(default=0, init=False)
@@ -111,6 +110,18 @@ def load_deck(type: str) -> List:
         deck.extend(pickle.load(f))
     random.shuffle(deck)
     return deck
+
+
+def load_powers() -> Dict:
+    """Load powers data from powers.pickle"""
+    with open("game/assets/powers.pickle", "rb") as f:
+        return pickle.load(f)
+
+
+def get_bird_power(bird_id: int) -> Dict:
+    """Get power data for a specific bird ID"""
+    powers = load_powers()
+    return powers.get(bird_id, {})
 
 
 def roll_feeder():

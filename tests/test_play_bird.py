@@ -23,7 +23,6 @@ def create_test_bird_with_cost():
         nest="bowl",
         egg_limit=2,
         wingspan=25,
-        power={}
     )
 
 def create_test_bird_with_eggs():
@@ -37,7 +36,6 @@ def create_test_bird_with_eggs():
         nest="bowl",
         egg_limit=3,
         wingspan=20,
-        power={}
     )
     bird.eggs = 2  # Has 2 eggs available
     return bird
@@ -202,7 +200,6 @@ def create_free_bird():
         nest="bowl",
         egg_limit=2,
         wingspan=15,
-        power={}
     )
 
 def create_bird_with_2_to_1_trade():
@@ -216,7 +213,6 @@ def create_bird_with_2_to_1_trade():
         nest="cavity",
         egg_limit=2,
         wingspan=20,
-        power={}
     )
 
 def create_bird_with_wild_cost():
@@ -230,7 +226,6 @@ def create_bird_with_wild_cost():
         nest="platform",
         egg_limit=3,
         wingspan=25,
-        power={}
     )
 
 def create_bird_with_mixed_cost():
@@ -244,7 +239,6 @@ def create_bird_with_mixed_cost():
         nest="bowl",
         egg_limit=2,
         wingspan=30,
-        power={}
     )
 
 def test_free_bird_no_egg_cost():

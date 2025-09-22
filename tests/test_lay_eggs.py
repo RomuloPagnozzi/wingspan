@@ -23,7 +23,6 @@ def create_test_bird_with_capacity():
         nest="bowl",
         egg_limit=3,
         wingspan=20,
-        power={}
     )
     bird.eggs = 1  # Has 1 egg, can receive 2 more
     return bird
@@ -39,7 +38,6 @@ def create_second_test_bird():
         nest="cavity",
         egg_limit=2,
         wingspan=25,
-        power={}
     )
     bird.eggs = 0  # Empty, can receive 2 eggs
     return bird

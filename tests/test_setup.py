@@ -23,7 +23,6 @@ def create_test_bird(bird_id, name="Test Bird"):
         nest="bowl",
         egg_limit=2,
         wingspan=20,
-        power={}
     )
 
 def create_test_bonus(bonus_id, name="Test Bonus"):
