@@ -1,6 +1,11 @@
 import copy
 from .data import GameState, roll_feeder, Spot
-from .utils import find_leftmost_empty_spot, get_current_player_index
+from .utils import (
+    find_leftmost_empty_spot,
+    get_current_player_index,
+    get_triggered_powers,
+)
+from .powers import execute_power
 import json
 
 
@@ -183,9 +188,18 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
 
         if not state.action_data["food_needed"]:
             current_player.action_cubes -= 1
-            state.action_phase = "main_turn"
-            state.action_data = {}
-            state.current_player_index = get_current_player_index(state)
+
+            triggered_powers = get_triggered_powers(current_player, "forest", "brown")
+            if triggered_powers:
+                state.action_phase = "activating_powers"
+                state.action_data = {
+                    "powers_queue": triggered_powers,
+                    "current_power_index": 0,
+                }
+            else:
+                state.action_phase = "main_turn"
+                state.action_data = {}
+                state.current_player_index = get_current_player_index(state)
         return state
 
     elif action == "reroll_all":
@@ -223,9 +237,15 @@ def _handle_egg_laying(state: GameState, action: str) -> GameState:
         bird.eggs += eggs_to_lay[bird.id]
 
     current_player.action_cubes -= 1
-    state.action_phase = "main_turn"
-    state.action_data = {}
-    state.current_player_index = get_current_player_index(state)
+
+    triggered_powers = get_triggered_powers(current_player, "grassland", "brown")
+    if triggered_powers:
+        state.action_phase = "activating_powers"
+        state.action_data = {"powers_queue": triggered_powers, "current_power_index": 0}
+    else:
+        state.action_phase = "main_turn"
+        state.action_data = {}
+        state.current_player_index = get_current_player_index(state)
     return state
 
 
@@ -249,9 +269,15 @@ def _handle_card_draw(state: GameState, action: str) -> GameState:
         state.bird_tray.append(state.bird_deck.pop())
 
     current_player.action_cubes -= 1
-    state.action_phase = "main_turn"
-    state.action_data = {}
-    state.current_player_index = get_current_player_index(state)
+
+    triggered_powers = get_triggered_powers(current_player, "wetland", "brown")
+    if triggered_powers:
+        state.action_phase = "activating_powers"
+        state.action_data = {"powers_queue": triggered_powers, "current_power_index": 0}
+    else:
+        state.action_phase = "main_turn"
+        state.action_data = {}
+        state.current_player_index = get_current_player_index(state)
     return state
 
 
@@ -497,6 +523,36 @@ def _handle_pay_food_cost(state: GameState, action: str) -> GameState:
     return transition_state(state, state.action_data["callback"]["action"])
 
 
+def _handle_activating_powers(state: GameState, action: str) -> GameState:
+    """Handle power activation choices."""
+    powers_queue = state.action_data["powers_queue"]
+    current_power_index = state.action_data["current_power_index"]
+
+    if current_power_index >= len(powers_queue):
+        raise ValueError("No more powers in queue to activate")
+
+    current_power = powers_queue[current_power_index]
+
+    if action == "activate_power":
+        state = execute_power(state, current_power["power_data"])
+    elif action == "skip_power":
+        pass
+    elif action.startswith("activate_"):
+        choice = action.replace("activate_", "")
+        state = execute_power(state, current_power["power_data"], choice)
+    else:
+        raise ValueError(f"Unknown power activation action: {action}")
+
+    state.action_data["current_power_index"] += 1
+
+    if state.action_data["current_power_index"] >= len(powers_queue):
+        state.action_phase = "main_turn"
+        state.action_data = {}
+        state.current_player_index = get_current_player_index(state)
+
+    return state
+
+
 _ACTION_HANDLERS = {
     "game_setup": _handle_game_setup,
     "selecting_initial_cards": _handle_selecting_initial_cards,
@@ -514,4 +570,5 @@ _ACTION_HANDLERS = {
     "play_bird": _handle_play_bird,
     "pay_egg_cost": _handle_pay_egg_cost,
     "pay_food_cost": _handle_pay_food_cost,
+    "activating_powers": _handle_activating_powers,
 }

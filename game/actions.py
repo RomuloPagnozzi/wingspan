@@ -10,6 +10,7 @@ from .utils import (
     get_initial_card_combinations,
     get_food_discard_combinations,
 )
+from .powers import can_execute_power, get_power_choices
 import json
 
 
@@ -182,6 +183,31 @@ def _get_pay_food_cost_actions(state: GameState) -> List[str]:
     return [json.dumps(comb) for comb in combinations]
 
 
+def _get_power_activation_actions(state: GameState) -> List[str]:
+    """Return power activation options."""
+    powers_queue = state.action_data.get("powers_queue")
+    current_power_index = state.action_data.get("current_power_index")
+
+    if not powers_queue or current_power_index is None:
+        raise ValueError("No power queue or index found in action_data")
+
+    if current_power_index >= len(powers_queue):
+        raise ValueError("Power index out of range")
+
+    current_power = powers_queue[current_power_index]
+    actions = ["skip_power"]
+
+    if can_execute_power(state, current_power["power_data"]):
+        choices = get_power_choices(state, current_power["power_data"])
+
+        if choices:
+            actions.extend([f"activate_{choice}" for choice in choices])
+        else:
+            actions.append("activate_power")
+
+    return actions
+
+
 _ACTION_GENERATORS = {
     "game_setup": _get_game_setup_actions,
     "selecting_initial_cards": _get_selecting_initial_cards_actions,
@@ -196,6 +222,7 @@ _ACTION_GENERATORS = {
     "play_bird": _get_play_bird_actions,
     "pay_egg_cost": _get_pay_egg_cost_actions,
     "pay_food_cost": _get_pay_food_cost_actions,
+    "activating_powers": _get_power_activation_actions,
     "extra_food_action": lambda state: ["trade_bird", "skip_trade"],
     "extra_lay_eggs_action": lambda state: ["trade_food", "skip_trade"],
     "extra_card_draw_action": lambda state: ["trade_egg", "skip_trade"],

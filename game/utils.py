@@ -1,5 +1,5 @@
 from typing import List, Dict, Tuple, Generator
-from .data import Spot, Player, Bird, GameState
+from .data import Spot, Player, Bird, GameState, get_bird_power
 from itertools import (
     combinations_with_replacement,
     product,
@@ -394,3 +394,36 @@ def get_food_discard_combinations(
             combinations_list.append(discard_dict)
 
     return combinations_list
+
+
+def get_triggered_powers(player: Player, habitat: str, color: str) -> List[Dict]:
+    """Get powers whose trigger conditions are met for a specific habitat and color."""
+    triggered_powers = []
+
+    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
+    if habitat not in habitat_map:
+        return triggered_powers
+
+    habitat_row = player.board[habitat_map[habitat]]
+
+    for spot in reversed(habitat_row):
+        if spot.bird is not None:
+            power_data = get_bird_power(spot.bird.id)
+
+            if (
+                power_data
+                and power_data.get("color") == color
+                and power_data.get("data")
+                and "id" in power_data["data"]
+            ):
+
+                triggered_powers.append(
+                    {
+                        "bird_id": spot.bird.id,
+                        "power_id": power_data["data"]["id"],
+                        "power_data": power_data,
+                        "spot": spot,
+                    }
+                )
+
+    return triggered_powers
