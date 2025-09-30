@@ -195,7 +195,10 @@ def _get_power_activation_actions(state: GameState) -> List[str]:
         raise ValueError("Power index out of range")
 
     current_power = powers_queue[current_power_index]
-    actions = ["skip_power"]
+    actions = []
+
+    if not state.action_data.get("choice_powers"):
+        actions.append("skip_power")
 
     if can_execute_power(state, current_power["power_data"]):
         choices = get_power_choices(state, current_power["power_data"])

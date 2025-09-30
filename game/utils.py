@@ -396,6 +396,22 @@ def get_food_discard_combinations(
     return combinations_list
 
 
+def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[Bird]:
+    """Get all birds on player's board that match nest type and have egg capacity."""
+    valid_birds = []
+
+    for row in player.board:
+        for spot in row:
+            if (
+                spot.bird is not None
+                and spot.bird.nest == nest_type
+                and spot.bird.eggs < spot.bird.egg_limit
+            ):
+                valid_birds.append(spot.bird)
+
+    return valid_birds
+
+
 def get_triggered_powers(player: Player, habitat: str, color: str) -> List[Dict]:
     """Get powers whose trigger conditions are met for a specific habitat and color."""
     triggered_powers = []
