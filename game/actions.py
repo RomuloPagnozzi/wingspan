@@ -1,5 +1,5 @@
 from typing import List
-from .data import GameState
+from .data import GameState, GamePhase
 from .utils import (
     can_play_a_bird,
     generate_playable_bird_spots,
@@ -16,9 +16,9 @@ import json
 
 def get_actions(state: GameState) -> List[str]:
     """Return list of available actions for current player."""
-    generator = _ACTION_GENERATORS.get(state.action_phase)
+    generator = _ACTION_GENERATORS.get(state.game_phase)
     if not generator:
-        raise NotImplementedError(f"No action generator for: {state.action_phase}")
+        raise NotImplementedError(f"No action generator for: {state.game_phase}")
     return generator(state)
 
 
@@ -32,7 +32,7 @@ def _get_game_setup_actions(state: GameState) -> List[str]:
     return ["end_setup"]
 
 
-def _get_selecting_initial_cards_actions(state: GameState) -> List[str]:
+def _get_select_initial_cards_actions(state: GameState) -> List[str]:
     """Return all valid bird and bonus card combinations for setup."""
     current_player = state.players[state.current_player_index]
     combinations = get_initial_card_combinations(
@@ -42,7 +42,7 @@ def _get_selecting_initial_cards_actions(state: GameState) -> List[str]:
     return [json.dumps(comb) for comb in combinations]
 
 
-def _get_discarding_food_actions(state: GameState) -> List[str]:
+def _get_discard_food_actions(state: GameState) -> List[str]:
     """Return all valid food discard combinations."""
     amount_to_discard = state.action_data.get("amount_to_discard")
     if not amount_to_discard:
@@ -79,7 +79,7 @@ def _get_main_turn_actions(state: GameState) -> List[str]:
     return actions
 
 
-def _get_food_collection_actions(state: GameState) -> List[str]:
+def _get_collect_food_actions(state: GameState) -> List[str]:
     """Return possible foods to collect."""
     actions = []
 
@@ -93,7 +93,7 @@ def _get_food_collection_actions(state: GameState) -> List[str]:
     return actions
 
 
-def _get_egg_laying_actions(state: GameState) -> List[str]:
+def _get_lay_eggs_actions(state: GameState) -> List[str]:
     """Return possible lay egg actions."""
     eggs_needed = state.action_data.get("eggs_needed")
     if not eggs_needed:
@@ -110,7 +110,7 @@ def _get_egg_laying_actions(state: GameState) -> List[str]:
     return [json.dumps(comb) for comb in combinations]
 
 
-def _get_card_draw_actions(state: GameState) -> List[str]:
+def _get_draw_cards_actions(state: GameState) -> List[str]:
     """Return possible card draw actions."""
     cards_needed = state.action_data.get("cards_needed")
     if not cards_needed:
@@ -183,7 +183,7 @@ def _get_pay_food_cost_actions(state: GameState) -> List[str]:
     return [json.dumps(comb) for comb in combinations]
 
 
-def _get_power_activation_actions(state: GameState) -> List[str]:
+def _get_activate_powers_actions(state: GameState) -> List[str]:
     """Return power activation options."""
     powers_queue = state.action_data.get("powers_queue")
     current_power_index = state.action_data.get("current_power_index")
@@ -200,8 +200,8 @@ def _get_power_activation_actions(state: GameState) -> List[str]:
     if not state.action_data.get("choice_powers"):
         actions.append("skip_power")
 
-    if can_execute_power(state, current_power["power_data"]):
-        choices = get_power_choices(state, current_power["power_data"])
+    if can_execute_power(state, current_power):
+        choices = get_power_choices(state, current_power)
 
         if choices:
             actions.extend([f"activate_{choice}" for choice in choices])
@@ -212,21 +212,21 @@ def _get_power_activation_actions(state: GameState) -> List[str]:
 
 
 _ACTION_GENERATORS = {
-    "game_setup": _get_game_setup_actions,
-    "selecting_initial_cards": _get_selecting_initial_cards_actions,
-    "discarding_food": _get_discarding_food_actions,
-    "main_turn": _get_main_turn_actions,
-    "collecting_food": _get_food_collection_actions,
-    "laying_eggs": _get_egg_laying_actions,
-    "drawing_cards": _get_card_draw_actions,
-    "select_bird_to_discard": _get_bird_discard_actions,
-    "select_food_to_discard": _get_food_discard_actions,
-    "select_egg_to_discard": _get_egg_discard_actions,
-    "play_bird": _get_play_bird_actions,
-    "pay_egg_cost": _get_pay_egg_cost_actions,
-    "pay_food_cost": _get_pay_food_cost_actions,
-    "activating_powers": _get_power_activation_actions,
-    "extra_food_action": lambda state: ["trade_bird", "skip_trade"],
-    "extra_lay_eggs_action": lambda state: ["trade_food", "skip_trade"],
-    "extra_card_draw_action": lambda state: ["trade_egg", "skip_trade"],
+    GamePhase.GAME_SETUP: _get_game_setup_actions,
+    GamePhase.MAIN_TURN: _get_main_turn_actions,
+    GamePhase.EXTRA_FOOD_ACTION: lambda state: ["trade_bird", "skip_trade"],
+    GamePhase.EXTRA_LAY_EGGS_ACTION: lambda state: ["trade_food", "skip_trade"],
+    GamePhase.EXTRA_CARD_DRAW_ACTION: lambda state: ["trade_egg", "skip_trade"],
+    GamePhase.SELECT_INITIAL_CARDS: _get_select_initial_cards_actions,
+    GamePhase.DISCARD_FOOD: _get_discard_food_actions,
+    GamePhase.COLLECT_FOOD: _get_collect_food_actions,
+    GamePhase.LAY_EGGS: _get_lay_eggs_actions,
+    GamePhase.DRAW_CARDS: _get_draw_cards_actions,
+    GamePhase.PLAY_BIRD: _get_play_bird_actions,
+    GamePhase.SELECT_BIRD_TO_DISCARD: _get_bird_discard_actions,
+    GamePhase.SELECT_FOOD_TO_DISCARD: _get_food_discard_actions,
+    GamePhase.SELECT_EGG_TO_DISCARD: _get_egg_discard_actions,
+    GamePhase.PAY_EGG_COST: _get_pay_egg_cost_actions,
+    GamePhase.PAY_FOOD_COST: _get_pay_food_cost_actions,
+    GamePhase.ACTIVATE_POWERS: _get_activate_powers_actions,
 }

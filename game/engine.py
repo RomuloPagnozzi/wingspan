@@ -1,5 +1,5 @@
 import copy
-from .data import GameState, roll_feeder, Spot
+from .data import GameState, roll_feeder, Spot, GamePhase
 from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
@@ -10,29 +10,29 @@ import json
 
 
 def transition_state(state: GameState, action: str) -> GameState:
-    """Return new state after applying the player's choice."""
+    """Return new state after applying an action."""
     new_state = copy.deepcopy(state)
-    handler = _ACTION_HANDLERS.get(new_state.action_phase)
+    handler = _ACTION_HANDLERS.get(new_state.game_phase)
     if not handler:
-        raise NotImplementedError(f"No handler for: {new_state.action_phase}")
+        raise NotImplementedError(f"No handler for: {new_state.game_phase}")
     return handler(new_state, action)
 
 
-def _handle_game_setup(state: GameState, action: str) -> GameState:
+def _route_game_setup(state: GameState, action: str) -> GameState:
     """Handle game setup phase transitions."""
     match action:
         case "start_setup":
-            state.action_phase = "selecting_initial_cards"
+            state.game_phase = GamePhase.SELECT_INITIAL_CARDS
             return state
         case "end_setup":
-            state.action_phase = "main_turn"
+            state.game_phase = GamePhase.MAIN_TURN
             state.round = 1
             return state
         case _:
-            raise ValueError(f"Invalid setup action: {action}")
+            raise ValueError(f"Invalid action: {action}")
 
 
-def _handle_selecting_initial_cards(state: GameState, action: str) -> GameState:
+def _select_initial_cards(state: GameState, action: str) -> GameState:
     """Handle initial card selection during setup."""
     selection = json.loads(action)
 
@@ -49,24 +49,24 @@ def _handle_selecting_initial_cards(state: GameState, action: str) -> GameState:
     bird_amount = len(selection["kept_birds"])
     if bird_amount:
         state.action_data = {"amount_to_discard": bird_amount}
-        state.action_phase = "discarding_food"
+        state.game_phase = GamePhase.DISCARD_FOOD
     else:
         current_player.action_cubes = 8
-        state.action_phase = "game_setup"
+        state.game_phase = GamePhase.GAME_SETUP
         state.current_player_index = get_current_player_index(state)
-
     return state
 
 
-def _handle_discarding_food(state: GameState, action: str) -> GameState:
+def _discard_food(state: GameState, action: str) -> GameState:
     """Handle food discarding during setup."""
     discard = json.loads(action)
-    current_player = state.players[state.current_player_index]
 
+    current_player = state.players[state.current_player_index]
     for food_type, amount in discard.items():
         if current_player.food.get(food_type, 0) < amount:
             raise ValueError(
-                f"Not enough {food_type} to discard {amount} (have {current_player.food.get(food_type, 0)})"
+                f"""Not enough {food_type} to discard {amount}
+                (there's {current_player.food.get(food_type, 0)})"""
             )
 
         current_player.food[food_type] -= amount
@@ -75,29 +75,28 @@ def _handle_discarding_food(state: GameState, action: str) -> GameState:
 
     current_player.action_cubes = 8
     state.action_data = {}
-    state.action_phase = "game_setup"
+    state.game_phase = GamePhase.GAME_SETUP
     state.current_player_index = get_current_player_index(state)
-
     return state
 
 
-def _handle_main_turn(state: GameState, action: str) -> GameState:
+def _route_main_turn(state: GameState, action: str) -> GameState:
     """Handle selection of one of the 4 main Wingspan actions."""
     match action:
         case "gain_food":
-            return _handle_gain_food(state)
+            return _execute_gain_food(state)
         case "play_bird":
-            state.action_phase = "play_bird"
+            state.game_phase = GamePhase.PLAY_BIRD
             return state
         case "lay_eggs":
-            return _handle_lay_eggs(state)
+            return _execute_lay_eggs(state)
         case "draw_cards":
-            return _handle_draw_cards(state)
+            return _execute_draw_cards(state)
         case _:
-            raise ValueError(f"Unknown main turn action {action}")
+            raise ValueError(f"Invalid action: {action}")
 
 
-def _handle_gain_food(state: GameState) -> GameState:
+def _execute_gain_food(state: GameState) -> GameState:
     """Handles main turn action gain food."""
     current_player = state.players[state.current_player_index]
     forest_spot = find_leftmost_empty_spot(current_player.board[0])
@@ -108,15 +107,15 @@ def _handle_gain_food(state: GameState) -> GameState:
     base_amount = forest_spot.resource_amount if forest_spot else 3
 
     if can_trade:
-        state.action_phase = "extra_food_action"
+        state.game_phase = GamePhase.EXTRA_FOOD_ACTION
         state.action_data = {"base_food_amount": base_amount}
     else:
-        state.action_phase = "collecting_food"
+        state.game_phase = GamePhase.COLLECT_FOOD
         state.action_data = {"food_needed": base_amount}
     return state
 
 
-def _handle_lay_eggs(state: GameState) -> GameState:
+def _execute_lay_eggs(state: GameState) -> GameState:
     """Handles main turn action lay eggs."""
     current_player = state.players[state.current_player_index]
     grassland_spot = find_leftmost_empty_spot(current_player.board[1])
@@ -127,15 +126,15 @@ def _handle_lay_eggs(state: GameState) -> GameState:
     base_amount = grassland_spot.resource_amount if grassland_spot else 4
 
     if can_trade:
-        state.action_phase = "extra_lay_eggs_action"
+        state.game_phase = GamePhase.EXTRA_LAY_EGGS_ACTION
         state.action_data = {"base_eggs_amount": base_amount}
     else:
-        state.action_phase = "laying_eggs"
+        state.game_phase = GamePhase.LAY_EGGS
         state.action_data = {"eggs_needed": base_amount}
     return state
 
 
-def _handle_draw_cards(state: GameState) -> GameState:
+def _execute_draw_cards(state: GameState) -> GameState:
     """Handles main turn action draw cards."""
     current_player = state.players[state.current_player_index]
     wetland_spot = find_leftmost_empty_spot(current_player.board[2])
@@ -153,15 +152,15 @@ def _handle_draw_cards(state: GameState) -> GameState:
     base_amount = wetland_spot.resource_amount if wetland_spot else 3
 
     if can_trade:
-        state.action_phase = "extra_card_draw_action"
+        state.game_phase = GamePhase.EXTRA_CARD_DRAW_ACTION
         state.action_data = {"base_cards_amount": base_amount}
     else:
-        state.action_phase = "drawing_cards"
+        state.game_phase = GamePhase.DRAW_CARDS
         state.action_data = {"cards_needed": base_amount}
     return state
 
 
-def _handle_food_collection(state: GameState, action: str) -> GameState:
+def _collect_food(state: GameState, action: str) -> GameState:
     """Handle dice selection during food collection."""
     if action.startswith("select_die_"):
         parts = action.split("_")
@@ -191,13 +190,13 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
 
             triggered_powers = get_triggered_powers(current_player, "forest", "brown")
             if triggered_powers:
-                state.action_phase = "activating_powers"
+                state.game_phase = GamePhase.ACTIVATE_POWERS
                 state.action_data = {
                     "powers_queue": triggered_powers,
                     "current_power_index": 0,
                 }
             else:
-                state.action_phase = "main_turn"
+                state.game_phase = GamePhase.MAIN_TURN
                 state.action_data = {}
                 state.current_player_index = get_current_player_index(state)
         return state
@@ -207,11 +206,11 @@ def _handle_food_collection(state: GameState, action: str) -> GameState:
         return state
 
     raise NotImplementedError(
-        f"Current state {state.action_phase, state.action_data, action}"
+        f"Current state {state.game_phase, state.action_data, action}"
     )
 
 
-def _handle_egg_laying(state: GameState, action: str) -> GameState:
+def _lay_eggs(state: GameState, action: str) -> GameState:
     """Handle laying eggs in birds."""
     eggs_to_lay = {int(k): v for k, v in json.loads(action).items()}
     current_player = state.players[state.current_player_index]
@@ -240,16 +239,16 @@ def _handle_egg_laying(state: GameState, action: str) -> GameState:
 
     triggered_powers = get_triggered_powers(current_player, "grassland", "brown")
     if triggered_powers:
-        state.action_phase = "activating_powers"
+        state.game_phase = GamePhase.ACTIVATE_POWERS
         state.action_data = {"powers_queue": triggered_powers, "current_power_index": 0}
     else:
-        state.action_phase = "main_turn"
+        state.game_phase = GamePhase.MAIN_TURN
         state.action_data = {}
         state.current_player_index = get_current_player_index(state)
     return state
 
 
-def _handle_card_draw(state: GameState, action: str) -> GameState:
+def _draw_cards(state: GameState, action: str) -> GameState:
     """Handle drawing cards."""
     card_selection = json.loads(action)
     current_player = state.players[state.current_player_index]
@@ -272,64 +271,64 @@ def _handle_card_draw(state: GameState, action: str) -> GameState:
 
     triggered_powers = get_triggered_powers(current_player, "wetland", "brown")
     if triggered_powers:
-        state.action_phase = "activating_powers"
+        state.game_phase = GamePhase.ACTIVATE_POWERS
         state.action_data = {"powers_queue": triggered_powers, "current_power_index": 0}
     else:
-        state.action_phase = "main_turn"
+        state.game_phase = GamePhase.MAIN_TURN
         state.action_data = {}
         state.current_player_index = get_current_player_index(state)
     return state
 
 
-def _handle_extra_food_action(state: GameState, action: str) -> GameState:
+def _route_extra_food_action(state: GameState, action: str) -> GameState:
     """Handle player's choice about trading bird for extra food"""
     base_amount = state.action_data["base_food_amount"]
 
     match action:
         case "trade_bird":
-            state.action_phase = "select_bird_to_discard"
+            state.game_phase = GamePhase.SELECT_BIRD_TO_DISCARD
             return state
         case "skip_trade":
-            state.action_phase = "collecting_food"
+            state.game_phase = GamePhase.COLLECT_FOOD
             state.action_data = {"food_needed": base_amount}
             return state
         case _:
             raise ValueError(f"Unknown extra food action: {action}")
 
 
-def _handle_extra_lay_eggs_action(state: GameState, action: str) -> GameState:
+def _route_extra_lay_eggs_action(state: GameState, action: str) -> GameState:
     """Handle player's choice about trading food token for extra egg."""
     base_amount = state.action_data["base_eggs_amount"]
 
     match action:
         case "trade_food":
-            state.action_phase = "select_food_to_discard"
+            state.game_phase = GamePhase.SELECT_FOOD_TO_DISCARD
             return state
         case "skip_trade":
-            state.action_phase = "laying_eggs"
+            state.game_phase = GamePhase.LAY_EGGS
             state.action_data = {"eggs_needed": base_amount}
             return state
         case _:
             raise ValueError(f"Unknown extra lay eggs action: {action}")
 
 
-def _handle_extra_card_action(state: GameState, action: str) -> GameState:
+def _route_extra_card_action(state: GameState, action: str) -> GameState:
     """Handle player's choice about trading egg for extra card."""
     base_amount = state.action_data["base_cards_amount"]
 
     match action:
         case "trade_egg":
-            state.action_phase = "select_egg_to_discard"
+            state.game_phase = GamePhase.SELECT_EGG_TO_DISCARD
             return state
         case "skip_trade":
-            state.action_phase = "drawing_cards"
+            state.game_phase = GamePhase.DRAW_CARDS
             state.action_data = {"cards_needed": base_amount}
             return state
         case _:
             raise ValueError(f"Unknown extra card action: {action}")
 
 
-def _handle_bird_discard_action(state: GameState, action: str) -> GameState:
+def _execute_bird_discard_action(state: GameState, action: str) -> GameState:
     """Handle discarding a bird for extra food."""
     if action.startswith("discard_bird_"):
         bird_id = int(action.split("_")[2])
@@ -348,7 +347,7 @@ def _handle_bird_discard_action(state: GameState, action: str) -> GameState:
         state.discarded_birds.append(bird_to_discard)
 
         base_amount = state.action_data["base_food_amount"]
-        state.action_phase = "collecting_food"
+        state.game_phase = GamePhase.COLLECT_FOOD
         state.action_data = {"food_needed": base_amount + 1}
 
         return state
@@ -356,7 +355,7 @@ def _handle_bird_discard_action(state: GameState, action: str) -> GameState:
     raise ValueError(f"Unknown bird discard action: {action}")
 
 
-def _handle_food_discard_action(state: GameState, action: str) -> GameState:
+def _execute_food_discard_action(state: GameState, action: str) -> GameState:
     """Handle discarding a food token for extra eggs."""
     if action.startswith("discard_food_"):
         food_key = action.split("_")[2]
@@ -372,7 +371,7 @@ def _handle_food_discard_action(state: GameState, action: str) -> GameState:
             del current_player.food[food_key]
 
         base_amount = state.action_data["base_eggs_amount"]
-        state.action_phase = "laying_eggs"
+        state.game_phase = GamePhase.LAY_EGGS
         state.action_data = {"eggs_needed": base_amount + 1}
 
         return state
@@ -380,7 +379,7 @@ def _handle_food_discard_action(state: GameState, action: str) -> GameState:
     raise ValueError(f"Unknown food discard action: {action}")
 
 
-def _handle_select_egg_discard_action(state: GameState, action: str) -> GameState:
+def _execute_egg_discard_action(state: GameState, action: str) -> GameState:
     """Handle discarding an egg for extra card."""
     if action.startswith("discard_egg_"):
         parts = action.split("_")
@@ -406,7 +405,7 @@ def _handle_select_egg_discard_action(state: GameState, action: str) -> GameStat
         bird_with_egg.eggs -= 1
 
         base_amount = state.action_data["base_cards_amount"]
-        state.action_phase = "drawing_cards"
+        state.game_phase = GamePhase.DRAW_CARDS
         state.action_data = {"cards_needed": base_amount + 1}
 
         return state
@@ -414,7 +413,7 @@ def _handle_select_egg_discard_action(state: GameState, action: str) -> GameStat
     raise ValueError(f"Unknown egg discard action: {action}")
 
 
-def _handle_play_bird(state: GameState, action: str) -> GameState:
+def _play_bird(state: GameState, action: str) -> GameState:
     """Handle playing a specific bird on a specific spot."""
     if action.startswith("play_bird_"):
         parts = action.split("_")
@@ -446,10 +445,10 @@ def _handle_play_bird(state: GameState, action: str) -> GameState:
                 {
                     "egg_cost": target_spot.egg_cost,
                     "egg_paid": False,
-                    "callback": {"action_phase": state.action_phase, "action": action},
+                    "callback": {"game_phase": state.game_phase, "action": action},
                 }
             )
-            state.action_phase = "pay_egg_cost"
+            state.game_phase = GamePhase.PAY_EGG_COST
             return state
 
         if bird_to_play.cost and not state.action_data.get("food_paid"):
@@ -457,17 +456,17 @@ def _handle_play_bird(state: GameState, action: str) -> GameState:
                 {
                     "food_cost": bird_to_play.cost,
                     "food_paid": False,
-                    "callback": {"action_phase": state.action_phase, "action": action},
+                    "callback": {"game_phase": state.game_phase, "action": action},
                 }
             )
-            state.action_phase = "pay_food_cost"
+            state.game_phase = GamePhase.PAY_FOOD_COST
             return state
 
         target_spot.bird = bird_to_play
         current_player.bird_hand.remove(bird_to_play)
         current_player.action_cubes -= 1
 
-        state.action_phase = "main_turn"
+        state.game_phase = GamePhase.MAIN_TURN
         state.action_data = {}
         state.current_player_index = get_current_player_index(state)
         return state
@@ -475,7 +474,7 @@ def _handle_play_bird(state: GameState, action: str) -> GameState:
     raise ValueError(f"Unknown play bird aciton: {action}")
 
 
-def _handle_pay_egg_cost(state: GameState, action: str) -> GameState:
+def _pay_egg_cost(state: GameState, action: str) -> GameState:
     """Handle egg cost payment and continue to next phase."""
     payment = {int(k): v for k, v in json.loads(action).items()}
     current_player = state.players[state.current_player_index]
@@ -499,11 +498,11 @@ def _handle_pay_egg_cost(state: GameState, action: str) -> GameState:
         bird.eggs -= payment[bird.id]
 
     state.action_data["egg_paid"] = True
-    state.action_phase = state.action_data["callback"]["action_phase"]
+    state.game_phase = state.action_data["callback"]["game_phase"]
     return transition_state(state, state.action_data["callback"]["action"])
 
 
-def _handle_pay_food_cost(state: GameState, action: str) -> GameState:
+def _pay_food_cost(state: GameState, action: str) -> GameState:
     """Handle food cost payment and continue to next phase."""
     payment = json.loads(action)
     current_player = state.players[state.current_player_index]
@@ -519,11 +518,11 @@ def _handle_pay_food_cost(state: GameState, action: str) -> GameState:
             del current_player.food[food]
 
     state.action_data["food_paid"] = True
-    state.action_phase = state.action_data["callback"]["action_phase"]
+    state.game_phase = state.action_data["callback"]["game_phase"]
     return transition_state(state, state.action_data["callback"]["action"])
 
 
-def _handle_activating_powers(state: GameState, action: str) -> GameState:
+def _activate_powers(state: GameState, action: str) -> GameState:
     """Handle power activation choices."""
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -546,7 +545,7 @@ def _handle_activating_powers(state: GameState, action: str) -> GameState:
     state.action_data["current_power_index"] += 1
 
     if state.action_data["current_power_index"] >= len(powers_queue):
-        state.action_phase = "main_turn"
+        state.game_phase = GamePhase.MAIN_TURN
         state.action_data = {}
         state.current_player_index = get_current_player_index(state)
 
@@ -554,21 +553,21 @@ def _handle_activating_powers(state: GameState, action: str) -> GameState:
 
 
 _ACTION_HANDLERS = {
-    "game_setup": _handle_game_setup,
-    "selecting_initial_cards": _handle_selecting_initial_cards,
-    "discarding_food": _handle_discarding_food,
-    "main_turn": _handle_main_turn,
-    "collecting_food": _handle_food_collection,
-    "laying_eggs": _handle_egg_laying,
-    "drawing_cards": _handle_card_draw,
-    "extra_food_action": _handle_extra_food_action,
-    "extra_lay_eggs_action": _handle_extra_lay_eggs_action,
-    "extra_card_draw_action": _handle_extra_card_action,
-    "select_bird_to_discard": _handle_bird_discard_action,
-    "select_food_to_discard": _handle_food_discard_action,
-    "select_egg_to_discard": _handle_select_egg_discard_action,
-    "play_bird": _handle_play_bird,
-    "pay_egg_cost": _handle_pay_egg_cost,
-    "pay_food_cost": _handle_pay_food_cost,
-    "activating_powers": _handle_activating_powers,
+    GamePhase.GAME_SETUP: _route_game_setup,
+    GamePhase.MAIN_TURN: _route_main_turn,
+    GamePhase.EXTRA_FOOD_ACTION: _route_extra_food_action,
+    GamePhase.EXTRA_LAY_EGGS_ACTION: _route_extra_lay_eggs_action,
+    GamePhase.EXTRA_CARD_DRAW_ACTION: _route_extra_card_action,
+    GamePhase.SELECT_INITIAL_CARDS: _select_initial_cards,
+    GamePhase.DISCARD_FOOD: _discard_food,
+    GamePhase.COLLECT_FOOD: _collect_food,
+    GamePhase.LAY_EGGS: _lay_eggs,
+    GamePhase.DRAW_CARDS: _draw_cards,
+    GamePhase.PLAY_BIRD: _play_bird,
+    GamePhase.SELECT_BIRD_TO_DISCARD: _execute_bird_discard_action,
+    GamePhase.SELECT_FOOD_TO_DISCARD: _execute_food_discard_action,
+    GamePhase.SELECT_EGG_TO_DISCARD: _execute_egg_discard_action,
+    GamePhase.PAY_EGG_COST: _pay_egg_cost,
+    GamePhase.PAY_FOOD_COST: _pay_food_cost,
+    GamePhase.ACTIVATE_POWERS: _activate_powers,
 }

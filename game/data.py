@@ -1,7 +1,29 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Set
+from enum import Enum, unique
 import random
 import pickle
+
+
+@unique
+class GamePhase(str, Enum):
+    GAME_SETUP = "game_setup"
+    MAIN_TURN = "main_turn"
+    EXTRA_FOOD_ACTION = "extra_food_action"
+    EXTRA_LAY_EGGS_ACTION = "extra_lay_eggs_action"
+    EXTRA_CARD_DRAW_ACTION = "extra_card_draw_action"
+    SELECT_INITIAL_CARDS = "select_initial_cards"
+    DISCARD_FOOD = "discard_food"
+    COLLECT_FOOD = "collect_food"
+    LAY_EGGS = "lay_eggs"
+    DRAW_CARDS = "draw_cards"
+    PLAY_BIRD = "play_bird"
+    SELECT_BIRD_TO_DISCARD = "select_bird_to_discard"
+    SELECT_FOOD_TO_DISCARD = "select_food_to_discard"
+    SELECT_EGG_TO_DISCARD = "select_egg_to_discard"
+    PAY_EGG_COST = "pay_egg_cost"
+    PAY_FOOD_COST = "pay_food_cost"
+    ACTIVATE_POWERS = "activate_powers"
 
 
 def init_food() -> Dict[str, int]:
@@ -151,7 +173,7 @@ class GameState:
     feeder: Dict = field(default_factory=roll_feeder, init=False)
     round: int = field(default=0, init=False)
     current_player_index: int = field(default=0, init=False)
-    action_phase: str = field(default="game_setup", init=False)
+    game_phase: GamePhase = field(default=GamePhase.GAME_SETUP, init=False)
     action_data: Dict = field(default_factory=dict, init=False)
 
 
