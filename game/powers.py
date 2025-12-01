@@ -2,6 +2,13 @@ from typing import Dict, Optional, List
 from .data import GameState
 from .utils import get_valid_birds_for_eggs, get_egg_distribution_combinations
 import json
+from .effects import (
+    EffectResult,
+    EffectContext,
+    draw_cards_effect,
+    gain_food_effect,
+    lay_eggs_effect,
+)
 
 
 def can_execute_power(state: GameState, power_data: Dict) -> bool:
@@ -63,23 +70,22 @@ def _can_execute_power_1(state: GameState, power_data: Dict) -> bool:
 
 
 def _execute_power_1(state: GameState, power_data: Dict) -> GameState:
-    """Execute Power ID 1: All players gain 1 specified resource."""
-    if not power_data.get("data") or not power_data["data"].get("details"):
-        return state
+    """Execute Power ID 1: All players gain 1 resource."""
+    from .engine import apply_effect_with_flow
 
     resource_type = power_data["data"]["details"].get("type")
 
-    for player in state.players:
-        if resource_type == "card":
-            if state.bird_deck:
-                player.bird_hand.append(state.bird_deck.pop())
-        else:
-            if resource_type in player.food:
-                player.food[resource_type] += 1
-            else:
-                player.food[resource_type] = 1
+    if resource_type == "card":
+        for i in range(len(state.players)):
+            state = draw_cards_effect(
+                state, tray_bird_ids=[], deck_count=1, player_index=i
+            )
+    else:
+        for i in range(len(state.players)):
+            state = gain_food_effect(state, resource_type, amount=1, player_index=i)
 
-    return state
+    result = EffectResult(state=state, triggers_powers=False)
+    return apply_effect_with_flow(state, result, EffectContext.POWER_ACTIVATION)
 
 
 def _can_execute_power_2(state: GameState, power_data: Dict) -> bool:
@@ -110,9 +116,6 @@ def _execute_power_2(
     state: GameState, power_data: Dict, choice: Optional[str] = None
 ) -> GameState:
     """Execute Power ID 2: All players lay eggs on nest type birds."""
-    if not power_data.get("data") or not power_data["data"].get("details"):
-        return state
-
     nest_type = power_data["data"]["details"].get("type")
 
     if "power_2_players" not in state.action_data:
@@ -137,16 +140,9 @@ def _execute_power_2(
 
     if choice is not None:
         player_idx, _ = state.action_data["power_2_players"].pop(0)
-        player = state.players[player_idx]
+        egg_distribution = {int(k): v for k, v in json.loads(choice).items()}
 
-        egg_distribution = json.loads(choice)
-        for bird_id_str, eggs_to_add in egg_distribution.items():
-            bird_id = int(bird_id_str)
-            for row in player.board:
-                for spot in row:
-                    if spot.bird is not None and spot.bird.id == bird_id:
-                        spot.bird.eggs += eggs_to_add
-                        break
+        state = lay_eggs_effect(state, egg_distribution, player_index=player_idx)
 
         if state.action_data["power_2_players"]:
             next_player_idx, _ = state.action_data["power_2_players"][0]

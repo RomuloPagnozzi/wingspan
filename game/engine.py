@@ -1,5 +1,5 @@
 import copy
-from .data import GameState, roll_feeder, Spot, GamePhase
+from .data import GameState, roll_feeder, GamePhase
 from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
@@ -7,6 +7,71 @@ from .utils import (
 )
 from .powers import execute_power
 import json
+from .effects import (
+    EffectContext,
+    EffectResult,
+    draw_cards_effect,
+    parse_draw_cards_action,
+    parse_lay_eggs_action,
+    lay_eggs_effect,
+    select_die_effect,
+    parse_select_die_action,
+    place_bird_effect,
+    parse_play_bird_action,
+    pay_eggs_effect,
+    parse_pay_eggs_action,
+    pay_food_effect,
+    parse_pay_food_action,
+    discard_bird_from_hand_effect,
+)
+
+
+def apply_effect_with_flow(
+    state: GameState,
+    effect_result: EffectResult,
+    context: EffectContext,
+) -> GameState:
+    """Apply flow control logic after effect execution."""
+    if effect_result.consumes_action_cube:
+        current_player = state.players[state.current_player_index]
+        current_player.action_cubes -= 1
+
+    if (
+        effect_result.triggers_powers
+        and effect_result.habitat
+        and context == EffectContext.MAIN_ACTION
+    ):
+        current_player = state.players[state.current_player_index]
+        triggered_powers = get_triggered_powers(
+            current_player, effect_result.habitat, "brown"
+        )
+
+        if triggered_powers:
+            state.game_phase = GamePhase.ACTIVATE_POWERS
+            state.action_data = {
+                "powers_queue": triggered_powers,
+                "current_power_index": 0,
+            }
+            return state
+
+    if context == EffectContext.COST_PAYMENT:
+        if "callback" in state.action_data:
+            callback = state.action_data["callback"]
+            state.game_phase = callback["game_phase"]
+            return transition_state(state, callback["action"])
+        return state
+
+    if context == EffectContext.POWER_ACTIVATION:
+        return state
+
+    if "callback" in state.action_data:
+        return state
+
+    state.game_phase = GamePhase.MAIN_TURN
+    state.action_data = {}
+    state.current_player_index = get_current_player_index(state)
+
+    return state
 
 
 def transition_state(state: GameState, action: str) -> GameState:
@@ -69,9 +134,7 @@ def _discard_food(state: GameState, action: str) -> GameState:
                 (there's {current_player.food.get(food_type, 0)})"""
             )
 
-        current_player.food[food_type] -= amount
-        if current_player.food[food_type] == 0:
-            del current_player.food[food_type]
+    state = pay_food_effect(state, discard)
 
     current_player.action_cubes = 8
     state.action_data = {}
@@ -82,202 +145,128 @@ def _discard_food(state: GameState, action: str) -> GameState:
 
 def _route_main_turn(state: GameState, action: str) -> GameState:
     """Handle selection of one of the 4 main Wingspan actions."""
+    current_player = state.players[state.current_player_index]
+
     match action:
         case "gain_food":
-            return _execute_gain_food(state)
+            forest_spot = find_leftmost_empty_spot(current_player.board[0])
+            base_amount = forest_spot.resource_amount if forest_spot else 3
+            can_trade = current_player.bird_hand and (
+                not forest_spot or forest_spot.extra_resource
+            )
+
+            if can_trade:
+                state.game_phase = GamePhase.EXTRA_FOOD_ACTION
+                state.action_data = {"base_food_amount": base_amount}
+            else:
+                state.game_phase = GamePhase.COLLECT_FOOD
+                state.action_data = {"food_needed": base_amount}
+            return state
+
         case "play_bird":
             state.game_phase = GamePhase.PLAY_BIRD
             return state
+
         case "lay_eggs":
-            return _execute_lay_eggs(state)
+            grassland_spot = find_leftmost_empty_spot(current_player.board[1])
+            base_amount = grassland_spot.resource_amount if grassland_spot else 4
+            can_trade = current_player.food and (
+                not grassland_spot or grassland_spot.extra_resource
+            )
+
+            if can_trade:
+                state.game_phase = GamePhase.EXTRA_LAY_EGGS_ACTION
+                state.action_data = {"base_eggs_amount": base_amount}
+            else:
+                state.game_phase = GamePhase.LAY_EGGS
+                state.action_data = {"eggs_needed": base_amount}
+            return state
+
         case "draw_cards":
-            return _execute_draw_cards(state)
+            wetland_spot = find_leftmost_empty_spot(current_player.board[2])
+            base_amount = wetland_spot.resource_amount if wetland_spot else 3
+
+            played_birds = [
+                spot.bird
+                for row in current_player.board
+                for spot in row
+                if spot.bird is not None
+            ]
+            available_eggs = (
+                sum(bird.eggs for bird in played_birds) if played_birds else 0
+            )
+            can_trade = available_eggs and (
+                not wetland_spot or wetland_spot.extra_resource
+            )
+
+            if can_trade:
+                state.game_phase = GamePhase.EXTRA_CARD_DRAW_ACTION
+                state.action_data = {"base_cards_amount": base_amount}
+            else:
+                state.game_phase = GamePhase.DRAW_CARDS
+                state.action_data = {"cards_needed": base_amount}
+            return state
+
         case _:
             raise ValueError(f"Invalid action: {action}")
 
 
-def _execute_gain_food(state: GameState) -> GameState:
-    """Handles main turn action gain food."""
-    current_player = state.players[state.current_player_index]
-    forest_spot = find_leftmost_empty_spot(current_player.board[0])
-
-    can_trade = current_player.bird_hand and (
-        not forest_spot or (forest_spot and forest_spot.extra_resource)
-    )
-    base_amount = forest_spot.resource_amount if forest_spot else 3
-
-    if can_trade:
-        state.game_phase = GamePhase.EXTRA_FOOD_ACTION
-        state.action_data = {"base_food_amount": base_amount}
-    else:
-        state.game_phase = GamePhase.COLLECT_FOOD
-        state.action_data = {"food_needed": base_amount}
-    return state
-
-
-def _execute_lay_eggs(state: GameState) -> GameState:
-    """Handles main turn action lay eggs."""
-    current_player = state.players[state.current_player_index]
-    grassland_spot = find_leftmost_empty_spot(current_player.board[1])
-
-    can_trade = current_player.food and (
-        not grassland_spot or (grassland_spot and grassland_spot.extra_resource)
-    )
-    base_amount = grassland_spot.resource_amount if grassland_spot else 4
-
-    if can_trade:
-        state.game_phase = GamePhase.EXTRA_LAY_EGGS_ACTION
-        state.action_data = {"base_eggs_amount": base_amount}
-    else:
-        state.game_phase = GamePhase.LAY_EGGS
-        state.action_data = {"eggs_needed": base_amount}
-    return state
-
-
-def _execute_draw_cards(state: GameState) -> GameState:
-    """Handles main turn action draw cards."""
-    current_player = state.players[state.current_player_index]
-    wetland_spot = find_leftmost_empty_spot(current_player.board[2])
-
-    played_birds = [
-        spot.bird
-        for row in current_player.board
-        for spot in row
-        if spot.bird is not None
-    ]
-    available_eggs = sum(bird.eggs for bird in played_birds) if played_birds else 0
-    can_trade = available_eggs and (
-        not wetland_spot or (wetland_spot and wetland_spot.extra_resource)
-    )
-    base_amount = wetland_spot.resource_amount if wetland_spot else 3
-
-    if can_trade:
-        state.game_phase = GamePhase.EXTRA_CARD_DRAW_ACTION
-        state.action_data = {"base_cards_amount": base_amount}
-    else:
-        state.game_phase = GamePhase.DRAW_CARDS
-        state.action_data = {"cards_needed": base_amount}
-    return state
-
-
 def _collect_food(state: GameState, action: str) -> GameState:
-    """Handle dice selection during food collection."""
+    """Handle dice selection."""
+
     if action.startswith("select_die_"):
-        parts = action.split("_")
-        die_index = int(parts[2])
-        food_type = parts[3]
+        die_index, food_type = parse_select_die_action(action)
 
-        if die_index not in state.feeder:
-            raise ValueError(f"Die {die_index} not in feeder")
-        if food_type not in state.feeder[die_index]:
-            raise ValueError(f"Die {die_index} doesn't have {food_type}")
-
-        current_player = state.players[state.current_player_index]
-        if food_type in current_player.food:
-            current_player.food[food_type] += 1
-        else:
-            current_player.food[food_type] = 1
-
-        del state.feeder[die_index]
-
-        if not state.feeder:
-            state.feeder = roll_feeder()
-
+        state = select_die_effect(state, die_index, food_type)
         state.action_data["food_needed"] -= 1
 
         if not state.action_data["food_needed"]:
-            current_player.action_cubes -= 1
+            result = EffectResult(
+                state=state,
+                triggers_powers=True,
+                habitat="forest",
+                consumes_action_cube=True,
+            )
+            return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
 
-            triggered_powers = get_triggered_powers(current_player, "forest", "brown")
-            if triggered_powers:
-                state.game_phase = GamePhase.ACTIVATE_POWERS
-                state.action_data = {
-                    "powers_queue": triggered_powers,
-                    "current_power_index": 0,
-                }
-            else:
-                state.game_phase = GamePhase.MAIN_TURN
-                state.action_data = {}
-                state.current_player_index = get_current_player_index(state)
         return state
 
     elif action == "reroll_all":
         state.feeder = roll_feeder()
         return state
 
-    raise NotImplementedError(
-        f"Current state {state.game_phase, state.action_data, action}"
-    )
+    raise ValueError(f"No known action{action}")
 
 
 def _lay_eggs(state: GameState, action: str) -> GameState:
-    """Handle laying eggs in birds."""
-    eggs_to_lay = {int(k): v for k, v in json.loads(action).items()}
-    current_player = state.players[state.current_player_index]
-    relevant_board_birds = [
-        spot.bird
-        for row in current_player.board
-        for spot in row
-        if spot.bird is not None and spot.bird.id in eggs_to_lay.keys()
-    ]
-    bird_capacity = {
-        bird.id: bird.egg_limit - bird.eggs for bird in relevant_board_birds
-    }
+    """Handle laying eggs."""
+    egg_distribution = parse_lay_eggs_action(action)
 
-    if eggs_to_lay.keys() != bird_capacity.keys():
-        raise ValueError(
-            f"Birds from board {bird_capacity.keys()} and eggs_to_lay {eggs_to_lay.keys()} do not match."
-        )
+    state = lay_eggs_effect(state, egg_distribution)
 
-    if not all(bird_capacity[k] >= eggs_to_lay[k] for k in eggs_to_lay):
-        raise ValueError(f"Not enough capacity in birds to lay eggs.")
+    result = EffectResult(
+        state=state,
+        triggers_powers=True,
+        habitat="grassland",
+        consumes_action_cube=True,
+    )
 
-    for bird in relevant_board_birds:
-        bird.eggs += eggs_to_lay[bird.id]
-
-    current_player.action_cubes -= 1
-
-    triggered_powers = get_triggered_powers(current_player, "grassland", "brown")
-    if triggered_powers:
-        state.game_phase = GamePhase.ACTIVATE_POWERS
-        state.action_data = {"powers_queue": triggered_powers, "current_power_index": 0}
-    else:
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data = {}
-        state.current_player_index = get_current_player_index(state)
-    return state
+    return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
 
 
 def _draw_cards(state: GameState, action: str) -> GameState:
-    """Handle drawing cards."""
-    card_selection = json.loads(action)
-    current_player = state.players[state.current_player_index]
+    """Handle drawing cards"""
+    tray_birds, deck_count = parse_draw_cards_action(action)
 
-    for bird_id in card_selection["tray_birds"]:
-        for bird in state.bird_tray:
-            if bird.id == bird_id:
-                current_player.bird_hand.append(bird)
-                state.bird_tray.remove(bird)
-                break
+    state = draw_cards_effect(state, tray_birds, deck_count)
 
-    for _ in range(card_selection["deck_cards"]):
-        if state.bird_deck:
-            current_player.bird_hand.append(state.bird_deck.pop())
-
-    while len(state.bird_tray) < 3 and state.bird_deck:
-        state.bird_tray.append(state.bird_deck.pop())
-
-    current_player.action_cubes -= 1
-
-    triggered_powers = get_triggered_powers(current_player, "wetland", "brown")
-    if triggered_powers:
-        state.game_phase = GamePhase.ACTIVATE_POWERS
-        state.action_data = {"powers_queue": triggered_powers, "current_power_index": 0}
-    else:
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data = {}
-        state.current_player_index = get_current_player_index(state)
-    return state
+    result = EffectResult(
+        state=state,
+        triggers_powers=True,
+        habitat="wetland",
+        consumes_action_cube=True,
+    )
+    return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
 
 
 def _route_extra_food_action(state: GameState, action: str) -> GameState:
@@ -332,19 +321,8 @@ def _execute_bird_discard_action(state: GameState, action: str) -> GameState:
     """Handle discarding a bird for extra food."""
     if action.startswith("discard_bird_"):
         bird_id = int(action.split("_")[2])
-        current_player = state.players[state.current_player_index]
 
-        bird_to_discard = None
-        for bird in current_player.bird_hand:
-            if bird.id == bird_id:
-                bird_to_discard = bird
-                break
-
-        if not bird_to_discard:
-            raise ValueError(f"Bird {bird_id} not in hand")
-
-        current_player.bird_hand.remove(bird_to_discard)
-        state.discarded_birds.append(bird_to_discard)
+        state = discard_bird_from_hand_effect(state, bird_id)
 
         base_amount = state.action_data["base_food_amount"]
         state.game_phase = GamePhase.COLLECT_FOOD
@@ -366,9 +344,7 @@ def _execute_food_discard_action(state: GameState, action: str) -> GameState:
                 f"Food {food_key} not in player's food stash {current_player.food}"
             )
 
-        current_player.food[food_key] -= 1
-        if current_player.food[food_key] == 0:
-            del current_player.food[food_key]
+        state = pay_food_effect(state, {food_key: 1})
 
         base_amount = state.action_data["base_eggs_amount"]
         state.game_phase = GamePhase.LAY_EGGS
@@ -402,7 +378,7 @@ def _execute_egg_discard_action(state: GameState, action: str) -> GameState:
         if not bird_with_egg:
             raise ValueError(f"Bird {bird_id} not found on board or has no eggs")
 
-        bird_with_egg.eggs -= 1
+        state = pay_eggs_effect(state, {bird_id: 1})
 
         base_amount = state.action_data["base_cards_amount"]
         state.game_phase = GamePhase.DRAW_CARDS
@@ -415,68 +391,58 @@ def _execute_egg_discard_action(state: GameState, action: str) -> GameState:
 
 def _play_bird(state: GameState, action: str) -> GameState:
     """Handle playing a specific bird on a specific spot."""
-    if action.startswith("play_bird_"):
-        parts = action.split("_")
-        bird_id = int(parts[2])
-        row = int(parts[4])
-        col = int(parts[5])
-        current_player = state.players[state.current_player_index]
+    if not action.startswith("play_bird_"):
+        raise ValueError(f"Unknown play bird action: {action}")
 
-        bird_to_play = None
-        for bird in current_player.bird_hand:
-            if bird.id == bird_id:
-                bird_to_play = bird
-                break
+    bird_id, row, col = parse_play_bird_action(action)
+    current_player = state.players[state.current_player_index]
 
-        if not bird_to_play:
-            raise ValueError(f"Bird {bird_id} not in hand")
-        if row < 0 or row >= len(current_player.board):
-            raise ValueError(f"Invalid row: {row}")
-        if col < 0 or col >= len(current_player.board[row]):
-            raise ValueError(f"Invalid col: {col}")
+    if row < 0 or row >= len(current_player.board):
+        raise ValueError(f"Invalid row: {row}")
+    if col < 0 or col >= len(current_player.board[row]):
+        raise ValueError(f"Invalid col: {col}")
 
-        target_spot: Spot = current_player.board[row][col]
+    target_spot = current_player.board[row][col]
 
-        if target_spot.bird is not None:
-            raise ValueError(f"Spot at {row}, {col} is already occupied")
-
-        if target_spot.egg_cost and not state.action_data.get("egg_paid"):
-            state.action_data.update(
-                {
-                    "egg_cost": target_spot.egg_cost,
-                    "egg_paid": False,
-                    "callback": {"game_phase": state.game_phase, "action": action},
-                }
-            )
-            state.game_phase = GamePhase.PAY_EGG_COST
-            return state
-
-        if bird_to_play.cost and not state.action_data.get("food_paid"):
-            state.action_data.update(
-                {
-                    "food_cost": bird_to_play.cost,
-                    "food_paid": False,
-                    "callback": {"game_phase": state.game_phase, "action": action},
-                }
-            )
-            state.game_phase = GamePhase.PAY_FOOD_COST
-            return state
-
-        target_spot.bird = bird_to_play
-        current_player.bird_hand.remove(bird_to_play)
-        current_player.action_cubes -= 1
-
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data = {}
-        state.current_player_index = get_current_player_index(state)
+    if target_spot.egg_cost and not state.action_data.get("egg_paid"):
+        state.action_data.update(
+            {
+                "egg_cost": target_spot.egg_cost,
+                "egg_paid": False,
+                "callback": {"game_phase": state.game_phase, "action": action},
+            }
+        )
+        state.game_phase = GamePhase.PAY_EGG_COST
         return state
 
-    raise ValueError(f"Unknown play bird aciton: {action}")
+    bird_to_play = next(
+        (bird for bird in current_player.bird_hand if bird.id == bird_id), None
+    )
+    if not bird_to_play:
+        raise ValueError(f"Bird {bird_id} not in hand")
+
+    if bird_to_play.cost and not state.action_data.get("food_paid"):
+        state.action_data.update(
+            {
+                "food_cost": bird_to_play.cost,
+                "food_paid": False,
+                "callback": {"game_phase": state.game_phase, "action": action},
+            }
+        )
+        state.game_phase = GamePhase.PAY_FOOD_COST
+        return state
+
+    state = place_bird_effect(state, bird_id, row, col)
+
+    state.action_data = {}
+
+    result = EffectResult(state=state, triggers_powers=False, consumes_action_cube=True)
+    return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
 
 
 def _pay_egg_cost(state: GameState, action: str) -> GameState:
     """Handle egg cost payment and continue to next phase."""
-    payment = {int(k): v for k, v in json.loads(action).items()}
+    payment = parse_pay_eggs_action(action)
     current_player = state.players[state.current_player_index]
     relevant_board_birds = [
         spot.bird
@@ -494,17 +460,16 @@ def _pay_egg_cost(state: GameState, action: str) -> GameState:
     if not all(bird_eggs[k] >= payment[k] for k in payment):
         raise ValueError(f"Not enough eggs in birds to pay egg cost.")
 
-    for bird in relevant_board_birds:
-        bird.eggs -= payment[bird.id]
-
+    state = pay_eggs_effect(state, payment)
     state.action_data["egg_paid"] = True
-    state.game_phase = state.action_data["callback"]["game_phase"]
-    return transition_state(state, state.action_data["callback"]["action"])
+
+    result = EffectResult(state=state, triggers_powers=False)
+    return apply_effect_with_flow(state, result, EffectContext.COST_PAYMENT)
 
 
 def _pay_food_cost(state: GameState, action: str) -> GameState:
     """Handle food cost payment and continue to next phase."""
-    payment = json.loads(action)
+    payment = parse_pay_food_action(action)
     current_player = state.players[state.current_player_index]
 
     if not all(
@@ -512,14 +477,11 @@ def _pay_food_cost(state: GameState, action: str) -> GameState:
     ):
         raise ValueError("Not enough food to pay food cost.")
 
-    for food, amount in payment.items():
-        current_player.food[food] -= amount
-        if current_player.food[food] == 0:
-            del current_player.food[food]
-
+    state = pay_food_effect(state, payment)
     state.action_data["food_paid"] = True
-    state.game_phase = state.action_data["callback"]["game_phase"]
-    return transition_state(state, state.action_data["callback"]["action"])
+
+    result = EffectResult(state=state, triggers_powers=False)
+    return apply_effect_with_flow(state, result, EffectContext.COST_PAYMENT)
 
 
 def _activate_powers(state: GameState, action: str) -> GameState:
