@@ -4,12 +4,10 @@ from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
     get_triggered_powers,
+    get_valid_birds_for_eggs,
 )
-from .powers import execute_power
 import json
 from .effects import (
-    EffectContext,
-    EffectResult,
     draw_cards_effect,
     parse_draw_cards_action,
     parse_lay_eggs_action,
@@ -23,55 +21,171 @@ from .effects import (
     pay_food_effect,
     parse_pay_food_action,
     discard_bird_from_hand_effect,
+    gain_food_effect,
 )
 
 
-def apply_effect_with_flow(
-    state: GameState,
-    effect_result: EffectResult,
-    context: EffectContext,
-) -> GameState:
-    """Apply flow control logic after effect execution."""
-    if effect_result.consumes_action_cube:
-        current_player = state.players[state.current_player_index]
-        current_player.action_cubes -= 1
+# =============================================================================
+# Flow control helpers
+# =============================================================================
 
-    if (
-        effect_result.triggers_powers
-        and effect_result.habitat
-        and context == EffectContext.MAIN_ACTION
-    ):
-        current_player = state.players[state.current_player_index]
-        triggered_powers = get_triggered_powers(
-            current_player, effect_result.habitat, "brown"
-        )
 
-        if triggered_powers:
-            state.game_phase = GamePhase.ACTIVATE_POWERS
-            state.action_data = {
-                "powers_queue": triggered_powers,
-                "current_power_index": 0,
-            }
-            return state
+def _finish_main_action(state: GameState, habitat: str) -> GameState:
+    """Complete a main action: consume cube, check powers, transition."""
+    current_player = state.players[state.current_player_index]
+    current_player.action_cubes -= 1
 
-    if context == EffectContext.COST_PAYMENT:
-        if "callback" in state.action_data:
-            callback = state.action_data["callback"]
-            state.game_phase = callback["game_phase"]
-            return transition_state(state, callback["action"])
-        return state
-
-    if context == EffectContext.POWER_ACTIVATION:
-        return state
-
-    if "callback" in state.action_data:
+    triggered_powers = get_triggered_powers(current_player, habitat, "brown")
+    if triggered_powers:
+        state.game_phase = GamePhase.ACTIVATE_POWERS
+        state.action_data = {
+            "powers_queue": triggered_powers,
+            "current_power_index": 0,
+        }
         return state
 
     state.game_phase = GamePhase.MAIN_TURN
     state.action_data = {}
     state.current_player_index = get_current_player_index(state)
+    return state
+
+
+def _finish_main_action_no_powers(state: GameState) -> GameState:
+    """Complete a main action that doesn't trigger powers (e.g., play bird)."""
+    current_player = state.players[state.current_player_index]
+    current_player.action_cubes -= 1
+
+    state.game_phase = GamePhase.MAIN_TURN
+    state.action_data = {}
+    state.current_player_index = get_current_player_index(state)
+    return state
+
+
+# =============================================================================
+# Power execution
+# =============================================================================
+
+
+def _activate_powers(state: GameState, action: str) -> GameState:
+    """Handle power activation choices."""
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "power_2_choices":
+        return _handle_power_2_choice(state, action)
+
+    powers_queue = state.action_data["powers_queue"]
+    current_power_index = state.action_data["current_power_index"]
+
+    if current_power_index >= len(powers_queue):
+        raise ValueError("No more powers in queue to activate")
+
+    current_power = powers_queue[current_power_index]
+    power_data = current_power["power_data"]
+    power_type = power_data["data"]["id"]
+
+    if action == "skip_power":
+        state.action_data["current_power_index"] += 1
+        return _check_powers_done(state)
+
+    if action == "activate_power":
+        executor = POWER_EXECUTORS.get(power_type)
+        if executor:
+            state = executor(state, power_data)
+
+        if state.action_data.get("sub_phase") is None:
+            state.action_data["current_power_index"] += 1
+            return _check_powers_done(state)
+
+        return state
+
+    raise ValueError(f"Unknown power activation action: {action}")
+
+
+def _check_powers_done(state: GameState) -> GameState:
+    """Check if all powers processed, transition to main turn if so."""
+    powers_queue = state.action_data.get("powers_queue", [])
+    current_index = state.action_data.get("current_power_index", 0)
+
+    if current_index >= len(powers_queue):
+        state.game_phase = GamePhase.MAIN_TURN
+        state.action_data = {}
+        state.current_player_index = get_current_player_index(state)
 
     return state
+
+
+def _execute_power_1(state: GameState, power_data: dict) -> GameState:
+    """Execute Power ID 1: All players gain 1 resource."""
+    resource_type = power_data["data"]["details"].get("type")
+
+    if resource_type == "card":
+        for i in range(len(state.players)):
+            state = draw_cards_effect(
+                state, tray_bird_ids=[], deck_count=1, player_index=i
+            )
+    else:
+        for i in range(len(state.players)):
+            state = gain_food_effect(state, resource_type, amount=1, player_index=i)
+
+    return state
+
+
+def _execute_power_2(state: GameState, power_data: dict) -> GameState:
+    """Execute Power ID 2: All players lay eggs on nest type. Sets up multi-player choices."""
+    details = power_data["data"].get("details", {})
+    nest_type = details.get("type")
+    activator = state.current_player_index
+
+    player_order = [activator] + [
+        i for i in range(len(state.players)) if i != activator
+    ]
+    awaiting = [
+        i for i in player_order if get_valid_birds_for_eggs(state.players[i], nest_type)
+    ]
+
+    if awaiting:
+        state.action_data["sub_phase"] = "power_2_choices"
+        state.action_data["activator"] = activator
+        state.action_data["awaiting_players"] = awaiting
+        state.action_data["nest_type"] = nest_type
+        state.current_player_index = awaiting[0]
+
+    return state
+
+
+def _handle_power_2_choice(state: GameState, action: str) -> GameState:
+    """Handle a player's egg distribution choice for power 2."""
+    choice_data = action.replace("activate_", "")
+    egg_distribution = {int(k): v for k, v in json.loads(choice_data).items()}
+    state = lay_eggs_effect(
+        state, egg_distribution, player_index=state.current_player_index
+    )
+
+    awaiting = state.action_data["awaiting_players"]
+    awaiting.remove(state.current_player_index)
+
+    if awaiting:
+        state.action_data["awaiting_players"] = awaiting
+        state.current_player_index = awaiting[0]
+        return state
+
+    state.current_player_index = state.action_data.pop("activator")
+    del state.action_data["sub_phase"]
+    del state.action_data["awaiting_players"]
+    del state.action_data["nest_type"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
+POWER_EXECUTORS = {
+    1: _execute_power_1,
+    2: _execute_power_2,
+}
+
+
+# =============================================================================
+# Main actions
+# =============================================================================
 
 
 def transition_state(state: GameState, action: str) -> GameState:
@@ -221,13 +335,7 @@ def _collect_food(state: GameState, action: str) -> GameState:
         state.action_data["food_needed"] -= 1
 
         if not state.action_data["food_needed"]:
-            result = EffectResult(
-                state=state,
-                triggers_powers=True,
-                habitat="forest",
-                consumes_action_cube=True,
-            )
-            return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
+            return _finish_main_action(state, "forest")
 
         return state
 
@@ -244,14 +352,7 @@ def _lay_eggs(state: GameState, action: str) -> GameState:
 
     state = lay_eggs_effect(state, egg_distribution)
 
-    result = EffectResult(
-        state=state,
-        triggers_powers=True,
-        habitat="grassland",
-        consumes_action_cube=True,
-    )
-
-    return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
+    return _finish_main_action(state, "grassland")
 
 
 def _draw_cards(state: GameState, action: str) -> GameState:
@@ -260,13 +361,7 @@ def _draw_cards(state: GameState, action: str) -> GameState:
 
     state = draw_cards_effect(state, tray_birds, deck_count)
 
-    result = EffectResult(
-        state=state,
-        triggers_powers=True,
-        habitat="wetland",
-        consumes_action_cube=True,
-    )
-    return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
+    return _finish_main_action(state, "wetland")
 
 
 def _route_extra_food_action(state: GameState, action: str) -> GameState:
@@ -317,7 +412,7 @@ def _route_extra_card_action(state: GameState, action: str) -> GameState:
             raise ValueError(f"Unknown extra card action: {action}")
 
 
-def _execute_bird_discard_action(state: GameState, action: str) -> GameState:
+def _discard_bird_for_food(state: GameState, action: str) -> GameState:
     """Handle discarding a bird for extra food."""
     if action.startswith("discard_bird_"):
         bird_id = int(action.split("_")[2])
@@ -333,7 +428,7 @@ def _execute_bird_discard_action(state: GameState, action: str) -> GameState:
     raise ValueError(f"Unknown bird discard action: {action}")
 
 
-def _execute_food_discard_action(state: GameState, action: str) -> GameState:
+def _discard_food_for_egg(state: GameState, action: str) -> GameState:
     """Handle discarding a food token for extra eggs."""
     if action.startswith("discard_food_"):
         food_key = action.split("_")[2]
@@ -355,7 +450,7 @@ def _execute_food_discard_action(state: GameState, action: str) -> GameState:
     raise ValueError(f"Unknown food discard action: {action}")
 
 
-def _execute_egg_discard_action(state: GameState, action: str) -> GameState:
+def _discard_egg_for_card(state: GameState, action: str) -> GameState:
     """Handle discarding an egg for extra card."""
     if action.startswith("discard_egg_"):
         parts = action.split("_")
@@ -436,8 +531,7 @@ def _play_bird(state: GameState, action: str) -> GameState:
 
     state.action_data = {}
 
-    result = EffectResult(state=state, triggers_powers=False, consumes_action_cube=True)
-    return apply_effect_with_flow(state, result, EffectContext.MAIN_ACTION)
+    return _finish_main_action_no_powers(state)
 
 
 def _pay_egg_cost(state: GameState, action: str) -> GameState:
@@ -463,8 +557,11 @@ def _pay_egg_cost(state: GameState, action: str) -> GameState:
     state = pay_eggs_effect(state, payment)
     state.action_data["egg_paid"] = True
 
-    result = EffectResult(state=state, triggers_powers=False)
-    return apply_effect_with_flow(state, result, EffectContext.COST_PAYMENT)
+    if "callback" in state.action_data:
+        callback = state.action_data["callback"]
+        state.game_phase = callback["game_phase"]
+        return transition_state(state, callback["action"])
+    return state
 
 
 def _pay_food_cost(state: GameState, action: str) -> GameState:
@@ -480,37 +577,10 @@ def _pay_food_cost(state: GameState, action: str) -> GameState:
     state = pay_food_effect(state, payment)
     state.action_data["food_paid"] = True
 
-    result = EffectResult(state=state, triggers_powers=False)
-    return apply_effect_with_flow(state, result, EffectContext.COST_PAYMENT)
-
-
-def _activate_powers(state: GameState, action: str) -> GameState:
-    """Handle power activation choices."""
-    powers_queue = state.action_data["powers_queue"]
-    current_power_index = state.action_data["current_power_index"]
-
-    if current_power_index >= len(powers_queue):
-        raise ValueError("No more powers in queue to activate")
-
-    current_power = powers_queue[current_power_index]
-
-    if action == "activate_power":
-        state = execute_power(state, current_power["power_data"])
-    elif action == "skip_power":
-        pass
-    elif action.startswith("activate_"):
-        choice = action.replace("activate_", "")
-        state = execute_power(state, current_power["power_data"], choice)
-    else:
-        raise ValueError(f"Unknown power activation action: {action}")
-
-    state.action_data["current_power_index"] += 1
-
-    if state.action_data["current_power_index"] >= len(powers_queue):
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data = {}
-        state.current_player_index = get_current_player_index(state)
-
+    if "callback" in state.action_data:
+        callback = state.action_data["callback"]
+        state.game_phase = callback["game_phase"]
+        return transition_state(state, callback["action"])
     return state
 
 
@@ -526,9 +596,9 @@ _ACTION_HANDLERS = {
     GamePhase.LAY_EGGS: _lay_eggs,
     GamePhase.DRAW_CARDS: _draw_cards,
     GamePhase.PLAY_BIRD: _play_bird,
-    GamePhase.SELECT_BIRD_TO_DISCARD: _execute_bird_discard_action,
-    GamePhase.SELECT_FOOD_TO_DISCARD: _execute_food_discard_action,
-    GamePhase.SELECT_EGG_TO_DISCARD: _execute_egg_discard_action,
+    GamePhase.SELECT_BIRD_TO_DISCARD: _discard_bird_for_food,
+    GamePhase.SELECT_FOOD_TO_DISCARD: _discard_food_for_egg,
+    GamePhase.SELECT_EGG_TO_DISCARD: _discard_egg_for_card,
     GamePhase.PAY_EGG_COST: _pay_egg_cost,
     GamePhase.PAY_FOOD_COST: _pay_food_cost,
     GamePhase.ACTIVATE_POWERS: _activate_powers,

@@ -1,36 +1,6 @@
 import json
-from dataclasses import dataclass
 from typing import Optional, Dict, List
-from enum import Enum
 from game.data import GameState, roll_feeder
-
-
-class EffectContext(str, Enum):
-    """Context in which an effect is being executed."""
-
-    MAIN_ACTION = "main_action"
-    POWER_ACTIVATION = "power_activation"
-    COST_PAYMENT = "cost_payment"
-    # SETUP = "setup"  # Future: setup phase effects
-    # BETWEEN_TURNS = "between_turns"  # Future: round transitions
-
-
-@dataclass
-class EffectResult:
-    """Result of executing an effect. Separates effect execution flow control."""
-
-    state: GameState
-    triggers_powers: bool = False
-    habitat: Optional[str] = None
-    consumes_action_cube: bool = False
-
-    def __post_init__(self):
-        """Validate habitat is provided when needed."""
-        if self.triggers_powers and not self.habitat:
-            raise ValueError(
-                "habitat must be specified when triggers_powers=True. "
-                "Valid values: 'forest', 'grassland', 'wetland'"
-            )
 
 
 def draw_cards_effect(

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from .data import GameState, GamePhase
 from .utils import (
     can_play_a_bird,
@@ -9,8 +9,9 @@ from .utils import (
     get_card_draw_combinations,
     get_initial_card_combinations,
     get_food_discard_combinations,
+    get_valid_birds_for_eggs,
 )
-from .powers import can_execute_power, get_power_choices
+from .powers import can_execute_power
 import json
 
 
@@ -195,20 +196,49 @@ def _get_activate_powers_actions(state: GameState) -> List[str]:
         raise ValueError("Power index out of range")
 
     current_power = powers_queue[current_power_index]
-    actions = []
+    power_data = current_power["power_data"]
 
-    if not state.action_data.get("choice_powers"):
-        actions.append("skip_power")
+    if state.action_data.get("sub_phase"):
+        return _get_power_choices(state, power_data)
 
-    if can_execute_power(state, current_power):
-        choices = get_power_choices(state, current_power)
+    actions = ["skip_power"]
 
-        if choices:
-            actions.extend([f"activate_{choice}" for choice in choices])
-        else:
-            actions.append("activate_power")
+    if can_execute_power(state, power_data):
+        actions.append("activate_power")
 
     return actions
+
+
+def _get_power_choices(state: GameState, power_data: Dict) -> List[str]:
+    """Get available choices for a power that requires player selection."""
+    if not power_data.get("data") or "id" not in power_data["data"]:
+        raise ValueError("Corrupted power data")
+
+    power_id = power_data["data"]["id"]
+    choice_generator = POWER_CHOICE_GENERATORS.get(power_id)
+
+    if not choice_generator:
+        raise NotImplementedError
+
+    return choice_generator(state)
+
+
+def _get_power_2_choices(state: GameState) -> List[str]:
+    """Generate egg distribution choices for power 2."""
+    nest_type = state.action_data["nest_type"]
+    activator = state.action_data["activator"]
+    player = state.players[state.current_player_index]
+    amount = 2 if state.current_player_index == activator else 1
+
+    valid_birds = get_valid_birds_for_eggs(player, nest_type)
+    birds_capacity = {b.id: b.egg_limit - b.eggs for b in valid_birds}
+    combos = get_egg_distribution_combinations(birds_capacity, amount)
+    return [f"activate_{json.dumps(c)}" for c in combos]
+
+
+POWER_CHOICE_GENERATORS = {
+    2: _get_power_2_choices,
+}
 
 
 _ACTION_GENERATORS = {
