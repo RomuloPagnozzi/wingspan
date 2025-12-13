@@ -146,6 +146,15 @@ def get_bird_power(bird_id: int) -> Dict:
     return powers.get(bird_id, {})
 
 
+def get_bird(bird_id: int) -> Bird | None:
+    """Get a bird by id"""
+    deck: List[Bird] = load_deck("birds")
+    for bird in deck:
+        if bird.id == bird_id:
+            return bird
+    return None
+
+
 def roll_feeder():
     faces = [
         ["fish"],
