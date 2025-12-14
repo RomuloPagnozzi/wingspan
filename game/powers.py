@@ -38,7 +38,12 @@ def _can_execute_power_2(state: GameState, power_data: Dict) -> bool:
     return False
 
 
+def _can_execute_power_3(state: GameState, power_data: Dict) -> bool:
+    return True
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
+    3: _can_execute_power_3,
 }

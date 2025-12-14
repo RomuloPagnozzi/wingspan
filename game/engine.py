@@ -90,7 +90,7 @@ def _activate_powers(state: GameState, action: str) -> GameState:
     if action == "activate_power":
         executor = POWER_EXECUTORS.get(power_type)
         if executor:
-            state = executor(state, power_data)
+            state = executor(state, current_power)
 
         if state.action_data.get("sub_phase") is None:
             state.action_data["current_power_index"] += 1
@@ -114,8 +114,9 @@ def _check_powers_done(state: GameState) -> GameState:
     return state
 
 
-def _execute_power_1(state: GameState, power_data: dict) -> GameState:
+def _execute_power_1(state: GameState, power_entry: dict) -> GameState:
     """Execute Power ID 1: All players gain 1 resource."""
+    power_data = power_entry["power_data"]
     resource_type = power_data["data"]["details"].get("type")
 
     if resource_type == "card":
@@ -130,8 +131,9 @@ def _execute_power_1(state: GameState, power_data: dict) -> GameState:
     return state
 
 
-def _execute_power_2(state: GameState, power_data: dict) -> GameState:
+def _execute_power_2(state: GameState, power_entry: dict) -> GameState:
     """Execute Power ID 2: All players lay eggs on nest type. Sets up multi-player choices."""
+    power_data = power_entry["power_data"]
     details = power_data["data"].get("details", {})
     nest_type = details.get("type")
     activator = state.current_player_index
@@ -177,9 +179,18 @@ def _handle_power_2_choice(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_3(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 3: Cache seed on bird."""
+    spot = power_entry["spot"]
+    bird = spot.bird
+    bird.stashed_food += 1
+    return state
+
+
 POWER_EXECUTORS = {
     1: _execute_power_1,
     2: _execute_power_2,
+    3: _execute_power_3,
 }
 
 

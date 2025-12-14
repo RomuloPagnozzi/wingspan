@@ -373,3 +373,55 @@ def test_power_2_with_mixed_eligibility():
 
     # Verify we're back to main turn
     assert state.game_phase == GamePhase.MAIN_TURN
+
+
+def test_power_3_caches_seed_on_activating_bird_end_to_end():
+    """End-to-end test: Power 3 caches 1 seed on the specific bird that activated it."""
+    state = initiate_state(3)
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+
+    # Place three birds on player 0's board in different spots
+    bird1 = state.players[0].bird_hand[0]
+    bird1.stashed_food = 0
+    state.players[0].board[0][0].bird = bird1  # Forest row, spot 0
+    state.players[0].bird_hand.remove(bird1)
+
+    bird2 = state.players[0].bird_hand[0]
+    bird2.stashed_food = 2  # Already has some cached food
+    state.players[0].board[0][1].bird = bird2  # Forest row, spot 1
+    state.players[0].bird_hand.remove(bird2)
+
+    bird3 = state.players[0].bird_hand[0]
+    bird3.stashed_food = 0
+    state.players[0].board[1][0].bird = bird3  # Grassland row
+    state.players[0].bird_hand.remove(bird3)
+
+    # Place birds on other players to verify they're unaffected
+    other_bird = state.players[1].bird_hand[0]
+    other_bird.stashed_food = 0
+    state.players[1].board[0][0].bird = other_bird
+    state.players[1].bird_hand.remove(other_bird)
+
+    # Power 3 is activated by bird2 (spot [0][1])
+    activating_spot = state.players[0].board[0][1]
+    state.action_data = {
+        "powers_queue": [
+            {
+                "bird_id": bird2.id,
+                "power_id": 3,
+                "power_data": {"data": {"id": 3}},
+                "spot": activating_spot,
+            }
+        ],
+        "current_power_index": 0,
+    }
+
+    state = transition_state(state, "activate_power")
+
+    # Verify only the activating bird (bird2) gained 1 seed
+    assert state.players[0].board[0][0].bird.stashed_food == 0, "Bird1 unchanged"
+    assert state.players[0].board[0][1].bird.stashed_food == 3, "Bird2 gained 1 (2→3)"
+    assert state.players[0].board[1][0].bird.stashed_food == 0, "Bird3 unchanged"
+    assert state.players[1].board[0][0].bird.stashed_food == 0, "Other player unchanged"
+    assert state.game_phase == GamePhase.MAIN_TURN
