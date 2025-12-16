@@ -22,6 +22,7 @@ from .effects import (
     parse_pay_food_action,
     discard_bird_from_hand_effect,
     gain_food_effect,
+    tuck_cards_effect,
 )
 
 
@@ -72,6 +73,10 @@ def _activate_powers(state: GameState, action: str) -> GameState:
 
     if sub_phase == "power_2_choices":
         return _handle_power_2_choice(state, action)
+    if sub_phase == "power_4_select_discard":
+        return _handle_power_4_select_discard(state, action)
+    if sub_phase == "power_4_select_gain":
+        return _handle_power_4_select_gain(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -179,6 +184,73 @@ def _handle_power_2_choice(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _handle_power_4_select_discard(state: GameState, action: str) -> GameState:
+    """Handle discard selection for power 4."""
+    discard_type = state.action_data["power_4_discard_type"]
+    gain_type = state.action_data["power_4_gain_type"]
+    gain_qty = state.action_data["power_4_gain_qty"]
+    action_type = state.action_data["power_4_action"]
+    activating_bird_id = state.action_data["power_4_activating_bird_id"]
+
+    if discard_type == "egg":
+        bird_id = int(action.split("_")[-1])
+        state = pay_eggs_effect(state, {bird_id: 1})
+    else:
+        food_type = action.split("_")[-1]
+        state = pay_food_effect(state, {food_type: 1})
+
+    if gain_type == "card":
+        if action_type == "draw":
+            state = draw_cards_effect(state, tray_bird_ids=[], deck_count=gain_qty)
+        elif action_type == "tuck":
+            state = tuck_cards_effect(state, activating_bird_id, gain_qty)
+
+        del state.action_data["sub_phase"]
+        del state.action_data["power_4_discard_type"]
+        del state.action_data["power_4_gain_type"]
+        del state.action_data["power_4_gain_qty"]
+        del state.action_data["power_4_action"]
+        del state.action_data["power_4_activating_bird_id"]
+
+        state.action_data["current_power_index"] += 1
+        return _check_powers_done(state)
+
+    elif gain_type == "wild":
+        state.action_data["sub_phase"] = "power_4_select_gain"
+        return state
+    else:
+        state = gain_food_effect(state, gain_type, amount=gain_qty)
+
+        del state.action_data["sub_phase"]
+        del state.action_data["power_4_discard_type"]
+        del state.action_data["power_4_gain_type"]
+        del state.action_data["power_4_gain_qty"]
+        del state.action_data["power_4_action"]
+        del state.action_data["power_4_activating_bird_id"]
+
+        state.action_data["current_power_index"] += 1
+        return _check_powers_done(state)
+
+
+def _handle_power_4_select_gain(state: GameState, action: str) -> GameState:
+    """Handle resource gain selection for power 4 (wild resource)."""
+    food_gain_str = action.replace("gain_", "")
+    food_distribution = json.loads(food_gain_str)
+
+    for food_type, amount in food_distribution.items():
+        state = gain_food_effect(state, food_type, amount=amount)
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_4_discard_type"]
+    del state.action_data["power_4_gain_type"]
+    del state.action_data["power_4_gain_qty"]
+    del state.action_data["power_4_action"]
+    del state.action_data["power_4_activating_bird_id"]
+
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _execute_power_3(state: GameState, power_entry: dict) -> GameState:
     """Execute Power ID 3: Cache seed on bird."""
     spot = power_entry["spot"]
@@ -187,10 +259,26 @@ def _execute_power_3(state: GameState, power_entry: dict) -> GameState:
     return state
 
 
+def _execute_power_4(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 4: Discard egg/food to gain food/wild/cards."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"]["details"]
+
+    state.action_data["sub_phase"] = "power_4_select_discard"
+    state.action_data["power_4_discard_type"] = details.get("discard")
+    state.action_data["power_4_gain_type"] = details.get("gain")
+    state.action_data["power_4_gain_qty"] = details.get("gain_qty", 1)
+    state.action_data["power_4_action"] = details.get("action")
+    state.action_data["power_4_activating_bird_id"] = power_entry.get("bird_id")
+
+    return state
+
+
 POWER_EXECUTORS = {
     1: _execute_power_1,
     2: _execute_power_2,
     3: _execute_power_3,
+    4: _execute_power_4,
 }
 
 

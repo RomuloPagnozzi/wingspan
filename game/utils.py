@@ -443,3 +443,24 @@ def get_triggered_powers(player: Player, habitat: str, color: str) -> List[Dict]
                 )
 
     return triggered_powers
+
+
+def get_food_gain_combinations(quantity: int) -> List[Dict[str, int]]:
+    """Generate all valid ways to gain N food tokens from available food types."""
+    food_types = ["invertebrate", "seed", "fish", "fruit", "rodent"]
+    combinations = []
+
+    def generate_combinations(remaining: int, combo: Dict[str, int], start_index: int):
+        if remaining == 0:
+            combinations.append(combo.copy())
+            return
+
+        for i in range(start_index, len(food_types)):
+            food_type = food_types[i]
+            for count in range(1, remaining + 1):
+                combo[food_type] = count
+                generate_combinations(remaining - count, combo, i + 1)
+                del combo[food_type]
+
+    generate_combinations(quantity, {}, 0)
+    return combinations

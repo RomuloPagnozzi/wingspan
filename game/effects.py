@@ -37,6 +37,23 @@ def parse_draw_cards_action(action: str) -> tuple:
     return data["tray_birds"], data["deck_cards"]
 
 
+def tuck_cards_effect(state, bird_id: int, count: int) -> GameState:
+    """Draw cards from deck and tuck them under a specific bird."""
+    current_player = state.players[state.current_player_index]
+
+    for row in current_player.board:
+        for spot in row:
+            if spot.bird is not None and spot.bird.id == bird_id:
+                for _ in range(count):
+                    if state.bird_deck:
+                        state.bird_deck.pop()
+
+                spot.bird.tucked_cards += count
+                return state
+
+    raise ValueError(f"Bird {bird_id} not found on current player's board")
+
+
 def gain_food_effect(
     state,
     food_type: str,

@@ -10,6 +10,7 @@ from .utils import (
     get_initial_card_combinations,
     get_food_discard_combinations,
     get_valid_birds_for_eggs,
+    get_food_gain_combinations,
 )
 from .powers import can_execute_power
 import json
@@ -203,7 +204,7 @@ def _get_activate_powers_actions(state: GameState) -> List[str]:
 
     actions = ["skip_power"]
 
-    if can_execute_power(state, power_data):
+    if can_execute_power(state, current_power):
         actions.append("activate_power")
 
     return actions
@@ -236,8 +237,48 @@ def _get_power_2_choices(state: GameState) -> List[str]:
     return [f"activate_{json.dumps(c)}" for c in combos]
 
 
+def _get_power_4_choices(state: GameState) -> List[str]:
+    """Route to appropriate Power 4 choice generator based on sub-phase."""
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "power_4_select_discard":
+        return _get_power_4_discard_choices(state)
+    elif sub_phase == "power_4_select_gain":
+        return _get_power_4_gain_choices(state)
+
+    return []
+
+
+def _get_power_4_discard_choices(state: GameState) -> List[str]:
+    """Generate discard choices for power 4."""
+    discard_type = state.action_data["power_4_discard_type"]
+    gain_type = state.action_data["power_4_gain_type"]
+    activating_bird_id = state.action_data.get("power_4_activating_bird_id")
+    current_player = state.players[state.current_player_index]
+
+    if discard_type == "egg":
+        actions = []
+        for row in current_player.board:
+            for spot in row:
+                if spot.bird is not None and spot.bird.eggs > 0:
+                    if gain_type == "wild" and spot.bird.id == activating_bird_id:
+                        continue
+                    actions.append(f"discard_egg_from_{spot.bird.id}")
+        return actions
+    else:
+        return [f"discard_food_{discard_type}"]
+
+
+def _get_power_4_gain_choices(state: GameState) -> List[str]:
+    """Generate resource gain choices for power 4 (wild resource)."""
+    gain_qty = state.action_data["power_4_gain_qty"]
+    combos = get_food_gain_combinations(gain_qty)
+    return [f"gain_{json.dumps(combo)}" for combo in combos]
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
+    4: _get_power_4_choices,
 }
 
 
