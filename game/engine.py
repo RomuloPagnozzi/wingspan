@@ -1,5 +1,5 @@
 import copy
-from .data import GameState, roll_feeder, GamePhase
+from .data import GameState, roll_feeder, GamePhase, Spot
 from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
@@ -31,12 +31,16 @@ from .effects import (
 # =============================================================================
 
 
-def _finish_main_action(state: GameState, habitat: str) -> GameState:
+def _finish_main_action(
+    state: GameState, color: str, habitat: str | None = None, spot: Spot | None = None
+) -> GameState:
     """Complete a main action: consume cube, check powers, transition."""
     current_player = state.players[state.current_player_index]
     current_player.action_cubes -= 1
 
-    triggered_powers = get_triggered_powers(current_player, habitat, "brown")
+    triggered_powers = get_triggered_powers(
+        current_player, color, habitat=habitat, spot=spot
+    )
     if triggered_powers:
         state.game_phase = GamePhase.ACTIVATE_POWERS
         state.action_data = {
@@ -44,17 +48,6 @@ def _finish_main_action(state: GameState, habitat: str) -> GameState:
             "current_power_index": 0,
         }
         return state
-
-    state.game_phase = GamePhase.MAIN_TURN
-    state.action_data = {}
-    state.current_player_index = get_current_player_index(state)
-    return state
-
-
-def _finish_main_action_no_powers(state: GameState) -> GameState:
-    """Complete a main action that doesn't trigger powers (e.g., play bird)."""
-    current_player = state.players[state.current_player_index]
-    current_player.action_cubes -= 1
 
     state.game_phase = GamePhase.MAIN_TURN
     state.action_data = {}
@@ -434,7 +427,7 @@ def _collect_food(state: GameState, action: str) -> GameState:
         state.action_data["food_needed"] -= 1
 
         if not state.action_data["food_needed"]:
-            return _finish_main_action(state, "forest")
+            return _finish_main_action(state, "brown", habitat="forest")
 
         return state
 
@@ -451,7 +444,7 @@ def _lay_eggs(state: GameState, action: str) -> GameState:
 
     state = lay_eggs_effect(state, egg_distribution)
 
-    return _finish_main_action(state, "grassland")
+    return _finish_main_action(state, "brown", habitat="grassland")
 
 
 def _draw_cards(state: GameState, action: str) -> GameState:
@@ -460,7 +453,7 @@ def _draw_cards(state: GameState, action: str) -> GameState:
 
     state = draw_cards_effect(state, tray_birds, deck_count)
 
-    return _finish_main_action(state, "wetland")
+    return _finish_main_action(state, "brown", habitat="wetland")
 
 
 def _route_extra_food_action(state: GameState, action: str) -> GameState:
@@ -630,7 +623,7 @@ def _play_bird(state: GameState, action: str) -> GameState:
 
     state.action_data = {}
 
-    return _finish_main_action_no_powers(state)
+    return _finish_main_action(state, "white", spot=target_spot)
 
 
 def _pay_egg_cost(state: GameState, action: str) -> GameState:

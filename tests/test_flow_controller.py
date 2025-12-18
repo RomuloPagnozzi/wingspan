@@ -8,7 +8,6 @@ import json
 from game.data import initiate_state, GamePhase
 from game.engine import (
     _finish_main_action,
-    _finish_main_action_no_powers,
     _check_powers_done,
     transition_state,
 )
@@ -22,7 +21,7 @@ def test_finish_main_action_no_powers():
     state.current_player_index = first_player_idx
     state.players[first_player_idx].action_cubes = 5
 
-    state = _finish_main_action(state, "forest")
+    state = _finish_main_action(state, "brown", habitat="forest")
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.current_player_index == (first_player_idx + 1) % 2
@@ -31,12 +30,12 @@ def test_finish_main_action_no_powers():
 
 
 def test_finish_main_action_no_powers_explicit():
-    """Main action that never triggers powers (play bird)."""
+    """Main action with white power color but no white powers."""
     state = initiate_state(2)
     state.current_player_index = 0
     state.players[0].action_cubes = 5
 
-    state = _finish_main_action_no_powers(state)
+    state = _finish_main_action(state, "white")
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].action_cubes == 4

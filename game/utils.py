@@ -322,7 +322,8 @@ def _generate_wild_payments(
 
 
 def get_card_draw_combinations(
-    cards_needed: int, available_tray_bird_ids: List[int]
+    cards_needed: int,
+    available_tray_bird_ids: List[int],
 ) -> List[Dict]:
     """Return all valid ways to draw cards from mix of tray and deck."""
 
@@ -347,7 +348,8 @@ def get_card_draw_combinations(
 
 
 def get_initial_card_combinations(
-    bird_ids: List[int], bonus_ids: List[int]
+    bird_ids: List[int],
+    bonus_ids: List[int],
 ) -> List[Dict]:
     """Return all valid combinations of birds and bonus cards for setup."""
     if len(bonus_ids) != 2 or len(bird_ids) != 5:
@@ -368,7 +370,8 @@ def get_initial_card_combinations(
 
 
 def get_food_discard_combinations(
-    food: Dict[str, int], amount_needed: int
+    food: Dict[str, int],
+    amount_needed: int,
 ) -> List[Dict[str, int]]:
     """Return all valid ways to discard the required amount of food tokens."""
     if amount_needed <= 0:
@@ -412,17 +415,24 @@ def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[Bird]:
     return valid_birds
 
 
-def get_triggered_powers(player: Player, habitat: str, color: str) -> List[Dict]:
-    """Get powers whose trigger conditions are met for a specific habitat and color."""
+def get_triggered_powers(
+    player: Player, color: str, habitat: str | None = None, spot: Spot | None = None
+) -> List[Dict]:
+    """Get powers whose trigger conditions are met for a specific color."""
     triggered_powers = []
 
-    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
-    if habitat not in habitat_map:
+    if spot is not None:
+        spots_to_check = [spot]
+    elif habitat is not None:
+        habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
+        if habitat not in habitat_map:
+            return triggered_powers
+        habitat_row = player.board[habitat_map[habitat]]
+        spots_to_check = list(reversed(habitat_row))
+    else:
         return triggered_powers
 
-    habitat_row = player.board[habitat_map[habitat]]
-
-    for spot in reversed(habitat_row):
+    for spot in spots_to_check:
         if spot.bird is not None:
             power_data = get_bird_power(spot.bird.id)
 
