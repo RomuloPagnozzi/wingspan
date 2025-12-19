@@ -24,6 +24,7 @@ class GamePhase(str, Enum):
     PAY_EGG_COST = "pay_egg_cost"
     PAY_FOOD_COST = "pay_food_cost"
     ACTIVATE_POWERS = "activate_powers"
+    END_TURN = "end_turn"
 
 
 def init_food() -> Dict[str, int]:
@@ -190,14 +191,14 @@ def initiate_state(n_players) -> GameState:
     if n_players not in [2, 3, 4, 5]:
         raise Exception("Forbidden number of players")
     s = GameState()
-    s.bird_tray = [s.bird_deck.pop(-1) for _ in range(3)]
+    s.bird_tray = [s.bird_deck.pop() for _ in range(3)]
     s.players = [Player(i + 1) for i in range(n_players)]
     first_player = random.randint(0, n_players - 1)
     for i, p in enumerate(s.players):
         if i == first_player:
             p.first_player = True
-        p.bird_hand = [s.bird_deck.pop(-1) for _ in range(5)]
-        p.bonus_hand = [s.bonus_deck.pop(-1) for _ in range(2)]
+        p.bird_hand = [s.bird_deck.pop() for _ in range(5)]
+        p.bonus_hand = [s.bonus_deck.pop() for _ in range(2)]
     s.current_player_index = first_player
     return s
 

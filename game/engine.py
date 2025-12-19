@@ -70,6 +70,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_4_select_discard(state, action)
     if sub_phase == "power_4_select_gain":
         return _handle_power_4_select_gain(state, action)
+    if sub_phase == "power_5_select_bonus":
+        return _handle_power_5_select_bonus(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -100,14 +102,13 @@ def _activate_powers(state: GameState, action: str) -> GameState:
 
 
 def _check_powers_done(state: GameState) -> GameState:
-    """Check if all powers processed, transition to main turn if so."""
+    """Check if all powers processed, transition to end turn if so."""
     powers_queue = state.action_data.get("powers_queue", [])
     current_index = state.action_data.get("current_power_index", 0)
 
     if current_index >= len(powers_queue):
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data = {}
-        state.current_player_index = get_current_player_index(state)
+        state.game_phase = GamePhase.END_TURN
+        return _handle_end_turn(state, "")
 
     return state
 
@@ -177,6 +178,29 @@ def _handle_power_2_choice(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_3(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 3: Cache seed on bird."""
+    spot = power_entry["spot"]
+    bird = spot.bird
+    bird.stashed_food += 1
+    return state
+
+
+def _execute_power_4(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 4: Discard egg/food to gain food/wild/cards."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"]["details"]
+
+    state.action_data["sub_phase"] = "power_4_select_discard"
+    state.action_data["power_4_discard_type"] = details.get("discard")
+    state.action_data["power_4_gain_type"] = details.get("gain")
+    state.action_data["power_4_gain_qty"] = details.get("gain_qty", 1)
+    state.action_data["power_4_action"] = details.get("action")
+    state.action_data["power_4_activating_bird_id"] = power_entry.get("bird_id")
+
+    return state
+
+
 def _handle_power_4_select_discard(state: GameState, action: str) -> GameState:
     """Handle discard selection for power 4."""
     discard_type = state.action_data["power_4_discard_type"]
@@ -244,25 +268,96 @@ def _handle_power_4_select_gain(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
-def _execute_power_3(state: GameState, power_entry: dict) -> GameState:
-    """Execute Power ID 3: Cache seed on bird."""
-    spot = power_entry["spot"]
-    bird = spot.bird
-    bird.stashed_food += 1
+def _execute_power_5(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 5: Draw cards or bonus."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    amount = details.get("amount")
+    discard = details.get("discard")
+    bonus = details.get("bonus")
+
+    if not bonus:
+        state = draw_cards_effect(state, [], amount)
+        if discard:
+            state.action_data.setdefault("end_turn_effects", []).append(
+                {
+                    "type": "discard_cards",
+                    "player_index": state.current_player_index,
+                    "amount": 1,
+                }
+            )
+        return state
+
+    if bonus:
+        drawn_cards = [state.bonus_deck.pop() for _ in range(amount)]
+        state.action_data["power_5_bonus_options"] = drawn_cards
+        state.action_data["sub_phase"] = "power_5_select_bonus"
+        return state
+
     return state
 
 
-def _execute_power_4(state: GameState, power_entry: dict) -> GameState:
-    """Execute Power ID 4: Discard egg/food to gain food/wild/cards."""
-    power_data = power_entry["power_data"]
-    details = power_data["data"]["details"]
+def _handle_power_5_select_bonus(state: GameState, action: str) -> GameState:
+    """Handle selecting which bonus card to keep from the 2 drawn."""
+    bonus_id = int(action.split("_")[-1])
+    drawn_cards = state.action_data.get("power_5_bonus_options", [])
 
-    state.action_data["sub_phase"] = "power_4_select_discard"
-    state.action_data["power_4_discard_type"] = details.get("discard")
-    state.action_data["power_4_gain_type"] = details.get("gain")
-    state.action_data["power_4_gain_qty"] = details.get("gain_qty", 1)
-    state.action_data["power_4_action"] = details.get("action")
-    state.action_data["power_4_activating_bird_id"] = power_entry.get("bird_id")
+    selected_card = next((card for card in drawn_cards if card.id == bonus_id), None)
+    if not selected_card:
+        raise ValueError("Invalid bonus selection")
+
+    state.players[state.current_player_index].bonus_hand.append(selected_card)
+
+    del state.action_data["power_5_bonus_options"]
+    del state.action_data["sub_phase"]
+
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
+def _handle_end_turn(state: GameState, action: str) -> GameState:
+    """Handle end-of-turn deferred effects."""
+    effects = state.action_data.get("end_turn_effects", [])
+
+    if not effects:
+        state.game_phase = GamePhase.MAIN_TURN
+        state.action_data = {}
+        state.current_player_index = get_current_player_index(state)
+        return state
+
+    current_effect = effects[0]
+    effect_type = current_effect["type"]
+
+    if effect_type == "discard_cards":
+        sub_phase = state.action_data.get("sub_phase")
+
+        if not sub_phase:
+            state.action_data["sub_phase"] = "end_turn_discard_card"
+            state.action_data["discard_amount"] = current_effect["amount"]
+            return state
+
+        if sub_phase == "end_turn_discard_card":
+            card_id = int(action.split("_")[-1])
+            player = state.players[current_effect["player_index"]]
+
+            card_to_discard = next(
+                (c for c in player.bird_hand if c.id == card_id), None
+            )
+            if card_to_discard:
+                player.bird_hand.remove(card_to_discard)
+                state.discarded_birds.append(card_to_discard)
+
+            effects.pop(0)
+            state.action_data.pop("sub_phase", None)
+            state.action_data.pop("discard_amount", None)
+
+            if not effects:
+                state.action_data.pop("end_turn_effects", None)
+                state.game_phase = GamePhase.MAIN_TURN
+                state.action_data = {}
+                state.current_player_index = get_current_player_index(state)
+
+            return state
 
     return state
 
@@ -272,6 +367,7 @@ POWER_EXECUTORS = {
     2: _execute_power_2,
     3: _execute_power_3,
     4: _execute_power_4,
+    5: _execute_power_5,
 }
 
 
@@ -694,4 +790,5 @@ _ACTION_HANDLERS = {
     GamePhase.PAY_EGG_COST: _pay_egg_cost,
     GamePhase.PAY_FOOD_COST: _pay_food_cost,
     GamePhase.ACTIVATE_POWERS: _activate_powers,
+    GamePhase.END_TURN: _handle_end_turn,
 }

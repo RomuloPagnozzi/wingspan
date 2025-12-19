@@ -742,3 +742,129 @@ def test_power_4_discard_food_gain_specific_food_end_to_end():
         "seed": 2,
         "rodent": 1,
     }, "Discarded 1 seed, gained 1 rodent"
+
+
+def test_power_5_draw_2_bonus_keep_1_end_to_end():
+    """End-to-end test: Power 5 - Draw 2 bonus cards, keep 1."""
+    state = initiate_state(2)
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+
+    bird1 = state.players[0].bird_hand[0]
+    state.players[0].board[0][0].bird = bird1
+    state.players[0].bird_hand.remove(bird1)
+
+    initial_bonus_hand_size = len(state.players[0].bonus_hand)
+    initial_bonus_deck_size = len(state.bonus_deck)
+
+    bonus_card_1 = state.bonus_deck[-1]
+    bonus_card_2 = state.bonus_deck[-2]
+
+    state.action_data = {
+        "powers_queue": [
+            {
+                "bird_id": bird1.id,
+                "power_id": 5,
+                "power_data": {
+                    "data": {
+                        "id": 5,
+                        "details": {
+                            "amount": 2,
+                            "bonus": True,
+                        },
+                    }
+                },
+                "spot": state.players[0].board[0][0],
+            }
+        ],
+        "current_power_index": 0,
+    }
+
+    state = transition_state(state, "activate_power")
+
+    assert state.game_phase == GamePhase.ACTIVATE_POWERS
+    assert state.action_data.get("sub_phase") == "power_5_select_bonus"
+    assert len(state.action_data.get("power_5_bonus_options", [])) == 2
+
+    drawn_cards = state.action_data["power_5_bonus_options"]
+    assert bonus_card_1 in drawn_cards
+    assert bonus_card_2 in drawn_cards
+    assert len(state.bonus_deck) == initial_bonus_deck_size - 2
+
+    actions = get_actions(state)
+    expected_action_1 = f"power_5_bonus_{bonus_card_1.id}"
+    expected_action_2 = f"power_5_bonus_{bonus_card_2.id}"
+    assert expected_action_1 in actions
+    assert expected_action_2 in actions
+    assert len(actions) == 2
+
+    selected_bonus = bonus_card_1
+    state = transition_state(state, f"power_5_bonus_{selected_bonus.id}")
+
+    assert state.game_phase == GamePhase.MAIN_TURN
+    assert len(state.players[0].bonus_hand) == initial_bonus_hand_size + 1
+    assert selected_bonus in state.players[0].bonus_hand
+    assert bonus_card_2 not in state.players[0].bonus_hand
+    assert bonus_card_2 not in state.bonus_deck
+    assert len(state.bonus_deck) == initial_bonus_deck_size - 2
+    assert "power_5_bonus_options" not in state.action_data
+    assert "sub_phase" not in state.action_data
+
+
+def test_power_5_draw_cards_discard_at_end_of_turn():
+    """End-to-end test: Power 5 - Draw cards, discard 1 at end of turn."""
+    state = initiate_state(2)
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+
+    bird1 = state.players[0].bird_hand[0]
+    state.players[0].board[0][0].bird = bird1
+    state.players[0].bird_hand.remove(bird1)
+
+    initial_hand_size = len(state.players[0].bird_hand)
+    initial_deck_size = len(state.bird_deck)
+
+    state.action_data = {
+        "powers_queue": [
+            {
+                "bird_id": bird1.id,
+                "power_id": 5,
+                "power_data": {
+                    "data": {
+                        "id": 5,
+                        "details": {
+                            "amount": 2,
+                            "bonus": False,
+                            "discard": True,
+                        },
+                    }
+                },
+                "spot": state.players[0].board[0][0],
+            }
+        ],
+        "current_power_index": 0,
+    }
+
+    state = transition_state(state, "activate_power")
+
+    assert state.game_phase == GamePhase.END_TURN
+    assert len(state.players[0].bird_hand) == initial_hand_size + 2
+    assert len(state.bird_deck) == initial_deck_size - 2
+    assert "end_turn_effects" in state.action_data
+    assert len(state.action_data["end_turn_effects"]) == 1
+    assert state.action_data["end_turn_effects"][0]["type"] == "discard_cards"
+    assert state.action_data.get("sub_phase") == "end_turn_discard_card"
+
+    actions = get_actions(state)
+    assert len(actions) == initial_hand_size + 2
+    assert all(action.startswith("discard_card_") for action in actions)
+
+    card_to_discard = state.players[0].bird_hand[0]
+    state = transition_state(state, f"discard_card_{card_to_discard.id}")
+
+    assert state.game_phase == GamePhase.MAIN_TURN
+    assert len(state.players[0].bird_hand) == initial_hand_size + 1
+    assert card_to_discard not in state.players[0].bird_hand
+    assert card_to_discard in state.discarded_birds
+    assert "end_turn_effects" not in state.action_data
+    assert "sub_phase" not in state.action_data

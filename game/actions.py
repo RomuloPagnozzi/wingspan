@@ -81,6 +81,23 @@ def _get_main_turn_actions(state: GameState) -> List[str]:
     return actions
 
 
+def _get_end_turn_actions(state: GameState) -> List[str]:
+    """Get actions for end-of-turn phase."""
+    effects = state.action_data.get("end_turn_effects", [])
+    if not effects:
+        return []
+
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "end_turn_discard_card":
+        current_effect = effects[0]
+        player_index = current_effect["player_index"]
+        player = state.players[player_index]
+        return [f"discard_card_{card.id}" for card in player.bird_hand]
+
+    return []
+
+
 def _get_collect_food_actions(state: GameState) -> List[str]:
     """Return possible foods to collect."""
     actions = []
@@ -276,9 +293,21 @@ def _get_power_4_gain_choices(state: GameState) -> List[str]:
     return [f"gain_{json.dumps(combo)}" for combo in combos]
 
 
+def _get_power_5_choices(state: GameState) -> List[str]:
+    """Get choices for power 5 (currently for bonus card selection)."""
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "power_5_select_bonus":
+        drawn_cards = state.action_data.get("power_5_bonus_options", [])
+        return [f"power_5_bonus_{card.id}" for card in drawn_cards]
+
+    return []
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
+    5: _get_power_5_choices,
 }
 
 
@@ -300,4 +329,5 @@ _ACTION_GENERATORS = {
     GamePhase.PAY_EGG_COST: _get_pay_egg_cost_actions,
     GamePhase.PAY_FOOD_COST: _get_pay_food_cost_actions,
     GamePhase.ACTIVATE_POWERS: _get_activate_powers_actions,
+    GamePhase.END_TURN: _get_end_turn_actions,
 }

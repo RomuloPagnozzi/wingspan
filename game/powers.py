@@ -41,10 +41,6 @@ def _can_execute_power_2(state: GameState, power_entry: Dict) -> bool:
     return False
 
 
-def _can_execute_power_3(state: GameState, power_entry: Dict) -> bool:
-    return True
-
-
 def _can_execute_power_4(state: GameState, power_entry: Dict) -> bool:
     """Validate power type 4: discard resource to gain resource/cards."""
     power_data = power_entry.get("power_data", power_entry)
@@ -72,6 +68,7 @@ def _can_execute_power_4(state: GameState, power_entry: Dict) -> bool:
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
-    3: _can_execute_power_3,
+    3: lambda _, __: True,
     4: _can_execute_power_4,
+    5: lambda _, __: True,
 }

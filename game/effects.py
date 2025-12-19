@@ -4,7 +4,7 @@ from game.data import GameState, roll_feeder
 
 
 def draw_cards_effect(
-    state,
+    state: GameState,
     tray_bird_ids: List[int],
     deck_count: int,
     player_index: Optional[int] = None,
@@ -37,7 +37,7 @@ def parse_draw_cards_action(action: str) -> tuple:
     return data["tray_birds"], data["deck_cards"]
 
 
-def tuck_cards_effect(state, bird_id: int, count: int) -> GameState:
+def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> GameState:
     """Draw cards from deck and tuck them under a specific bird."""
     current_player = state.players[state.current_player_index]
 
@@ -55,7 +55,7 @@ def tuck_cards_effect(state, bird_id: int, count: int) -> GameState:
 
 
 def gain_food_effect(
-    state,
+    state: GameState,
     food_type: str,
     amount: int = 1,
     player_index: Optional[int] = None,
@@ -74,7 +74,7 @@ def gain_food_effect(
 
 
 def lay_eggs_effect(
-    state,
+    state: GameState,
     egg_distribution: Dict[int, int],
     player_index: Optional[int] = None,
 ) -> GameState:
@@ -98,7 +98,7 @@ def parse_lay_eggs_action(action: str) -> Dict[int, int]:
     return {int(k): v for k, v in json.loads(action).items()}
 
 
-def select_die_effect(state, die_index: int, food_type: str) -> GameState:
+def select_die_effect(state: GameState, die_index: int, food_type: str) -> GameState:
     """Select die from feeder and gain food."""
     if die_index not in state.feeder:
         raise ValueError(f"Die {die_index} not in feeder")
@@ -123,7 +123,7 @@ def parse_select_die_action(action: str) -> tuple:
 
 
 def place_bird_effect(
-    state,
+    state: GameState,
     bird_id: int,
     row: int,
     col: int,
@@ -169,7 +169,7 @@ def parse_pay_eggs_action(action: str) -> Dict[int, int]:
 
 
 def pay_eggs_effect(
-    state,
+    state: GameState,
     egg_payment: Dict[int, int],
     player_index: Optional[int] = None,
 ):
@@ -194,7 +194,7 @@ def parse_pay_food_action(action: str) -> Dict[str, int]:
 
 
 def pay_food_effect(
-    state,
+    state: GameState,
     food_payment: Dict[str, int],
     player_index: Optional[int] = None,
 ):
@@ -212,7 +212,7 @@ def pay_food_effect(
 
 
 def discard_bird_from_hand_effect(
-    state,
+    state: GameState,
     bird_id: int,
     player_index: Optional[int] = None,
 ):
