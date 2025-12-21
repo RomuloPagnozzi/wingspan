@@ -72,6 +72,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_4_select_gain(state, action)
     if sub_phase == "power_5_select_bonus":
         return _handle_power_5_select_bonus(state, action)
+    if sub_phase == "power_6_select_card":
+        return _handle_power_6_select_card(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -315,6 +317,65 @@ def _handle_power_5_select_bonus(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_6(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 6: Draw N+1 cards, all players select one clockwise."""
+    activator = state.current_player_index
+    num_players = len(state.players)
+    cards_to_draw = num_players + 1
+
+    drawn_cards = [state.bird_deck.pop() for _ in range(cards_to_draw)]
+
+    player_order = [activator]
+    for i in range(1, num_players):
+        player_order.append((activator + i) % num_players)
+    player_order.append(activator)
+
+    state.action_data["sub_phase"] = "power_6_select_card"
+    state.action_data["activator"] = activator
+    state.action_data["awaiting_players"] = player_order.copy()
+    state.action_data["power_6_available_cards"] = drawn_cards
+    state.current_player_index = player_order[0]
+
+    return state
+
+
+def _handle_power_6_select_card(state: GameState, action: str) -> GameState:
+    """Handle player's card selection for power 6."""
+    card_id = int(action.split("_")[-1])
+    available_cards = state.action_data["power_6_available_cards"]
+
+    selected_card = next((c for c in available_cards if c.id == card_id), None)
+    if not selected_card:
+        raise ValueError(f"Card {card_id} not in available cards")
+
+    current_player = state.players[state.current_player_index]
+    current_player.bird_hand.append(selected_card)
+
+    available_cards.remove(selected_card)
+    state.action_data["power_6_available_cards"] = available_cards
+
+    awaiting = state.action_data["awaiting_players"]
+    awaiting.remove(state.current_player_index)
+
+    if awaiting:
+        state.action_data["awaiting_players"] = awaiting
+        state.current_player_index = awaiting[0]
+        return state
+
+    if len(available_cards) != 0:
+        raise ValueError(f"Expected 0 remaining cards, got {len(available_cards)}")
+
+    activator_index = state.action_data["activator"]
+    state.current_player_index = activator_index
+    del state.action_data["sub_phase"]
+    del state.action_data["awaiting_players"]
+    del state.action_data["power_6_available_cards"]
+    del state.action_data["activator"]
+
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -368,6 +429,7 @@ POWER_EXECUTORS = {
     3: _execute_power_3,
     4: _execute_power_4,
     5: _execute_power_5,
+    6: _execute_power_6,
 }
 
 

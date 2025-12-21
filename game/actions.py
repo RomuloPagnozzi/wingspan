@@ -304,10 +304,22 @@ def _get_power_5_choices(state: GameState) -> List[str]:
     return []
 
 
+def _get_power_6_choices(state: GameState) -> List[str]:
+    """Generate card selection choices for power 6."""
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "power_6_select_card":
+        available_cards = state.action_data.get("power_6_available_cards", [])
+        return [f"select_card_{card.id}" for card in available_cards]
+
+    return []
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
     5: _get_power_5_choices,
+    6: _get_power_6_choices,
 }
 
 
