@@ -74,6 +74,10 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_5_select_bonus(state, action)
     if sub_phase == "power_6_select_card":
         return _handle_power_6_select_card(state, action)
+    if sub_phase == "power_7_choose_starting_player":
+        return _handle_power_7_choose_starting_player(state, action)
+    if sub_phase == "power_7_select_die":
+        return _handle_power_7_select_die(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -376,6 +380,59 @@ def _handle_power_6_select_card(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_7(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 7: Each player gains 1 die from birdfeeder"""
+    activator = state.current_player_index
+
+    state.action_data["sub_phase"] = "power_7_choose_starting_player"
+    state.action_data["activator"] = activator
+
+    return state
+
+
+def _handle_power_7_choose_starting_player(state: GameState, action: str) -> GameState:
+    """Handle activator's choice of which player starts die selection."""
+    starting_player_index = int(action.split("_")[-1])
+
+    if starting_player_index < 0 or starting_player_index >= len(state.players):
+        raise ValueError(f"Invalid player index: {starting_player_index}")
+
+    num_players = len(state.players)
+    player_order = []
+    for i in range(num_players):
+        player_order.append((starting_player_index + i) % num_players)
+
+    state.action_data["sub_phase"] = "power_7_select_die"
+    state.action_data["awaiting_players"] = player_order
+    state.current_player_index = player_order[0]
+
+    return state
+
+
+def _handle_power_7_select_die(state: GameState, action: str) -> GameState:
+    """Handle player's die selection from birdfeeder."""
+    die_index, food_type = parse_select_die_action(action)
+    state = select_die_effect(
+        state, die_index, food_type, player_index=state.current_player_index
+    )
+
+    awaiting = state.action_data["awaiting_players"]
+    awaiting.remove(state.current_player_index)
+
+    if awaiting:
+        state.action_data["awaiting_players"] = awaiting
+        state.current_player_index = awaiting[0]
+        return state
+
+    activator_index = state.action_data.pop("activator")
+    state.current_player_index = activator_index
+    del state.action_data["sub_phase"]
+    del state.action_data["awaiting_players"]
+
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -430,6 +487,7 @@ POWER_EXECUTORS = {
     4: _execute_power_4,
     5: _execute_power_5,
     6: _execute_power_6,
+    7: _execute_power_7,
 }
 
 

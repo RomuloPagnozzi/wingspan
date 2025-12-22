@@ -98,14 +98,19 @@ def parse_lay_eggs_action(action: str) -> Dict[int, int]:
     return {int(k): v for k, v in json.loads(action).items()}
 
 
-def select_die_effect(state: GameState, die_index: int, food_type: str) -> GameState:
+def select_die_effect(
+    state: GameState,
+    die_index: int,
+    food_type: str,
+    player_index: Optional[int] = None,
+) -> GameState:
     """Select die from feeder and gain food."""
     if die_index not in state.feeder:
         raise ValueError(f"Die {die_index} not in feeder")
     if food_type not in state.feeder[die_index]:
         raise ValueError(f"Die {die_index} doesn't have {food_type}")
 
-    state = gain_food_effect(state, food_type, amount=1)
+    state = gain_food_effect(state, food_type, amount=1, player_index=player_index)
     del state.feeder[die_index]
 
     if not state.feeder:

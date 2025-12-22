@@ -315,11 +315,39 @@ def _get_power_6_choices(state: GameState) -> List[str]:
     return []
 
 
+def _get_power_7_choices(state: GameState) -> List[str]:
+    """Route to appropriate Power 7 choice generator based on sub-phase."""
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "power_7_choose_starting_player":
+        return _get_power_7_starting_player_choices(state)
+    elif sub_phase == "power_7_select_die":
+        return _get_power_7_die_choices(state)
+
+    return []
+
+
+def _get_power_7_starting_player_choices(state: GameState) -> List[str]:
+    """Generate player selection actions for Power 7."""
+    num_players = len(state.players)
+    return [f"choose_player_{i}" for i in range(num_players)]
+
+
+def _get_power_7_die_choices(state: GameState) -> List[str]:
+    """Generate die selection actions for Power 7."""
+    actions = []
+    for die_index, food_types in state.feeder.items():
+        for food_type in food_types:
+            actions.append(f"select_die_{die_index}_{food_type}")
+    return actions
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
     5: _get_power_5_choices,
     6: _get_power_6_choices,
+    7: _get_power_7_choices,
 }
 
 
