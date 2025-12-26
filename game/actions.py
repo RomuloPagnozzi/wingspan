@@ -342,12 +342,46 @@ def _get_power_7_die_choices(state: GameState) -> List[str]:
     return actions
 
 
+def _get_power_8_choices(state: GameState) -> List[str]:
+    """Route to appropriate Power 8 choice generator based on sub-phase."""
+    sub_phase = state.action_data.get("sub_phase")
+
+    if sub_phase == "power_8_select_food_type":
+        return _get_power_8_food_type_choices(state)
+    elif sub_phase == "power_8_select_die":
+        return _get_power_8_die_choices(state)
+    elif sub_phase == "power_8_choose_cache":
+        return ["cache_food", "supply_food"]
+
+    return []
+
+
+def _get_power_8_food_type_choices(state: GameState) -> List[str]:
+    """Generate food type choices from available feeder foods."""
+    available_foods = state.action_data.get("power_8_food_types", [])
+    return [f"select_food_type_{food}" for food in available_foods]
+
+
+def _get_power_8_die_choices(state: GameState) -> List[str]:
+    """Generate die choices for selected food type."""
+    food_type = state.action_data["power_8_food_type"]
+    actions = []
+
+    for die_idx, foods in state.feeder.items():
+        if food_type in foods:
+            die_display = "/".join(sorted(foods))
+            actions.append(f"select_die_{die_idx}_{die_display}")
+
+    return actions
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
     5: _get_power_5_choices,
     6: _get_power_6_choices,
     7: _get_power_7_choices,
+    8: _get_power_8_choices,
 }
 
 

@@ -65,6 +65,24 @@ def _can_execute_power_4(state: GameState, power_entry: Dict) -> bool:
         return current_player.food.get(discard_type, 0) > 0
 
 
+def _can_execute_power_8(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 8: gain food."""
+    power_data = power_entry.get("power_data", power_entry)
+    details = power_data["data"].get("details", {})
+    source = details["source"]
+    food_types = details["food_types"]
+
+    if source == "supply":
+        return True
+
+    for food_type in food_types:
+        for die_face in state.feeder.values():
+            if food_type in die_face:
+                return True
+
+    return False
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -73,4 +91,5 @@ POWER_VALIDATORS = {
     5: lambda _, __: True,
     6: lambda _, __: True,
     7: lambda _, __: True,
+    8: _can_execute_power_8,
 }
