@@ -1,6 +1,6 @@
 from typing import Dict
 from .data import GameState
-from .utils import get_valid_birds_for_eggs
+from .utils import get_valid_birds_for_eggs, find_leftmost_empty_spot
 
 
 def can_execute_power(state: GameState, power_entry: Dict) -> bool:
@@ -83,6 +83,32 @@ def _can_execute_power_8(state: GameState, power_entry: Dict) -> bool:
     return False
 
 
+def _can_execute_power_9(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 9: move bird to another habitat if rightmost."""
+    spot = power_entry["spot"]
+    bird = spot.bird
+    current_habitat = spot.habitat
+
+    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
+    current_player = state.players[state.current_player_index]
+    habitat_row = current_player.board[habitat_map[current_habitat]]
+
+    birds_in_habitat = [s for s in habitat_row if s.bird is not None]
+    if not birds_in_habitat:
+        return False
+    rightmost_spot = max(birds_in_habitat, key=lambda s: s.col)
+    if spot.col != rightmost_spot.col:
+        return False
+
+    for habitat in bird.habitats:
+        if habitat != current_habitat:
+            target_row = current_player.board[habitat_map[habitat]]
+            if find_leftmost_empty_spot(target_row) is not None:
+                return True
+
+    return False
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -92,4 +118,5 @@ POWER_VALIDATORS = {
     6: lambda _, __: True,
     7: lambda _, __: True,
     8: _can_execute_power_8,
+    9: _can_execute_power_9,
 }

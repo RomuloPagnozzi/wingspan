@@ -84,6 +84,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_8_select_die(state, action)
     if sub_phase == "power_8_choose_cache":
         return _handle_power_8_choose_cache(state, action)
+    if sub_phase == "power_9_select_habitat":
+        return _handle_power_9_select_habitat(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -439,6 +441,96 @@ def _handle_power_7_select_die(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_8(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 8: Gain food with optional caching and source selection."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    can_cache = details["can_cache"]
+    source = details["source"]
+    quantity = details["quantity"]
+    food_types = details["food_types"]
+
+    if can_cache and quantity != 1:
+        raise ValueError(
+            f"Invalid power 8: can_cache=True requires quantity=1, got {quantity}"
+        )
+
+    available_foods = {
+        food for food in food_types for face in state.feeder.values() if food in face
+    }
+
+    if not can_cache and len(food_types) == 1 and source == "supply":
+        food_type = food_types[0]
+        gain_food_effect(state, food_type, quantity, state.current_player_index)
+        return state
+
+    if (
+        not can_cache
+        and len(food_types) == 1
+        and source == "birdfeeder"
+        and quantity == "all"
+    ):
+        food_type = food_types[0]
+        indices = [
+            die_idx for die_idx, face in state.feeder.items() if food_type in face
+        ]
+        for die_idx in indices:
+            select_die_effect(state, die_idx, food_type, state.current_player_index)
+        return state
+
+    if source == "supply" and can_cache:
+        food_type = food_types[0]
+
+        gain_food_effect(state, food_type, 1, state.current_player_index)
+
+        state.action_data["sub_phase"] = "power_8_choose_cache"
+        state.action_data["power_8_food_type"] = food_type
+        state.action_data["power_8_activating_bird_id"] = power_entry.get("bird_id")
+        return state
+
+    if source == "birdfeeder":
+
+        if len(food_types) > 1 and len(available_foods) > 1:
+            state.action_data["sub_phase"] = "power_8_select_food_type"
+            state.action_data["power_8_food_types"] = list(available_foods)
+            state.action_data["power_8_can_cache"] = can_cache
+            state.action_data["power_8_quantity"] = quantity
+            if can_cache:
+                state.action_data["power_8_activating_bird_id"] = power_entry.get(
+                    "bird_id"
+                )
+            return state
+
+        food_type = food_types[0] if len(food_types) == 1 else list(available_foods)[0]
+
+        matching_dice = [
+            die_idx for die_idx, face in state.feeder.items() if food_type in face
+        ]
+
+        if quantity == 1 and len(matching_dice) == 1 and not can_cache:
+            select_die_effect(
+                state, matching_dice[0], food_type, state.current_player_index
+            )
+            return state
+
+        if quantity == 1:
+            state.action_data["sub_phase"] = "power_8_select_die"
+            state.action_data["power_8_food_type"] = food_type
+            state.action_data["power_8_can_cache"] = can_cache
+            if can_cache:
+                state.action_data["power_8_activating_bird_id"] = power_entry.get(
+                    "bird_id"
+                )
+            return state
+
+        state.action_data["sub_phase"] = "power_8_select_die"
+        state.action_data["power_8_food_type"] = food_type
+        state.action_data["power_8_remaining_quantity"] = quantity
+        return state
+
+    return state
+
+
 def _power_8_cleanup(state: GameState) -> None:
     """Remove all power_8_* keys from action_data."""
     keys_to_remove = [k for k in state.action_data if k.startswith("power_8_")]
@@ -535,94 +627,77 @@ def _handle_power_8_choose_cache(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
-def _execute_power_8(state: GameState, power_entry: dict) -> GameState:
-    """Execute Power ID 8: Gain food with optional caching and source selection."""
-    power_data = power_entry["power_data"]
-    details = power_data["data"].get("details", {})
-    can_cache = details["can_cache"]
-    source = details["source"]
-    quantity = details["quantity"]
-    food_types = details["food_types"]
+def _execute_power_9(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 9: Move bird to another habitat if rightmost."""
+    spot = power_entry["spot"]
+    bird = spot.bird
+    current_habitat = spot.habitat
 
-    if can_cache and quantity != 1:
-        raise ValueError(
-            f"Invalid power 8: can_cache=True requires quantity=1, got {quantity}"
-        )
+    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
+    current_player = state.players[state.current_player_index]
+    valid_habitats = []
 
-    available_foods = {
-        food for food in food_types for face in state.feeder.values() if food in face
-    }
+    for habitat in bird.habitats:
+        if habitat != current_habitat:
+            target_row = current_player.board[habitat_map[habitat]]
+            if find_leftmost_empty_spot(target_row) is not None:
+                valid_habitats.append(habitat)
 
-    if not can_cache and len(food_types) == 1 and source == "supply":
-        food_type = food_types[0]
-        gain_food_effect(state, food_type, quantity, state.current_player_index)
+    if len(valid_habitats) == 1:
+        target_habitat = valid_habitats[0]
+        target_row = current_player.board[habitat_map[target_habitat]]
+        new_spot = find_leftmost_empty_spot(target_row)
+        if not new_spot:
+            raise ValueError("target spot not available")
+
+        spot.bird = None
+        new_spot.bird = bird
+
         return state
 
-    if (
-        not can_cache
-        and len(food_types) == 1
-        and source == "birdfeeder"
-        and quantity == "all"
-    ):
-        food_type = food_types[0]
-        indices = [
-            die_idx for die_idx, face in state.feeder.items() if food_type in face
-        ]
-        for die_idx in indices:
-            select_die_effect(state, die_idx, food_type, state.current_player_index)
-        return state
-
-    if source == "supply" and can_cache:
-        food_type = food_types[0]
-
-        gain_food_effect(state, food_type, 1, state.current_player_index)
-
-        state.action_data["sub_phase"] = "power_8_choose_cache"
-        state.action_data["power_8_food_type"] = food_type
-        state.action_data["power_8_activating_bird_id"] = power_entry.get("bird_id")
-        return state
-
-    if source == "birdfeeder":
-
-        if len(food_types) > 1 and len(available_foods) > 1:
-            state.action_data["sub_phase"] = "power_8_select_food_type"
-            state.action_data["power_8_food_types"] = list(available_foods)
-            state.action_data["power_8_can_cache"] = can_cache
-            state.action_data["power_8_quantity"] = quantity
-            if can_cache:
-                state.action_data["power_8_activating_bird_id"] = power_entry.get(
-                    "bird_id"
-                )
-            return state
-
-        food_type = food_types[0] if len(food_types) == 1 else list(available_foods)[0]
-
-        matching_dice = [
-            die_idx for die_idx, face in state.feeder.items() if food_type in face
-        ]
-
-        if quantity == 1 and len(matching_dice) == 1 and not can_cache:
-            select_die_effect(
-                state, matching_dice[0], food_type, state.current_player_index
-            )
-            return state
-
-        if quantity == 1:
-            state.action_data["sub_phase"] = "power_8_select_die"
-            state.action_data["power_8_food_type"] = food_type
-            state.action_data["power_8_can_cache"] = can_cache
-            if can_cache:
-                state.action_data["power_8_activating_bird_id"] = power_entry.get(
-                    "bird_id"
-                )
-            return state
-
-        state.action_data["sub_phase"] = "power_8_select_die"
-        state.action_data["power_8_food_type"] = food_type
-        state.action_data["power_8_remaining_quantity"] = quantity
-        return state
-
+    state.action_data["sub_phase"] = "power_9_select_habitat"
+    state.action_data["power_9_valid_habitats"] = valid_habitats
+    state.action_data["power_9_bird_id"] = bird.id
+    state.action_data["power_9_current_habitat"] = current_habitat
     return state
+
+
+def _handle_power_9_select_habitat(state: GameState, action: str) -> GameState:
+    """Handle habitat selection for Power 9."""
+    habitat = action.split("_")[2]
+
+    bird_id = state.action_data["power_9_bird_id"]
+    current_habitat = state.action_data["power_9_current_habitat"]
+
+    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
+    current_player = state.players[state.current_player_index]
+
+    old_habitat_row = current_player.board[habitat_map[current_habitat]]
+    old_spot = None
+    bird = None
+    for spot in old_habitat_row:
+        if spot.bird and spot.bird.id == bird_id:
+            old_spot = spot
+            bird = spot.bird
+            break
+
+    if not old_spot or not bird:
+        raise ValueError(f"Bird {bird_id} not found in {current_habitat}")
+
+    target_row = current_player.board[habitat_map[habitat]]
+    new_spot = find_leftmost_empty_spot(target_row)
+    if not new_spot:
+        raise ValueError("target spot not available")
+
+    old_spot.bird = None
+    new_spot.bird = bird
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_9_valid_habitats"]
+    del state.action_data["power_9_bird_id"]
+    del state.action_data["power_9_current_habitat"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
 
 
 def _handle_end_turn(state: GameState, action: str) -> GameState:
@@ -681,6 +756,7 @@ POWER_EXECUTORS = {
     6: _execute_power_6,
     7: _execute_power_7,
     8: _execute_power_8,
+    9: _execute_power_9,
 }
 
 

@@ -375,6 +375,12 @@ def _get_power_8_die_choices(state: GameState) -> List[str]:
     return actions
 
 
+def _get_power_9_choices(state: GameState) -> List[str]:
+    """Generate habitat selection actions for Power 9."""
+    valid_habitats = state.action_data.get("power_9_valid_habitats", [])
+    return [f"select_habitat_{habitat}" for habitat in valid_habitats]
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
@@ -382,6 +388,7 @@ POWER_CHOICE_GENERATORS = {
     6: _get_power_6_choices,
     7: _get_power_7_choices,
     8: _get_power_8_choices,
+    9: _get_power_9_choices,
 }
 
 
