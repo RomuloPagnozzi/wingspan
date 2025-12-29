@@ -324,6 +324,10 @@ def _handle_power_5_select_bonus(state: GameState, action: str) -> GameState:
 
     state.players[state.current_player_index].bonus_hand.append(selected_card)
 
+    for card in drawn_cards:
+        if card.id != bonus_id:
+            state.discarded_bonuses.append(card)
+
     del state.action_data["power_5_bonus_options"]
     del state.action_data["sub_phase"]
 
@@ -754,6 +758,27 @@ def _handle_power_10_select_bird(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_11(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 11: Draw card and tuck if wingspan < threshold."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    wingspan_threshold = details["wingspan"]
+
+    spot = power_entry.get("spot")
+    if not spot or not spot.bird:
+        raise ValueError("Power 11 requires activating bird")
+
+    activating_bird = spot.bird
+    drawn_bird = state.bird_deck.pop()
+
+    if drawn_bird.wingspan < wingspan_threshold:
+        activating_bird.tucked_cards += 1
+    else:
+        state.discarded_birds.append(drawn_bird)
+
+    return state
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -812,6 +837,7 @@ POWER_EXECUTORS = {
     8: _execute_power_8,
     9: _execute_power_9,
     10: _execute_power_10,
+    11: _execute_power_11,
 }
 
 

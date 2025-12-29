@@ -22,8 +22,7 @@ def draw_cards_effect(
                 break
 
     for _ in range(deck_count):
-        if state.bird_deck:
-            target_player.bird_hand.append(state.bird_deck.pop())
+        target_player.bird_hand.append(state.bird_deck.pop())
 
     while len(state.bird_tray) < 3 and state.bird_deck:
         state.bird_tray.append(state.bird_deck.pop())
@@ -45,8 +44,7 @@ def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> GameState:
         for spot in row:
             if spot.bird is not None and spot.bird.id == bird_id:
                 for _ in range(count):
-                    if state.bird_deck:
-                        state.bird_deck.pop()
+                    state.bird_deck.pop()
 
                 spot.bird.tucked_cards += count
                 return state

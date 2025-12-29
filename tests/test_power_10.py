@@ -745,15 +745,23 @@ def test_power_10_mixed_capacity_birds():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
+    # Get birds from returned state (transition_state does deepcopy)
+    board_birds = [
+        state.players[0].board[1][0].bird,
+        state.players[0].board[1][1].bird,
+        state.players[0].board[2][0].bird,
+        state.players[0].board[2][1].bird,
+    ]
+
     # Verify only birds with capacity received eggs
     assert (
-        bowl_birds[0].eggs == initial_eggs[0] + 1
+        board_birds[0].eggs == initial_eggs[0] + 1
     ), "Bird 0 with capacity should gain egg"
-    assert bowl_birds[1].eggs == initial_eggs[1], "Bird 1 at limit should be unchanged"
+    assert board_birds[1].eggs == initial_eggs[1], "Bird 1 at limit should be unchanged"
     assert (
-        bowl_birds[2].eggs == initial_eggs[2] + 1
+        board_birds[2].eggs == initial_eggs[2] + 1
     ), "Bird 2 with capacity should gain egg"
-    assert bowl_birds[3].eggs == initial_eggs[3], "Bird 3 at limit should be unchanged"
+    assert board_birds[3].eggs == initial_eggs[3], "Bird 3 at limit should be unchanged"
 
 
 def test_power_10_validation():
