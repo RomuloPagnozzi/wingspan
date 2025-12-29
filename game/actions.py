@@ -381,6 +381,12 @@ def _get_power_9_choices(state: GameState) -> List[str]:
     return [f"select_habitat_{habitat}" for habitat in valid_habitats]
 
 
+def _get_power_10_choices(state: GameState) -> List[str]:
+    """Generate bird selection actions for Power 10 (type: 'any')."""
+    valid_bird_ids = state.action_data.get("power_10_valid_bird_ids", [])
+    return [f"select_bird_{bird_id}" for bird_id in valid_bird_ids]
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
@@ -389,6 +395,7 @@ POWER_CHOICE_GENERATORS = {
     7: _get_power_7_choices,
     8: _get_power_8_choices,
     9: _get_power_9_choices,
+    10: _get_power_10_choices,
 }
 
 

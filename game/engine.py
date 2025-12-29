@@ -86,6 +86,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_8_choose_cache(state, action)
     if sub_phase == "power_9_select_habitat":
         return _handle_power_9_select_habitat(state, action)
+    if sub_phase == "power_10_select_bird":
+        return _handle_power_10_select_bird(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -700,6 +702,58 @@ def _handle_power_9_select_habitat(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_10(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 10: Lay eggs on birds."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    is_this = details.get("this", False)
+    nest_type = details.get("type", "")
+
+    current_player = state.players[state.current_player_index]
+
+    if is_this:
+        spot = power_entry.get("spot")
+        if spot and spot.bird:
+            egg_distribution = {spot.bird.id: 1}
+            state = lay_eggs_effect(state, egg_distribution)
+        return state
+
+    if nest_type != "any":
+        valid_birds = get_valid_birds_for_eggs(current_player, nest_type)
+        if valid_birds:
+            egg_distribution = {bird.id: 1 for bird in valid_birds}
+            state = lay_eggs_effect(state, egg_distribution)
+        return state
+
+    valid_birds = []
+    for row in current_player.board:
+        for spot in row:
+            if spot.bird is not None and spot.bird.eggs < spot.bird.egg_limit:
+                valid_birds.append(spot.bird)
+
+    if len(valid_birds) == 1:
+        egg_distribution = {valid_birds[0].id: 1}
+        state = lay_eggs_effect(state, egg_distribution)
+        return state
+
+    state.action_data["sub_phase"] = "power_10_select_bird"
+    state.action_data["power_10_valid_bird_ids"] = [bird.id for bird in valid_birds]
+    return state
+
+
+def _handle_power_10_select_bird(state: GameState, action: str) -> GameState:
+    """Handle bird selection for Power 10 (type: 'any')."""
+    bird_id = int(action.split("_")[-1])
+
+    egg_distribution = {bird_id: 1}
+    state = lay_eggs_effect(state, egg_distribution)
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_10_valid_bird_ids"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -757,6 +811,7 @@ POWER_EXECUTORS = {
     7: _execute_power_7,
     8: _execute_power_8,
     9: _execute_power_9,
+    10: _execute_power_10,
 }
 
 

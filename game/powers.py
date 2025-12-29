@@ -109,6 +109,31 @@ def _can_execute_power_9(state: GameState, power_entry: Dict) -> bool:
     return False
 
 
+def _can_execute_power_10(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 10: lay eggs on birds."""
+    power_data = power_entry.get("power_data", power_entry)
+    details = power_data["data"].get("details", {})
+    is_this = details.get("this", False)
+    nest_type = details.get("type", "")
+
+    current_player = state.players[state.current_player_index]
+
+    if is_this:
+        spot = power_entry.get("spot")
+        if spot and spot.bird:
+            return spot.bird.eggs < spot.bird.egg_limit
+        return False
+
+    if nest_type == "any":
+        for row in current_player.board:
+            for spot in row:
+                if spot.bird is not None and spot.bird.eggs < spot.bird.egg_limit:
+                    return True
+        return False
+
+    return len(get_valid_birds_for_eggs(current_player, nest_type)) > 0
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -119,4 +144,5 @@ POWER_VALIDATORS = {
     7: lambda _, __: True,
     8: _can_execute_power_8,
     9: _can_execute_power_9,
+    10: _can_execute_power_10,
 }

@@ -98,7 +98,9 @@ def test_power_9_bird_solo_in_row():
                 if spot.bird and spot.bird.id == bird_id:
                     bird_found = True
                     # Should be in a different row than initial
-                    assert row_idx != initial_row, "Bird should have moved to different habitat"
+                    assert (
+                        row_idx != initial_row
+                    ), "Bird should have moved to different habitat"
                     break
             if bird_found:
                 break
@@ -261,7 +263,9 @@ def test_power_9_all_other_rows_full():
 
     power_9_bird = get_bird(bird_id)
     assert power_9_bird
-    assert len(power_9_bird.habitats) == 3, "Bird should have all 3 habitats for this test"
+    assert (
+        len(power_9_bird.habitats) == 3
+    ), "Bird should have all 3 habitats for this test"
 
     # Place power 9 bird in wetland row, rightmost position (col 0, solo)
     habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
