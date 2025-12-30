@@ -1,6 +1,10 @@
 from typing import Dict
 from .data import GameState
-from .utils import get_valid_birds_for_eggs, find_leftmost_empty_spot
+from .utils import (
+    get_valid_birds_for_eggs,
+    find_leftmost_empty_spot,
+    generate_playable_bird_spots,
+)
 
 
 def can_execute_power(state: GameState, power_entry: Dict) -> bool:
@@ -134,6 +138,29 @@ def _can_execute_power_10(state: GameState, power_entry: Dict) -> bool:
     return len(get_valid_birds_for_eggs(current_player, nest_type)) > 0
 
 
+def _can_execute_power_12(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 12: play additional bird in habitat."""
+    power_data = power_entry.get("power_data", power_entry)
+    details = power_data["data"].get("details", {})
+    habitat_spec = details.get("habitat", "")
+
+    if habitat_spec == "this":
+        spot = power_entry.get("spot")
+        if not spot:
+            return False
+        target_habitat = spot.habitat
+    else:
+        target_habitat = habitat_spec
+
+    current_player = state.players[state.current_player_index]
+
+    for _, spot in generate_playable_bird_spots(current_player):
+        if spot.habitat == target_habitat:
+            return True
+
+    return False
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -146,4 +173,5 @@ POWER_VALIDATORS = {
     9: _can_execute_power_9,
     10: _can_execute_power_10,
     11: lambda _, __: True,
+    12: _can_execute_power_12,
 }

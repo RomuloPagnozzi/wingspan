@@ -168,10 +168,18 @@ def _get_egg_discard_actions(state: GameState) -> List[str]:
 def _get_play_bird_actions(state: GameState) -> List[str]:
     """Return birds that can be played with their target spots."""
     current_player = state.players[state.current_player_index]
-    return [
-        f"play_bird_{bird.id}_at_{spot.row}_{spot.col}"
-        for bird, spot in generate_playable_bird_spots(current_player)
-    ]
+
+    target_habitat = state.action_data.get("power_12_target_habitat")
+
+    actions = []
+    for bird, spot in generate_playable_bird_spots(current_player):
+        if target_habitat:
+            if spot.habitat == target_habitat:
+                actions.append(f"play_bird_{bird.id}_at_{spot.row}_{spot.col}")
+        else:
+            actions.append(f"play_bird_{bird.id}_at_{spot.row}_{spot.col}")
+
+    return actions
 
 
 def _get_pay_egg_cost_actions(state: GameState) -> List[str]:

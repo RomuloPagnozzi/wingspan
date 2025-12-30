@@ -32,11 +32,16 @@ from .effects import (
 
 
 def _finish_main_action(
-    state: GameState, color: str, habitat: str | None = None, spot: Spot | None = None
+    state: GameState,
+    color: str,
+    habitat: str | None = None,
+    spot: Spot | None = None,
+    skip_action_cube: bool = False,
 ) -> GameState:
     """Complete a main action: consume cube, check powers, transition."""
     current_player = state.players[state.current_player_index]
-    current_player.action_cubes -= 1
+    if not skip_action_cube:
+        current_player.action_cubes -= 1
 
     triggered_powers = get_triggered_powers(
         current_player, color, habitat=habitat, spot=spot
@@ -779,6 +784,27 @@ def _execute_power_11(state: GameState, power_entry: dict) -> GameState:
     return state
 
 
+def _execute_power_12(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 12: Play additional bird in habitat."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    habitat_spec = details.get("habitat", "")
+
+    if habitat_spec == "this":
+        spot = power_entry.get("spot")
+        if not spot:
+            raise ValueError("Power 12 with 'this' requires spot context")
+        target_habitat = spot.habitat
+    else:
+        target_habitat = habitat_spec
+
+    state.action_data["power_12_target_habitat"] = target_habitat
+    state.action_data["sub_phase"] = "power_12_active"
+
+    state.game_phase = GamePhase.PLAY_BIRD
+    return state
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -838,6 +864,7 @@ POWER_EXECUTORS = {
     9: _execute_power_9,
     10: _execute_power_10,
     11: _execute_power_11,
+    12: _execute_power_12,
 }
 
 
@@ -1187,7 +1214,12 @@ def _play_bird(state: GameState, action: str) -> GameState:
 
     state = place_bird_effect(state, bird_id, row, col)
 
-    state.action_data = {}
+    if state.action_data.get("power_12_target_habitat"):
+        state.action_data.pop("power_12_target_habitat", None)
+        state.action_data.pop("sub_phase", None)
+        return _finish_main_action(
+            state, "white", spot=target_spot, skip_action_cube=True
+        )
 
     return _finish_main_action(state, "white", spot=target_spot)
 
