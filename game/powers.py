@@ -174,4 +174,5 @@ POWER_VALIDATORS = {
     10: _can_execute_power_10,
     11: lambda _, __: True,
     12: _can_execute_power_12,
+    13: lambda _, __: True,
 }

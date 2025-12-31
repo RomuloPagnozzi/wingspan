@@ -460,15 +460,17 @@ def test_power_8_wild_dice_display_format():
     # Verify sub-phase: die selection
     assert state.action_data.get("sub_phase") == "power_8_select_die"
 
-    # Verify action format
+    # Verify action format - only dice with selected food type appear
     actions = get_actions(state)
-    assert "select_die_0_invertebrate" in actions  # Single food die
+    assert "select_die_0_invertebrate" in actions  # Single food die with invertebrate
+    assert "select_die_1_invertebrate" in actions  # Wild die has invertebrate
     assert (
-        "select_die_1_invertebrate/seed" in actions
-    )  # Wild die with sorted foods joined by "/"
+        "select_die_1_seed" not in actions
+    )  # Seed option filtered out (player chose invertebrate)
+    assert "select_die_2_fruit" not in actions  # Fruit die filtered out
 
-    # Select wild die
-    state = transition_state(state, "select_die_1_invertebrate/seed")
+    # Select wild die - choose invertebrate from the wild die
+    state = transition_state(state, "select_die_1_invertebrate")
 
     # Verify only "invertebrate" food gained (not both foods from die)
     expected_invertebrate = initial_food.get("invertebrate", 0) + 1

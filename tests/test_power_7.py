@@ -502,10 +502,10 @@ def test_power_7_all_dice_same_face():
     # Get available actions for Player 0
     actions = get_actions(state)
 
-    # Should NOT have "reroll_all" option (unlike COLLECT_FOOD phase)
+    # Should have "reroll_all" option when all dice match (per official Wingspan rules)
     assert (
-        "reroll_all" not in actions
-    ), "Power 7 should not allow reroll, even when all dice match"
+        "reroll_all" in actions
+    ), "Power 7 should allow reroll when all dice show same face"
 
     # Should have 5 fish selections
     fish_actions = [a for a in actions if "fish" in a]

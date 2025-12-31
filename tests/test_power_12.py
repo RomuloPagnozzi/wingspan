@@ -96,7 +96,9 @@ def test_power_12_forest_basic():
     if state.game_phase != GamePhase.PLAY_BIRD:
         print(f"Got phase: {state.game_phase}, expected PLAY_BIRD")
         print(f"action_data: {state.action_data}")
-    assert state.game_phase == GamePhase.PLAY_BIRD, "Should transition to PLAY_BIRD phase"
+    assert (
+        state.game_phase == GamePhase.PLAY_BIRD
+    ), "Should transition to PLAY_BIRD phase"
 
     # Verify only forest birds at forest spots appear in actions
     actions = get_actions(state)
@@ -108,7 +110,9 @@ def test_power_12_forest_basic():
         # Parse: "play_bird_123_at_0_2" → row=0
         parts = action.replace("play_bird_", "").split("_at_")
         row, col = parts[1].split("_")
-        assert row == "0", f"Action {action} should be for forest row (0), got row {row}"
+        assert (
+            row == "0"
+        ), f"Action {action} should be for forest row (0), got row {row}"
 
     # Select first valid action and execute
     selected_action = play_bird_actions[0]
@@ -140,11 +144,15 @@ def test_power_12_forest_basic():
     assert int(row) == 0, "Bird should be in forest row"
 
     # Verify no action cube consumed
-    assert state.players[0].action_cubes == initial_cubes, "No action cube should be consumed"
+    assert (
+        state.players[0].action_cubes == initial_cubes
+    ), "No action cube should be consumed"
 
     # Verify reached end phase
-    assert state.game_phase in [GamePhase.ACTIVATE_POWERS, GamePhase.MAIN_TURN], \
-        "Should complete to ACTIVATE_POWERS or MAIN_TURN"
+    assert state.game_phase in [
+        GamePhase.ACTIVATE_POWERS,
+        GamePhase.MAIN_TURN,
+    ], "Should complete to ACTIVATE_POWERS or MAIN_TURN"
 
 
 def test_power_12_habitat_filtering():
@@ -183,7 +191,9 @@ def test_power_12_habitat_filtering():
     forest_only = [b for b in all_birds if b.habitats == ["forest"]]
     grassland_only = [b for b in all_birds if b.habitats == ["grassland"]]
     forest_wetland = [b for b in all_birds if set(b.habitats) == {"forest", "wetland"}]
-    grassland_wetland = [b for b in all_birds if set(b.habitats) == {"grassland", "wetland"}]
+    grassland_wetland = [
+        b for b in all_birds if set(b.habitats) == {"grassland", "wetland"}
+    ]
 
     # Clear hand and add test birds
     state.players[0].bird_hand = []
@@ -236,11 +246,15 @@ def test_power_12_habitat_filtering():
     if bird_a:
         assert bird_a.id in bird_ids_in_actions, "Forest-only bird should appear"
     if bird_b:
-        assert bird_b.id not in bird_ids_in_actions, "Grassland-only bird should NOT appear"
+        assert (
+            bird_b.id not in bird_ids_in_actions
+        ), "Grassland-only bird should NOT appear"
     if bird_c:
         assert bird_c.id in bird_ids_in_actions, "Forest+wetland bird should appear"
     if bird_d:
-        assert bird_d.id not in bird_ids_in_actions, "Grassland+wetland bird should NOT appear"
+        assert (
+            bird_d.id not in bird_ids_in_actions
+        ), "Grassland+wetland bird should NOT appear"
 
 
 def test_power_12_this_variant():
@@ -329,7 +343,9 @@ def test_power_12_no_valid_birds():
 
     # Remove all birds from hand OR add only non-forest birds
     all_birds = load_deck("birds")
-    grassland_birds = [b for b in all_birds if "grassland" in b.habitats and "forest" not in b.habitats][:2]
+    grassland_birds = [
+        b for b in all_birds if "grassland" in b.habitats and "forest" not in b.habitats
+    ][:2]
     state.players[0].bird_hand = grassland_birds
 
     # Setup power activation
@@ -389,8 +405,9 @@ def test_power_12_validation():
         }
 
         # Should validate when forest bird available
-        assert can_execute_power(state, power_entry), \
-            "Should validate when forest-compatible bird is available"
+        assert can_execute_power(
+            state, power_entry
+        ), "Should validate when forest-compatible bird is available"
 
         # Remove forest birds from hand
         state.players[0].bird_hand = [
@@ -398,8 +415,9 @@ def test_power_12_validation():
         ]
 
         # Should not validate when no forest birds
-        assert not can_execute_power(state, power_entry), \
-            "Should not validate when no forest-compatible birds available"
+        assert not can_execute_power(
+            state, power_entry
+        ), "Should not validate when no forest-compatible birds available"
 
 
 if __name__ == "__main__":

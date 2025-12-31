@@ -163,21 +163,24 @@ def test_power_10_type_bowl():
     if power_10_bird in state.players[0].bird_hand:
         state.players[0].bird_hand.remove(power_10_bird)
 
-    # Add bowl nest birds with egg capacity
-    birds = load_deck("birds")
-    bowl_birds = [b for b in birds if b.nest == "bowl" and b.egg_limit > 0][:3]
+    # Add bowl nest birds from state's own bird deck (excluding the activating bird)
+    bowl_birds = [
+        b
+        for b in state.bird_deck
+        if b.nest == "bowl" and b.egg_limit > 0 and b.id != bird_id
+    ][:3]
 
     # Place bowl birds on board
     state.players[0].board[1][0].bird = bowl_birds[0]
     state.players[0].board[1][1].bird = bowl_birds[1]
     state.players[0].board[2][0].bird = bowl_birds[2]
 
-    # Set one bird at egg limit
-    bowl_birds[2].eggs = bowl_birds[2].egg_limit
+    # Set one bird at egg limit (on the board, not the original list)
+    state.players[0].board[2][0].bird.eggs = state.players[0].board[2][0].bird.egg_limit
 
-    initial_eggs_0 = bowl_birds[0].eggs
-    initial_eggs_1 = bowl_birds[1].eggs
-    initial_eggs_2 = bowl_birds[2].eggs
+    initial_eggs_0 = state.players[0].board[1][0].bird.eggs
+    initial_eggs_1 = state.players[0].board[1][1].bird.eggs
+    initial_eggs_2 = state.players[0].board[2][0].bird.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -197,15 +200,22 @@ def test_power_10_type_bowl():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
+    # Get birds from returned state (after deepcopy)
+    board_birds = [
+        state.players[0].board[1][0].bird,
+        state.players[0].board[1][1].bird,
+        state.players[0].board[2][0].bird,
+    ]
+
     # Verify eggs added to bowl birds with capacity
     assert (
-        bowl_birds[0].eggs == initial_eggs_0 + 1
+        board_birds[0].eggs == initial_eggs_0 + 1
     ), "Bowl bird 0 should have one more egg"
     assert (
-        bowl_birds[1].eggs == initial_eggs_1 + 1
+        board_birds[1].eggs == initial_eggs_1 + 1
     ), "Bowl bird 1 should have one more egg"
     assert (
-        bowl_birds[2].eggs == initial_eggs_2
+        board_birds[2].eggs == initial_eggs_2
     ), "Bowl bird 2 at limit should be unchanged"
 
     # Verify no sub-phase was created (auto-completed)
@@ -239,16 +249,17 @@ def test_power_10_type_cavity():
     if power_10_bird in state.players[0].bird_hand:
         state.players[0].bird_hand.remove(power_10_bird)
 
-    # Add cavity nest birds with egg capacity
-    birds = load_deck("birds")
-    cavity_birds = [b for b in birds if b.nest == "cavity" and b.egg_limit > 0][:2]
+    # Add cavity nest birds from state's own bird deck
+    cavity_birds = [
+        b for b in state.bird_deck if b.nest == "cavity" and b.egg_limit > 0
+    ][:2]
 
     # Place cavity birds on board
     state.players[0].board[1][0].bird = cavity_birds[0]
     state.players[0].board[2][0].bird = cavity_birds[1]
 
-    initial_eggs_0 = cavity_birds[0].eggs
-    initial_eggs_1 = cavity_birds[1].eggs
+    initial_eggs_0 = state.players[0].board[1][0].bird.eggs
+    initial_eggs_1 = state.players[0].board[2][0].bird.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -268,12 +279,18 @@ def test_power_10_type_cavity():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
+    # Get birds from returned state (after deepcopy)
+    board_birds = [
+        state.players[0].board[1][0].bird,
+        state.players[0].board[2][0].bird,
+    ]
+
     # Verify eggs added to cavity birds
     assert (
-        cavity_birds[0].eggs == initial_eggs_0 + 1
+        board_birds[0].eggs == initial_eggs_0 + 1
     ), "Cavity bird 0 should have one more egg"
     assert (
-        cavity_birds[1].eggs == initial_eggs_1 + 1
+        board_birds[1].eggs == initial_eggs_1 + 1
     ), "Cavity bird 1 should have one more egg"
 
     # Verify power completed (transitioned to MAIN_TURN)
@@ -301,16 +318,17 @@ def test_power_10_type_ground():
     if power_10_bird in state.players[0].bird_hand:
         state.players[0].bird_hand.remove(power_10_bird)
 
-    # Add ground nest birds with egg capacity
-    birds = load_deck("birds")
-    ground_birds = [b for b in birds if b.nest == "ground" and b.egg_limit > 0][:2]
+    # Add ground nest birds from state's own bird deck
+    ground_birds = [
+        b for b in state.bird_deck if b.nest == "ground" and b.egg_limit > 0
+    ][:2]
 
     # Place ground birds on board
     state.players[0].board[1][0].bird = ground_birds[0]
     state.players[0].board[2][0].bird = ground_birds[1]
 
-    initial_eggs_0 = ground_birds[0].eggs
-    initial_eggs_1 = ground_birds[1].eggs
+    initial_eggs_0 = state.players[0].board[1][0].bird.eggs
+    initial_eggs_1 = state.players[0].board[2][0].bird.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -330,12 +348,18 @@ def test_power_10_type_ground():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
+    # Get birds from returned state (after deepcopy)
+    board_birds = [
+        state.players[0].board[1][0].bird,
+        state.players[0].board[2][0].bird,
+    ]
+
     # Verify eggs added to ground birds
     assert (
-        ground_birds[0].eggs == initial_eggs_0 + 1
+        board_birds[0].eggs == initial_eggs_0 + 1
     ), "Ground bird 0 should have one more egg"
     assert (
-        ground_birds[1].eggs == initial_eggs_1 + 1
+        board_birds[1].eggs == initial_eggs_1 + 1
     ), "Ground bird 1 should have one more egg"
 
     # Verify power completed (transitioned to MAIN_TURN)
@@ -363,16 +387,17 @@ def test_power_10_type_platform():
     if power_10_bird in state.players[0].bird_hand:
         state.players[0].bird_hand.remove(power_10_bird)
 
-    # Add platform nest birds with egg capacity
-    birds = load_deck("birds")
-    platform_birds = [b for b in birds if b.nest == "platform" and b.egg_limit > 0][:2]
+    # Add platform nest birds from state's own bird deck
+    platform_birds = [
+        b for b in state.bird_deck if b.nest == "platform" and b.egg_limit > 0
+    ][:2]
 
     # Place platform birds on board
     state.players[0].board[1][0].bird = platform_birds[0]
     state.players[0].board[2][0].bird = platform_birds[1]
 
-    initial_eggs_0 = platform_birds[0].eggs
-    initial_eggs_1 = platform_birds[1].eggs
+    initial_eggs_0 = state.players[0].board[1][0].bird.eggs
+    initial_eggs_1 = state.players[0].board[2][0].bird.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -392,12 +417,18 @@ def test_power_10_type_platform():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
+    # Get birds from returned state (after deepcopy)
+    board_birds = [
+        state.players[0].board[1][0].bird,
+        state.players[0].board[2][0].bird,
+    ]
+
     # Verify eggs added to platform birds
     assert (
-        platform_birds[0].eggs == initial_eggs_0 + 1
+        board_birds[0].eggs == initial_eggs_0 + 1
     ), "Platform bird 0 should have one more egg"
     assert (
-        platform_birds[1].eggs == initial_eggs_1 + 1
+        board_birds[1].eggs == initial_eggs_1 + 1
     ), "Platform bird 1 should have one more egg"
 
     # Verify power completed (transitioned to MAIN_TURN)
@@ -425,11 +456,10 @@ def test_power_10_type_any_single_bird():
         state.players[0].bird_hand.remove(power_10_bird)
 
     # Add only ONE other bird with egg capacity
-    birds = load_deck("birds")
-    other_bird = [b for b in birds if b.egg_limit > 0 and b.id != bird_id][0]
+    other_bird = [b for b in state.bird_deck if b.egg_limit > 0 and b.id != bird_id][0]
     state.players[0].board[1][0].bird = other_bird
 
-    initial_eggs = other_bird.eggs
+    initial_eggs = state.players[0].board[1][0].bird.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -449,9 +479,9 @@ def test_power_10_type_any_single_bird():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
-    # Verify egg was added to the only bird
+    # Verify egg was added to the only bird (check the board bird, not the original reference)
     assert (
-        other_bird.eggs == initial_eggs + 1
+        state.players[0].board[1][0].bird.eggs == initial_eggs + 1
     ), "Only valid bird should have one more egg"
 
     # Verify no sub-phase was created (auto-completed)
@@ -485,8 +515,9 @@ def test_power_10_type_any_multiple_birds():
         state.players[0].bird_hand.remove(power_10_bird)
 
     # Add multiple birds with egg capacity
-    birds = load_deck("birds")
-    other_birds = [b for b in birds if b.egg_limit > 0 and b.id != bird_id][:3]
+    other_birds = [b for b in state.bird_deck if b.egg_limit > 0 and b.id != bird_id][
+        :3
+    ]
     state.players[0].board[1][0].bird = other_birds[0]
     state.players[0].board[1][1].bird = other_birds[1]
     state.players[0].board[2][0].bird = other_birds[2]
@@ -546,15 +577,16 @@ def test_power_10_type_any_selection():
         state.players[0].bird_hand.remove(power_10_bird)
 
     # Add multiple birds with egg capacity
-    birds = load_deck("birds")
-    other_birds = [b for b in birds if b.egg_limit > 0 and b.id != bird_id][:3]
+    other_birds = [b for b in state.bird_deck if b.egg_limit > 0 and b.id != bird_id][
+        :3
+    ]
     state.players[0].board[1][0].bird = other_birds[0]
     state.players[0].board[1][1].bird = other_birds[1]
     state.players[0].board[2][0].bird = other_birds[2]
 
-    initial_eggs_0 = other_birds[0].eggs
-    initial_eggs_1 = other_birds[1].eggs
-    initial_eggs_2 = other_birds[2].eggs
+    initial_eggs_0 = state.players[0].board[1][0].bird.eggs
+    initial_eggs_1 = state.players[0].board[1][1].bird.eggs
+    initial_eggs_2 = state.players[0].board[2][0].bird.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -578,10 +610,16 @@ def test_power_10_type_any_selection():
     selected_action = f"select_bird_{other_birds[1].id}"
     state = transition_state(state, selected_action)
 
-    # Verify only selected bird received egg
-    assert other_birds[0].eggs == initial_eggs_0, "Bird 0 should be unchanged"
-    assert other_birds[1].eggs == initial_eggs_1 + 1, "Bird 1 should have one more egg"
-    assert other_birds[2].eggs == initial_eggs_2, "Bird 2 should be unchanged"
+    # Verify only selected bird received egg (check board birds, not original references)
+    assert (
+        state.players[0].board[1][0].bird.eggs == initial_eggs_0
+    ), "Bird 0 should be unchanged"
+    assert (
+        state.players[0].board[1][1].bird.eggs == initial_eggs_1 + 1
+    ), "Bird 1 should have one more egg"
+    assert (
+        state.players[0].board[2][0].bird.eggs == initial_eggs_2
+    ), "Bird 2 should be unchanged"
 
     # Verify cleanup
     assert (
@@ -617,8 +655,9 @@ def test_power_10_no_valid_birds_specific_type():
         state.players[0].bird_hand.remove(power_10_bird)
 
     # Add ONLY bowl nest birds (not cavity)
-    birds = load_deck("birds")
-    bowl_birds = [b for b in birds if b.nest == "bowl" and b.egg_limit > 0][:2]
+    bowl_birds = [b for b in state.bird_deck if b.nest == "bowl" and b.egg_limit > 0][
+        :2
+    ]
     state.players[0].board[1][0].bird = bowl_birds[0]
     state.players[0].board[2][0].bird = bowl_birds[1]
 
@@ -665,13 +704,15 @@ def test_power_10_all_birds_at_limit():
         state.players[0].bird_hand.remove(power_10_bird)
 
     # Add other birds all at egg limit
-    birds = load_deck("birds")
-    other_birds = [b for b in birds if b.egg_limit > 0 and b.id != bird_id][:2]
-    other_birds[0].eggs = other_birds[0].egg_limit
-    other_birds[1].eggs = other_birds[1].egg_limit
-
+    other_birds = [b for b in state.bird_deck if b.egg_limit > 0 and b.id != bird_id][
+        :2
+    ]
     state.players[0].board[1][0].bird = other_birds[0]
     state.players[0].board[2][0].bird = other_birds[1]
+
+    # Set eggs on the board birds (not the original list)
+    state.players[0].board[1][0].bird.eggs = state.players[0].board[1][0].bird.egg_limit
+    state.players[0].board[2][0].bird.eggs = state.players[0].board[2][0].bird.egg_limit
 
     activating_spot = state.players[0].board[0][0]
 
@@ -713,19 +754,28 @@ def test_power_10_mixed_capacity_birds():
     if power_10_bird in state.players[0].bird_hand:
         state.players[0].bird_hand.remove(power_10_bird)
 
-    # Add bowl nest birds: some with capacity, some at limit
-    birds = load_deck("birds")
-    bowl_birds = [b for b in birds if b.nest == "bowl" and b.egg_limit > 0][:4]
+    # Add bowl nest birds from state's own bird deck (excluding the activating bird)
+    bowl_birds = [
+        b
+        for b in state.bird_deck
+        if b.nest == "bowl" and b.egg_limit > 0 and b.id != bird_id
+    ][:4]
 
     state.players[0].board[1][0].bird = bowl_birds[0]  # Has capacity
     state.players[0].board[1][1].bird = bowl_birds[1]  # At limit
     state.players[0].board[2][0].bird = bowl_birds[2]  # Has capacity
     state.players[0].board[2][1].bird = bowl_birds[3]  # At limit
 
-    bowl_birds[1].eggs = bowl_birds[1].egg_limit
-    bowl_birds[3].eggs = bowl_birds[3].egg_limit
+    # Set eggs on the birds that are on the board (not the original list)
+    state.players[0].board[1][1].bird.eggs = state.players[0].board[1][1].bird.egg_limit
+    state.players[0].board[2][1].bird.eggs = state.players[0].board[2][1].bird.egg_limit
 
-    initial_eggs = [b.eggs for b in bowl_birds]
+    initial_eggs = [
+        state.players[0].board[1][0].bird.eggs,
+        state.players[0].board[1][1].bird.eggs,
+        state.players[0].board[2][0].bird.eggs,
+        state.players[0].board[2][1].bird.eggs,
+    ]
 
     activating_spot = state.players[0].board[0][0]
 

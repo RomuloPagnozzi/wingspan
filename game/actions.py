@@ -330,7 +330,7 @@ def _get_power_7_choices(state: GameState) -> List[str]:
     if sub_phase == "power_7_choose_starting_player":
         return _get_power_7_starting_player_choices(state)
     elif sub_phase == "power_7_select_die":
-        return _get_power_7_die_choices(state)
+        return _get_collect_food_actions(state)
 
     return []
 
@@ -339,15 +339,6 @@ def _get_power_7_starting_player_choices(state: GameState) -> List[str]:
     """Generate player selection actions for Power 7."""
     num_players = len(state.players)
     return [f"choose_player_{i}" for i in range(num_players)]
-
-
-def _get_power_7_die_choices(state: GameState) -> List[str]:
-    """Generate die selection actions for Power 7."""
-    actions = []
-    for die_index, food_types in state.feeder.items():
-        for food_type in food_types:
-            actions.append(f"select_die_{die_index}_{food_type}")
-    return actions
 
 
 def _get_power_8_choices(state: GameState) -> List[str]:
@@ -373,14 +364,16 @@ def _get_power_8_food_type_choices(state: GameState) -> List[str]:
 def _get_power_8_die_choices(state: GameState) -> List[str]:
     """Generate die choices for selected food type."""
     food_type = state.action_data["power_8_food_type"]
-    actions = []
+    all_actions = _get_collect_food_actions(state)
 
-    for die_idx, foods in state.feeder.items():
-        if food_type in foods:
-            die_display = "/".join(sorted(foods))
-            actions.append(f"select_die_{die_idx}_{die_display}")
+    filtered_actions = []
+    for action in all_actions:
+        if action == "reroll_all":
+            filtered_actions.append(action)
+        elif action.endswith(f"_{food_type}"):
+            filtered_actions.append(action)
 
-    return actions
+    return filtered_actions
 
 
 def _get_power_9_choices(state: GameState) -> List[str]:
@@ -395,6 +388,11 @@ def _get_power_10_choices(state: GameState) -> List[str]:
     return [f"select_bird_{bird_id}" for bird_id in valid_bird_ids]
 
 
+def _get_power_13_choices(state: GameState) -> List[str]:
+    """Generate die selection actions for Power 13."""
+    return _get_collect_food_actions(state)
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
@@ -404,6 +402,7 @@ POWER_CHOICE_GENERATORS = {
     8: _get_power_8_choices,
     9: _get_power_9_choices,
     10: _get_power_10_choices,
+    13: _get_power_13_choices,
 }
 
 

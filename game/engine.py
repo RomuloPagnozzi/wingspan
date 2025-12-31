@@ -93,6 +93,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_9_select_habitat(state, action)
     if sub_phase == "power_10_select_bird":
         return _handle_power_10_select_bird(state, action)
+    if sub_phase == "power_13_select_die":
+        return _handle_power_13_select_die(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -430,6 +432,10 @@ def _handle_power_7_choose_starting_player(state: GameState, action: str) -> Gam
 
 def _handle_power_7_select_die(state: GameState, action: str) -> GameState:
     """Handle player's die selection from birdfeeder."""
+    if action == "reroll_all":
+        state.feeder = roll_feeder()
+        return state
+
     die_index, food_type = parse_select_die_action(action)
     state = select_die_effect(
         state, die_index, food_type, player_index=state.current_player_index
@@ -589,9 +595,11 @@ def _handle_power_8_select_food_type(state: GameState, action: str) -> GameState
 
 def _handle_power_8_select_die(state: GameState, action: str) -> GameState:
     """Handle die selection for Power 8."""
-    parts = action.split("_")
-    die_index = int(parts[2])
-    food_type = state.action_data["power_8_food_type"]
+    if action == "reroll_all":
+        state.feeder = roll_feeder()
+        return state
+
+    die_index, food_type = parse_select_die_action(action)
 
     state = select_die_effect(state, die_index, food_type, state.current_player_index)
 
@@ -805,6 +813,74 @@ def _execute_power_12(state: GameState, power_entry: dict) -> GameState:
     return state
 
 
+def _execute_power_13(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 13: Give resources to players with fewest birds in habitat."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    habitat = details.get("habitat")
+    item = details.get("item")
+
+    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
+    habitat_row = habitat_map[habitat]
+
+    bird_counts = {}
+    for i, player in enumerate(state.players):
+        count = len(
+            [spot for spot in player.board[habitat_row] if spot.bird is not None]
+        )
+        bird_counts[i] = count
+
+    min_count = min(bird_counts.values())
+    players_with_fewest = [
+        idx for idx, count in bird_counts.items() if count == min_count
+    ]
+
+    if item == "card":
+        for player_idx in players_with_fewest:
+            state = draw_cards_effect(
+                state, tray_bird_ids=[], deck_count=1, player_index=player_idx
+            )
+        return state
+
+    elif item == "die":
+        state.action_data["sub_phase"] = "power_13_select_die"
+        state.action_data["awaiting_players"] = players_with_fewest[:]
+        state.action_data["activator"] = state.current_player_index
+        state.current_player_index = players_with_fewest[0]
+        return state
+
+    return state
+
+
+def _handle_power_13_select_die(state: GameState, action: str) -> GameState:
+    """Handle player's die selection from birdfeeder for Power 13."""
+    if action == "reroll_all":
+        state.feeder = roll_feeder()
+        return state
+
+    die_index, food_type = parse_select_die_action(action)
+
+    state = select_die_effect(
+        state, die_index, food_type, player_index=state.current_player_index
+    )
+
+    awaiting = state.action_data["awaiting_players"]
+    awaiting.remove(state.current_player_index)
+
+    if awaiting:
+        state.action_data["awaiting_players"] = awaiting
+        state.current_player_index = awaiting[0]
+        return state
+
+    activator_index = state.action_data.pop("activator")
+    state.current_player_index = activator_index
+    del state.action_data["sub_phase"]
+    del state.action_data["awaiting_players"]
+
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -865,6 +941,7 @@ POWER_EXECUTORS = {
     10: _execute_power_10,
     11: _execute_power_11,
     12: _execute_power_12,
+    13: _execute_power_13,
 }
 
 

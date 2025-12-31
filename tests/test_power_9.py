@@ -275,16 +275,17 @@ def test_power_9_all_other_rows_full():
     if power_9_bird in state.players[0].bird_hand:
         state.players[0].bird_hand.remove(power_9_bird)
 
-    # Fill all 5 spots in forest row (row 0)
+    # Fill all 5 spots in forest row (row 0) - use dummy birds from deck
+    from game.data import load_deck
+
+    deck_birds = load_deck("birds")
+
     for col in range(5):
-        if col < len(state.players[0].bird_hand):
-            state.players[0].board[0][col].bird = state.players[0].bird_hand[col]
+        state.players[0].board[0][col].bird = deck_birds[col]
 
     # Fill all 5 spots in grassland row (row 1)
-    # Need more birds - use player 1's hand
     for col in range(5):
-        if col < len(state.players[1].bird_hand):
-            state.players[0].board[1][col].bird = state.players[1].bird_hand[col]
+        state.players[0].board[1][col].bird = deck_birds[col + 5]
 
     activating_spot = state.players[0].board[current_row][0]
 
