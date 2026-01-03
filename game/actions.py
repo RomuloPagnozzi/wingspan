@@ -393,6 +393,12 @@ def _get_power_13_choices(state: GameState) -> List[str]:
     return _get_collect_food_actions(state)
 
 
+def _get_power_14_choices(state: GameState) -> List[str]:
+    """Generate bird selection actions for Power 14 (repeat power)."""
+    eligible_birds = state.action_data.get("power_14_eligible_birds", [])
+    return [f"select_bird_{bird['bird_id']}" for bird in eligible_birds]
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
@@ -403,6 +409,7 @@ POWER_CHOICE_GENERATORS = {
     9: _get_power_9_choices,
     10: _get_power_10_choices,
     13: _get_power_13_choices,
+    14: _get_power_14_choices,
 }
 
 

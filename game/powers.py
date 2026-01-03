@@ -1,5 +1,5 @@
 from typing import Dict
-from .data import GameState
+from .data import GameState, get_bird_power
 from .utils import (
     get_valid_birds_for_eggs,
     find_leftmost_empty_spot,
@@ -161,6 +161,43 @@ def _can_execute_power_12(state: GameState, power_entry: Dict) -> bool:
     return False
 
 
+def _can_execute_power_14(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 14: repeat another bird's power in this habitat."""
+    power_data = power_entry.get("power_data", power_entry)
+    details = power_data["data"].get("details", {})
+    repeat_type = details.get("type")
+
+    spot = power_entry.get("spot")
+    if not spot:
+        return False
+
+    current_player = state.players[state.current_player_index]
+    habitat_row = current_player.board[spot.row]
+
+    activating_bird_id = power_entry.get("bird_id")
+
+    for other_spot in habitat_row:
+        if other_spot.bird is None:
+            continue
+
+        if other_spot.bird.id == activating_bird_id:
+            continue
+
+        other_power = get_bird_power(other_spot.bird.id)
+        if not other_power or not other_power.get("data"):
+            continue
+
+        if repeat_type == "predator":
+            if other_power["data"].get("id") == 11:
+                return True
+
+        elif repeat_type == "brown":
+            if other_power.get("color") == "brown":
+                return True
+
+    return False
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -175,4 +212,5 @@ POWER_VALIDATORS = {
     11: lambda _, __: True,
     12: _can_execute_power_12,
     13: lambda _, __: True,
+    14: _can_execute_power_14,
 }

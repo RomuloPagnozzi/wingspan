@@ -1,5 +1,5 @@
 import copy
-from .data import GameState, roll_feeder, GamePhase, Spot
+from .data import GameState, roll_feeder, GamePhase, Spot, get_bird_power
 from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
@@ -95,6 +95,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_10_select_bird(state, action)
     if sub_phase == "power_13_select_die":
         return _handle_power_13_select_die(state, action)
+    if sub_phase == "power_14_select_bird":
+        return _handle_power_14_select_bird(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -881,6 +883,107 @@ def _handle_power_13_select_die(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_14(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 14: Repeat another bird's power in this habitat."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    repeat_type = details.get("type")
+
+    spot = power_entry.get("spot")
+    if not spot:
+        raise ValueError("Power 14 requires spot context")
+
+    current_player = state.players[state.current_player_index]
+    habitat_row = current_player.board[spot.row]
+
+    activating_bird_id = power_entry.get("bird_id")
+
+    eligible_birds = []
+
+    for other_spot in habitat_row:
+        if other_spot.bird is None:
+            continue
+
+        if other_spot.bird.id == activating_bird_id:
+            continue
+
+        other_power = get_bird_power(other_spot.bird.id)
+        if not other_power or not other_power.get("data"):
+            continue
+
+        if repeat_type == "predator":
+            if other_power["data"].get("id") == 11:
+                eligible_birds.append(
+                    {
+                        "bird_id": other_spot.bird.id,
+                        "spot": other_spot,
+                        "power_data": other_power,
+                    }
+                )
+
+        elif repeat_type == "brown":
+            if other_power.get("color") == "brown":
+                eligible_birds.append(
+                    {
+                        "bird_id": other_spot.bird.id,
+                        "spot": other_spot,
+                        "power_data": other_power,
+                    }
+                )
+
+    if not eligible_birds:
+        raise ValueError(
+            "No eligible birds found (should not happen if validator passed)"
+        )
+
+    state.action_data["sub_phase"] = "power_14_select_bird"
+    state.action_data["power_14_eligible_birds"] = eligible_birds
+    state.action_data["power_14_repeat_type"] = repeat_type
+
+    return state
+
+
+def _handle_power_14_select_bird(state: GameState, action: str) -> GameState:
+    """Handle bird selection for Power 14 (repeat another bird's power)."""
+    selected_bird_id = int(action.split("_")[-1])
+
+    eligible_birds = state.action_data.get("power_14_eligible_birds", [])
+
+    selected_bird_data = None
+    for bird_data in eligible_birds:
+        if bird_data["bird_id"] == selected_bird_id:
+            selected_bird_data = bird_data
+            break
+
+    if not selected_bird_data:
+        raise ValueError(f"Bird {selected_bird_id} not in eligible birds list")
+
+    repeated_power_entry = {
+        "bird_id": selected_bird_data["bird_id"],
+        "power_id": selected_bird_data["power_data"]["data"]["id"],
+        "power_data": selected_bird_data["power_data"],
+        "spot": selected_bird_data["spot"],
+    }
+
+    # Clean up Power 14 sub-phase data
+    del state.action_data["sub_phase"]
+    del state.action_data["power_14_eligible_birds"]
+    del state.action_data["power_14_repeat_type"]
+
+    # Execute the repeated power directly (no extra confirmation needed)
+    power_type = repeated_power_entry["power_id"]
+    executor = POWER_EXECUTORS.get(power_type)
+    if executor:
+        state = executor(state, repeated_power_entry)
+
+    # If the executed power didn't set a sub_phase, move to next power
+    if state.action_data.get("sub_phase") is None:
+        state.action_data["current_power_index"] += 1
+        return _check_powers_done(state)
+
+    return state
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -942,6 +1045,7 @@ POWER_EXECUTORS = {
     11: _execute_power_11,
     12: _execute_power_12,
     13: _execute_power_13,
+    14: _execute_power_14,
 }
 
 
