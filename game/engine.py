@@ -98,6 +98,8 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_13_select_die(state, action)
     if sub_phase == "power_14_select_bird":
         return _handle_power_14_select_bird(state, action)
+    if sub_phase == "power_16_select_trade":
+        return _handle_power_16_select_trade(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -1005,6 +1007,26 @@ def _execute_power_15(state: GameState, power_entry: dict) -> GameState:
     return state
 
 
+def _execute_power_16(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 16: Trade 1 food for any other type from supply."""
+    state.action_data["sub_phase"] = "power_16_select_trade"
+    return state
+
+
+def _handle_power_16_select_trade(state: GameState, action: str) -> GameState:
+    """Handle trade selection for Power 16."""
+    parts = action.split("_")
+    from_type = parts[1]
+    to_type = parts[3]
+
+    state = pay_food_effect(state, {from_type: 1})
+    state = gain_food_effect(state, to_type, amount=1)
+
+    del state.action_data["sub_phase"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -1068,6 +1090,7 @@ POWER_EXECUTORS = {
     13: _execute_power_13,
     14: _execute_power_14,
     15: _execute_power_15,
+    16: _execute_power_16,
 }
 
 

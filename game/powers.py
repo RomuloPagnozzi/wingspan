@@ -205,6 +205,12 @@ def _can_execute_power_15(state: GameState, power_entry: Dict) -> bool:
     return False
 
 
+def _can_execute_power_16(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 16: trade 1 food for any other type from supply."""
+    current_player = state.players[state.current_player_index]
+    return bool(current_player.food)
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -221,4 +227,5 @@ POWER_VALIDATORS = {
     13: lambda _, __: True,
     14: _can_execute_power_14,
     15: _can_execute_power_15,
+    16: _can_execute_power_16,
 }

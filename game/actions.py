@@ -399,6 +399,19 @@ def _get_power_14_choices(state: GameState) -> List[str]:
     return [f"select_bird_{bird['bird_id']}" for bird in eligible_birds]
 
 
+def _get_power_16_choices(state: GameState) -> List[str]:
+    """Generate trade actions for Power 16 (trade food for another type)."""
+    all_food_types = ["invertebrate", "seed", "fish", "fruit", "rodent"]
+    current_player = state.players[state.current_player_index]
+    player_food_types = list(current_player.food.keys())
+    actions = []
+    for from_type in player_food_types:
+        for to_type in all_food_types:
+            if to_type != from_type:
+                actions.append(f"trade_{from_type}_for_{to_type}")
+    return actions
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
@@ -410,6 +423,7 @@ POWER_CHOICE_GENERATORS = {
     10: _get_power_10_choices,
     13: _get_power_13_choices,
     14: _get_power_14_choices,
+    16: _get_power_16_choices,
 }
 
 
