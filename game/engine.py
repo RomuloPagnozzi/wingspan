@@ -7,6 +7,7 @@ from .utils import (
     get_valid_birds_for_eggs,
 )
 import json
+import random
 from .effects import (
     draw_cards_effect,
     parse_draw_cards_action,
@@ -965,22 +966,42 @@ def _handle_power_14_select_bird(state: GameState, action: str) -> GameState:
         "spot": selected_bird_data["spot"],
     }
 
-    # Clean up Power 14 sub-phase data
     del state.action_data["sub_phase"]
     del state.action_data["power_14_eligible_birds"]
     del state.action_data["power_14_repeat_type"]
 
-    # Execute the repeated power directly (no extra confirmation needed)
     power_type = repeated_power_entry["power_id"]
     executor = POWER_EXECUTORS.get(power_type)
     if executor:
         state = executor(state, repeated_power_entry)
 
-    # If the executed power didn't set a sub_phase, move to next power
     if state.action_data.get("sub_phase") is None:
         state.action_data["current_power_index"] += 1
         return _check_powers_done(state)
 
+    return state
+
+
+def _execute_power_15(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 15: Roll dice not in birdfeeder."""
+    power_data = power_entry["power_data"]
+    food_type = power_data["data"]["details"].get("type")
+    n_dice = 5 - len(state.feeder)
+    faces = [
+        ["fish"],
+        ["fruit"],
+        ["rodent"],
+        ["invertebrate"],
+        ["seed"],
+        ["invertebrate", "seed"],
+    ]
+    roll = [random.choice(faces) for _ in range(n_dice)]
+    for face in roll:
+        if food_type in face:
+            spot = power_entry["spot"]
+            bird = spot.bird
+            bird.stashed_food += 1
+            break
     return state
 
 
@@ -1046,6 +1067,7 @@ POWER_EXECUTORS = {
     12: _execute_power_12,
     13: _execute_power_13,
     14: _execute_power_14,
+    15: _execute_power_15,
 }
 
 

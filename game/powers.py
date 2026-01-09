@@ -198,6 +198,13 @@ def _can_execute_power_14(state: GameState, power_entry: Dict) -> bool:
     return False
 
 
+def _can_execute_power_15(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 15: roll dice not in birdfeeder."""
+    if len(state.feeder) != 5:
+        return True
+    return False
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -213,4 +220,5 @@ POWER_VALIDATORS = {
     12: _can_execute_power_12,
     13: lambda _, __: True,
     14: _can_execute_power_14,
+    15: _can_execute_power_15,
 }
