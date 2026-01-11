@@ -211,6 +211,12 @@ def _can_execute_power_16(state: GameState, power_entry: Dict) -> bool:
     return bool(current_player.food)
 
 
+def _can_execute_power_17(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 17: tuck card and get bonus."""
+    current_player = state.players[state.current_player_index]
+    return bool(current_player.bird_hand)
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -228,4 +234,5 @@ POWER_VALIDATORS = {
     14: _can_execute_power_14,
     15: _can_execute_power_15,
     16: _can_execute_power_16,
+    17: _can_execute_power_17,
 }

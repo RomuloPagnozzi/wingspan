@@ -412,6 +412,20 @@ def _get_power_16_choices(state: GameState) -> List[str]:
     return actions
 
 
+def _get_power_17_choices(state: GameState) -> List[str]:
+    """Generate choices for Power 17 (tuck card for bonus)."""
+    sub_phase = state.action_data.get("sub_phase")
+    current_player = state.players[state.current_player_index]
+
+    if sub_phase == "power_17_select_card":
+        return [f"tuck_card_{card.id}" for card in current_player.bird_hand]
+    elif sub_phase == "power_17_select_food":
+        food_types = state.action_data.get("power_17_food_types", [])
+        return [f"select_food_{food}" for food in food_types]
+
+    return []
+
+
 POWER_CHOICE_GENERATORS = {
     2: _get_power_2_choices,
     4: _get_power_4_choices,
@@ -424,6 +438,7 @@ POWER_CHOICE_GENERATORS = {
     13: _get_power_13_choices,
     14: _get_power_14_choices,
     16: _get_power_16_choices,
+    17: _get_power_17_choices,
 }
 
 

@@ -100,6 +100,10 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_14_select_bird(state, action)
     if sub_phase == "power_16_select_trade":
         return _handle_power_16_select_trade(state, action)
+    if sub_phase == "power_17_select_card":
+        return _handle_power_17_select_card(state, action)
+    if sub_phase == "power_17_select_food":
+        return _handle_power_17_select_food(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -1027,6 +1031,66 @@ def _handle_power_16_select_trade(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_17(state: GameState, power_entry: dict) -> GameState:
+    """Execute Power ID 17: Tuck card for bonus."""
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+
+    state.action_data["sub_phase"] = "power_17_select_card"
+    state.action_data["power_17_types"] = details.get("types", [])
+    state.action_data["power_17_activating_bird_id"] = power_entry.get("bird_id")
+    state.action_data["power_17_spot"] = power_entry.get("spot")
+    return state
+
+
+def _handle_power_17_select_card(state: GameState, action: str) -> GameState:
+    """Handle card selection for Power 17."""
+    card_id = int(action.split("_")[-1])
+    current_player = state.players[state.current_player_index]
+    bonus_types = state.action_data["power_17_types"]
+    activating_bird_id = state.action_data["power_17_activating_bird_id"]
+    spot = state.action_data["power_17_spot"]
+
+    card_to_tuck = next((c for c in current_player.bird_hand if c.id == card_id), None)
+    if not card_to_tuck:
+        raise ValueError(f"Card {card_id} not in hand")
+
+    current_player.bird_hand.remove(card_to_tuck)
+    spot.bird.tucked_cards += 1
+
+    if bonus_types == ["card"]:
+        state = draw_cards_effect(state, tray_bird_ids=[], deck_count=1)
+    elif bonus_types == ["egg"]:
+        state = lay_eggs_effect(state, {activating_bird_id: 1})
+    elif len(bonus_types) == 1:
+        state = gain_food_effect(state, bonus_types[0], amount=1)
+    else:
+        state.action_data["sub_phase"] = "power_17_select_food"
+        state.action_data["power_17_food_types"] = bonus_types
+        return state
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_17_types"]
+    del state.action_data["power_17_activating_bird_id"]
+    del state.action_data["power_17_spot"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
+def _handle_power_17_select_food(state: GameState, action: str) -> GameState:
+    """Handle food selection for Power 17 (invertebrate/seed choice)."""
+    food_type = action.replace("select_food_", "")
+    state = gain_food_effect(state, food_type, amount=1)
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_17_types"]
+    del state.action_data["power_17_activating_bird_id"]
+    del state.action_data["power_17_spot"]
+    del state.action_data["power_17_food_types"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -1091,6 +1155,7 @@ POWER_EXECUTORS = {
     14: _execute_power_14,
     15: _execute_power_15,
     16: _execute_power_16,
+    17: _execute_power_17,
 }
 
 
