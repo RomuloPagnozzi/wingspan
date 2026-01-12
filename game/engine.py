@@ -1,9 +1,10 @@
 import copy
-from .data import GameState, roll_feeder, GamePhase, Spot, get_bird_power
+from .data import GameState, roll_feeder, GamePhase, Spot, get_bird_power, PinkTrigger
 from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
     get_triggered_powers,
+    get_triggered_pink_powers,
     get_valid_birds_for_eggs,
 )
 import json
@@ -38,20 +39,34 @@ def _finish_main_action(
     habitat: str | None = None,
     spot: Spot | None = None,
     skip_action_cube: bool = False,
+    pink_trigger: PinkTrigger | None = None,
+    pink_context: dict | None = None,
 ) -> GameState:
     """Complete a main action: consume cube, check powers, transition."""
     current_player = state.players[state.current_player_index]
     if not skip_action_cube:
         current_player.action_cubes -= 1
 
+    pink_powers = []
+    if pink_trigger is not None:
+        pink_powers = get_triggered_pink_powers(
+            state, pink_trigger, state.current_player_index, pink_context
+        )
+
     triggered_powers = get_triggered_powers(
         current_player, color, habitat=habitat, spot=spot
     )
-    if triggered_powers:
+    for power in triggered_powers:
+        power["player_index"] = state.current_player_index
+
+    all_powers = pink_powers + triggered_powers
+
+    if all_powers:
         state.game_phase = GamePhase.ACTIVATE_POWERS
         state.action_data = {
-            "powers_queue": triggered_powers,
+            "powers_queue": all_powers,
             "current_power_index": 0,
+            "action_player_index": state.current_player_index,
         }
         return state
 
@@ -115,11 +130,18 @@ def _activate_powers(state: GameState, action: str) -> GameState:
     power_data = current_power["power_data"]
     power_type = power_data["data"]["id"]
 
+    if "player_index" in current_power:
+        state.current_player_index = current_power["player_index"]
+
     if action == "skip_power":
         state.action_data["current_power_index"] += 1
         return _check_powers_done(state)
 
     if action == "activate_power":
+        if power_data.get("color") == "pink":
+            player = state.players[current_power["player_index"]]
+            player.used_pink_powers.add(current_power["bird_id"])
+
         executor = POWER_EXECUTORS.get(power_type)
         if executor:
             state = executor(state, current_power)
@@ -795,6 +817,17 @@ def _execute_power_11(state: GameState, power_entry: dict) -> GameState:
 
     if drawn_bird.wingspan < wingspan_threshold:
         activating_bird.tucked_cards += 1
+        triggering_player = power_entry.get("player_index", state.current_player_index)
+        pink_powers = get_triggered_pink_powers(
+            state,
+            PinkTrigger.PREDATOR_SUCCESS,
+            triggering_player,
+        )
+        if pink_powers:
+            powers_queue = state.action_data.get("powers_queue", [])
+            current_index = state.action_data.get("current_power_index", 0)
+            for i, pink_power in enumerate(pink_powers):
+                powers_queue.insert(current_index + 1 + i, pink_power)
     else:
         state.discarded_birds.append(drawn_bird)
 
@@ -970,6 +1003,7 @@ def _handle_power_14_select_bird(state: GameState, action: str) -> GameState:
         "power_id": selected_bird_data["power_data"]["data"]["id"],
         "power_data": selected_bird_data["power_data"],
         "spot": selected_bird_data["spot"],
+        "player_index": state.current_player_index,
     }
 
     del state.action_data["sub_phase"]
@@ -1091,6 +1125,30 @@ def _handle_power_17_select_food(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _execute_power_18(state: GameState, power_entry: dict) -> GameState:
+    """Pink: Gain resource or tuck card when opponent plays in habitat."""
+    # TODO
+    return state
+
+
+def _execute_power_19(state: GameState, power_entry: dict) -> GameState:
+    """Pink: Cache rodent when opponent gains rodent."""
+    # TODO
+    return state
+
+
+def _execute_power_20(state: GameState, power_entry: dict) -> GameState:
+    """Pink: Lay egg on nest type when opponent lays eggs."""
+    # TODO
+    return state
+
+
+def _execute_power_21(state: GameState, power_entry: dict) -> GameState:
+    """Pink: Gain die when opponent's predator succeeds."""
+    # TODO
+    return state
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
@@ -1099,6 +1157,7 @@ def _handle_end_turn(state: GameState, action: str) -> GameState:
         state.game_phase = GamePhase.MAIN_TURN
         state.action_data = {}
         state.current_player_index = get_current_player_index(state)
+        state.players[state.current_player_index].used_pink_powers.clear()
         return state
 
     current_effect = effects[0]
@@ -1132,6 +1191,7 @@ def _handle_end_turn(state: GameState, action: str) -> GameState:
                 state.game_phase = GamePhase.MAIN_TURN
                 state.action_data = {}
                 state.current_player_index = get_current_player_index(state)
+                state.players[state.current_player_index].used_pink_powers.clear()
 
             return state
 
@@ -1156,6 +1216,10 @@ POWER_EXECUTORS = {
     15: _execute_power_15,
     16: _execute_power_16,
     17: _execute_power_17,
+    18: _execute_power_18,
+    19: _execute_power_19,
+    20: _execute_power_20,
+    21: _execute_power_21,
 }
 
 
@@ -1310,8 +1374,22 @@ def _collect_food(state: GameState, action: str) -> GameState:
         state = select_die_effect(state, die_index, food_type)
         state.action_data["food_needed"] -= 1
 
+        if food_type == "rodent":
+            state.action_data["gained_rodent"] = True
+
         if not state.action_data["food_needed"]:
-            return _finish_main_action(state, "brown", habitat="forest")
+            pink_trigger = None
+            pink_context = None
+            if state.action_data.get("gained_rodent"):
+                pink_trigger = PinkTrigger.GAIN_FOOD
+                pink_context = {"food_type": "rodent"}
+            return _finish_main_action(
+                state,
+                "brown",
+                habitat="forest",
+                pink_trigger=pink_trigger,
+                pink_context=pink_context,
+            )
 
         return state
 
@@ -1328,7 +1406,12 @@ def _lay_eggs(state: GameState, action: str) -> GameState:
 
     state = lay_eggs_effect(state, egg_distribution)
 
-    return _finish_main_action(state, "brown", habitat="grassland")
+    return _finish_main_action(
+        state,
+        "brown",
+        habitat="grassland",
+        pink_trigger=PinkTrigger.LAY_EGGS,
+    )
 
 
 def _draw_cards(state: GameState, action: str) -> GameState:
@@ -1509,10 +1592,21 @@ def _play_bird(state: GameState, action: str) -> GameState:
         state.action_data.pop("power_12_target_habitat", None)
         state.action_data.pop("sub_phase", None)
         return _finish_main_action(
-            state, "white", spot=target_spot, skip_action_cube=True
+            state,
+            "white",
+            spot=target_spot,
+            skip_action_cube=True,
+            pink_trigger=PinkTrigger.BIRD_PLAYED,
+            pink_context={"habitat": target_spot.habitat},
         )
 
-    return _finish_main_action(state, "white", spot=target_spot)
+    return _finish_main_action(
+        state,
+        "white",
+        spot=target_spot,
+        pink_trigger=PinkTrigger.BIRD_PLAYED,
+        pink_context={"habitat": target_spot.habitat},
+    )
 
 
 def _pay_egg_cost(state: GameState, action: str) -> GameState:

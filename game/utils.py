@@ -1,5 +1,5 @@
 from typing import List, Dict, Tuple, Generator
-from .data import Spot, Player, Bird, GameState, get_bird_power
+from .data import Spot, Player, Bird, GameState, get_bird_power, PinkTrigger
 from itertools import (
     combinations_with_replacement,
     product,
@@ -453,6 +453,79 @@ def get_triggered_powers(
                 )
 
     return triggered_powers
+
+
+def _pink_power_matches_trigger(
+    power_id: int,
+    power_data: Dict,
+    trigger_type: PinkTrigger,
+    context: Dict,
+) -> bool:
+    """Check if a pink power's trigger matches the current event context."""
+    details = power_data.get("data", {}).get("details", {})
+
+    match power_id:
+        case 18:
+            return trigger_type == PinkTrigger.BIRD_PLAYED and context.get(
+                "habitat"
+            ) == details.get("habitat")
+        case 19:
+            return (
+                trigger_type == PinkTrigger.GAIN_FOOD
+                and context.get("food_type") == "rodent"
+            )
+        case 20:
+            return trigger_type == PinkTrigger.LAY_EGGS
+        case 21:
+            return trigger_type == PinkTrigger.PREDATOR_SUCCESS
+        case _:
+            return False
+
+
+def get_triggered_pink_powers(
+    state: GameState,
+    trigger_type: PinkTrigger,
+    triggering_player_index: int,
+    context: Dict | None = None,
+) -> List[Dict]:
+    """Find pink powers triggered by another player's action."""
+    triggered = []
+    context = context or {}
+
+    for player_index, player in enumerate(state.players):
+        if player_index == triggering_player_index:
+            continue
+
+        for row in player.board:
+            for spot in row:
+                if spot.bird is None:
+                    continue
+
+                power_data = get_bird_power(spot.bird.id)
+                if not power_data or power_data.get("color") != "pink":
+                    continue
+
+                if spot.bird.id in player.used_pink_powers:
+                    continue
+
+                power_id = power_data.get("data", {}).get("id")
+                if power_id is None:
+                    continue
+
+                if _pink_power_matches_trigger(
+                    power_id, power_data, trigger_type, context
+                ):
+                    triggered.append(
+                        {
+                            "player_index": player_index,
+                            "bird_id": spot.bird.id,
+                            "power_id": power_id,
+                            "power_data": power_data,
+                            "spot": spot,
+                        }
+                    )
+
+    return triggered
 
 
 def get_food_gain_combinations(quantity: int) -> List[Dict[str, int]]:

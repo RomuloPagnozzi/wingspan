@@ -6,6 +6,14 @@ import pickle
 
 
 @unique
+class PinkTrigger(str, Enum):
+    BIRD_PLAYED = "bird_played"
+    GAIN_FOOD = "gain_food"
+    LAY_EGGS = "lay_eggs"
+    PREDATOR_SUCCESS = "predator_success"
+
+
+@unique
 class GamePhase(str, Enum):
     GAME_SETUP = "game_setup"
     MAIN_TURN = "main_turn"
@@ -125,6 +133,7 @@ class Player:
     board: List[List[Spot]] = field(default_factory=build_board, init=False, repr=False)
     action_cubes: int = field(default=9, init=False)
     first_player: bool = field(default=False, init=False)
+    used_pink_powers: Set[int] = field(default_factory=set, init=False)
 
 
 def load_deck(type: str) -> List:
