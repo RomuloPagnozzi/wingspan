@@ -423,7 +423,29 @@ def _get_power_17_choices(state: GameState) -> List[str]:
         food_types = state.action_data.get("power_17_food_types", [])
         return [f"select_food_{food}" for food in food_types]
 
-    return []
+    raise ValueError(f"Unvalid power 17 sub_phase {sub_phase}")
+
+
+def _get_power_18_choices(state: GameState) -> List[str]:
+    """Generate choices for Power 18 (tuck card from hand when opponent plays in habitat)."""
+    sub_phase = state.action_data.get("sub_phase")
+    current_player = state.players[state.current_player_index]
+
+    if sub_phase == "power_18_select_card":
+        return [f"tuck_card_{card.id}" for card in current_player.bird_hand]
+
+    raise ValueError(f"Unvalid power 18 sub_phase {sub_phase}")
+
+
+def _get_power_20_choices(state: GameState) -> List[str]:
+    """Generate bird selection actions for Power 20 (lay egg on nest type)."""
+    valid_bird_ids = state.action_data.get("power_20_valid_bird_ids", [])
+    return [f"select_bird_{bird_id}" for bird_id in valid_bird_ids]
+
+
+def _get_power_21_choices(state: GameState) -> List[str]:
+    """Generate die selection actions for Power 21 (gain die when predator succeeds)."""
+    return _get_collect_food_actions(state)
 
 
 POWER_CHOICE_GENERATORS = {
@@ -439,6 +461,9 @@ POWER_CHOICE_GENERATORS = {
     14: _get_power_14_choices,
     16: _get_power_16_choices,
     17: _get_power_17_choices,
+    18: _get_power_18_choices,
+    20: _get_power_20_choices,
+    21: _get_power_21_choices,
 }
 
 

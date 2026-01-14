@@ -119,6 +119,12 @@ def _activate_powers(state: GameState, action: str) -> GameState:
         return _handle_power_17_select_card(state, action)
     if sub_phase == "power_17_select_food":
         return _handle_power_17_select_food(state, action)
+    if sub_phase == "power_18_select_card":
+        return _handle_power_18_select_card(state, action)
+    if sub_phase == "power_20_select_bird":
+        return _handle_power_20_select_bird(state, action)
+    if sub_phase == "power_21_select_die":
+        return _handle_power_21_select_die(state, action)
 
     powers_queue = state.action_data["powers_queue"]
     current_power_index = state.action_data["current_power_index"]
@@ -1127,26 +1133,110 @@ def _handle_power_17_select_food(state: GameState, action: str) -> GameState:
 
 def _execute_power_18(state: GameState, power_entry: dict) -> GameState:
     """Pink: Gain resource or tuck card when opponent plays in habitat."""
-    # TODO
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    resource = details.get("resource")
+    player_index = power_entry["player_index"]
+
+    if resource == "card":
+        state.action_data["sub_phase"] = "power_18_select_card"
+        state.action_data["power_18_bird_id"] = power_entry["bird_id"]
+        state.action_data["power_18_spot"] = power_entry["spot"]
+    else:
+        state = gain_food_effect(state, resource, amount=1, player_index=player_index)
+
     return state
+
+
+def _handle_power_18_select_card(state: GameState, action: str) -> GameState:
+    """Handle card selection for Power 18 (tuck card from hand)."""
+    card_id = int(action.split("_")[-1])
+    player = state.players[state.current_player_index]
+    spot = state.action_data["power_18_spot"]
+
+    card_to_tuck = next((c for c in player.bird_hand if c.id == card_id), None)
+    if not card_to_tuck:
+        raise ValueError(f"Card {card_id} not in hand")
+
+    player.bird_hand.remove(card_to_tuck)
+    spot.bird.tucked_cards += 1
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_18_bird_id"]
+    del state.action_data["power_18_spot"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
 
 
 def _execute_power_19(state: GameState, power_entry: dict) -> GameState:
     """Pink: Cache rodent when opponent gains rodent."""
-    # TODO
+    spot = power_entry["spot"]
+    spot.bird.stashed_food += 1
     return state
 
 
 def _execute_power_20(state: GameState, power_entry: dict) -> GameState:
     """Pink: Lay egg on nest type when opponent lays eggs."""
-    # TODO
+    power_data = power_entry["power_data"]
+    details = power_data["data"].get("details", {})
+    nest_type = details.get("type")
+    player_index = power_entry["player_index"]
+    pink_bird_id = power_entry["bird_id"]
+
+    current_player = state.players[player_index]
+    valid_birds = get_valid_birds_for_eggs(current_player, nest_type)
+    valid_birds = [b for b in valid_birds if b.id != pink_bird_id]
+
+    if len(valid_birds) == 1:
+        egg_distribution = {valid_birds[0].id: 1}
+        state = lay_eggs_effect(state, egg_distribution, player_index=player_index)
+        return state
+
+    state.action_data["sub_phase"] = "power_20_select_bird"
+    state.action_data["power_20_valid_bird_ids"] = [bird.id for bird in valid_birds]
+    state.action_data["power_20_player_index"] = player_index
     return state
+
+
+def _handle_power_20_select_bird(state: GameState, action: str) -> GameState:
+    """Handle bird selection for Power 20 (lay egg on nest type)."""
+    bird_id = int(action.split("_")[-1])
+    player_index = state.action_data["power_20_player_index"]
+
+    egg_distribution = {bird_id: 1}
+    state = lay_eggs_effect(state, egg_distribution, player_index=player_index)
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_20_valid_bird_ids"]
+    del state.action_data["power_20_player_index"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
 
 
 def _execute_power_21(state: GameState, power_entry: dict) -> GameState:
     """Pink: Gain die when opponent's predator succeeds."""
-    # TODO
+    player_index = power_entry["player_index"]
+
+    state.action_data["sub_phase"] = "power_21_select_die"
+    state.action_data["power_21_player_index"] = player_index
     return state
+
+
+def _handle_power_21_select_die(state: GameState, action: str) -> GameState:
+    """Handle die selection for Power 21 (gain die when predator succeeds)."""
+    player_index = state.action_data["power_21_player_index"]
+
+    if action == "reroll_all":
+        state.feeder = roll_feeder()
+        return state
+
+    die_index, food_type = parse_select_die_action(action)
+    state = select_die_effect(state, die_index, food_type, player_index=player_index)
+
+    del state.action_data["sub_phase"]
+    del state.action_data["power_21_player_index"]
+    state.action_data["current_power_index"] += 1
+    return _check_powers_done(state)
 
 
 def _handle_end_turn(state: GameState, action: str) -> GameState:

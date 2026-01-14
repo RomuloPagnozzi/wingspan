@@ -217,6 +217,36 @@ def _can_execute_power_17(state: GameState, power_entry: Dict) -> bool:
     return bool(current_player.bird_hand)
 
 
+def _can_execute_power_18(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 18: gain resource or tuck card when opponent plays in habitat."""
+    power_data = power_entry.get("power_data", power_entry)
+    details = power_data["data"].get("details", {})
+    resource = details.get("resource")
+
+    if resource == "card":
+        player_index = power_entry.get("player_index", state.current_player_index)
+        player = state.players[player_index]
+        return bool(player.bird_hand)
+
+    return True
+
+
+def _can_execute_power_20(state: GameState, power_entry: Dict) -> bool:
+    """Validate power type 20: lay egg on nest type when opponent lays eggs."""
+    power_data = power_entry.get("power_data", power_entry)
+    details = power_data["data"].get("details", {})
+    nest_type = details.get("type")
+    pink_bird_id = power_entry.get("bird_id")
+
+    player_index = power_entry.get("player_index", state.current_player_index)
+    player = state.players[player_index]
+
+    valid_birds = get_valid_birds_for_eggs(player, nest_type)
+    valid_birds = [b for b in valid_birds if b.id != pink_bird_id]
+
+    return len(valid_birds) > 0
+
+
 POWER_VALIDATORS = {
     1: _can_execute_power_1,
     2: _can_execute_power_2,
@@ -235,4 +265,8 @@ POWER_VALIDATORS = {
     15: _can_execute_power_15,
     16: _can_execute_power_16,
     17: _can_execute_power_17,
+    18: _can_execute_power_18,
+    19: lambda _, __: True,
+    20: _can_execute_power_20,
+    21: lambda _, __: True,
 }
