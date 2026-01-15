@@ -7,6 +7,36 @@ from itertools import (
     cycle,
     islice,
 )
+import random
+
+
+def reshuffle_discard_into_deck(state: GameState) -> None:
+    """Shuffle discarded birds back into the deck."""
+    if state.discarded_birds:
+        state.bird_deck.extend(state.discarded_birds)
+        state.discarded_birds.clear()
+        random.shuffle(state.bird_deck)
+
+
+def ensure_bird_deck(state: GameState, count: int = 1) -> int:
+    """Ensure deck has cards, reshuffling discard if needed. Returns available count."""
+    if len(state.bird_deck) < count and state.discarded_birds:
+        reshuffle_discard_into_deck(state)
+    return len(state.bird_deck)
+
+
+def get_available_bird_cards(state: GameState) -> int:
+    """Return total cards available (deck + discard, excluding tray)."""
+    return len(state.bird_deck) + len(state.discarded_birds)
+
+
+def refresh_bird_tray(state: GameState) -> None:
+    """Top up bird tray to 3 cards without discarding existing cards."""
+    while len(state.bird_tray) < 3:
+        ensure_bird_deck(state, 1)
+        if not state.bird_deck:
+            break
+        state.bird_tray.append(state.bird_deck.pop())
 
 
 def get_current_player_index(s: GameState) -> int:
@@ -324,17 +354,24 @@ def _generate_wild_payments(
 def get_card_draw_combinations(
     cards_needed: int,
     available_tray_bird_ids: List[int],
+    max_deck_cards: int | None = None,
 ) -> List[Dict]:
     """Return all valid ways to draw cards from mix of tray and deck."""
 
     if cards_needed <= 0:
         raise ValueError("Number of cards must be positive")
 
+    if max_deck_cards is None:
+        max_deck_cards = cards_needed
+
     combinations_list = []
     max_from_tray = min(cards_needed, len(available_tray_bird_ids))
 
     for tray_count in range(max_from_tray + 1):
         deck_count = cards_needed - tray_count
+
+        if deck_count > max_deck_cards:
+            continue
 
         if tray_count == 0:
             combinations_list.append({"tray_birds": [], "deck_cards": deck_count})
@@ -568,13 +605,14 @@ def rotate_first_player(state: GameState) -> None:
 
 
 def restock_bird_tray(state: GameState) -> None:
-    """Discard bird tray and draw 3 new cards."""
-    if len(state.bird_deck) < 3:
-        raise ValueError(
-            f"Not enough cards in bird deck to restock tray. Need 3, have {len(state.bird_deck)}"
-        )
+    """Discard bird tray and draw up to 3 new cards (handles partial)."""
     state.discarded_birds.extend(state.bird_tray)
-    state.bird_tray = [state.bird_deck.pop() for _ in range(3)]
+    state.bird_tray.clear()
+
+    ensure_bird_deck(state, 3)
+
+    cards_to_draw = min(3, len(state.bird_deck))
+    state.bird_tray = [state.bird_deck.pop() for _ in range(cards_to_draw)]
 
 
 def get_first_player_index(state: GameState) -> int:

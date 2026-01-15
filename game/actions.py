@@ -11,6 +11,7 @@ from .utils import (
     get_food_discard_combinations,
     get_valid_birds_for_eggs,
     get_food_gain_combinations,
+    get_available_bird_cards,
 )
 from .powers import can_execute_power
 import json
@@ -77,7 +78,11 @@ def _get_main_turn_actions(state: GameState) -> List[str]:
         actions.append("play_bird")
 
     actions.append("gain_food")
-    actions.append("draw_cards")
+
+    total_available = get_available_bird_cards(state) + len(state.bird_tray)
+    if total_available > 0:
+        actions.append("draw_cards")
+
     return actions
 
 
@@ -136,7 +141,10 @@ def _get_draw_cards_actions(state: GameState) -> List[str]:
         raise ValueError(f"No cards needed found in {state.action_data}.")
 
     available_tray_bird_ids = [bird.id for bird in state.bird_tray]
-    combinations = get_card_draw_combinations(cards_needed, available_tray_bird_ids)
+    deck_available = get_available_bird_cards(state)
+    combinations = get_card_draw_combinations(
+        cards_needed, available_tray_bird_ids, max_deck_cards=deck_available
+    )
     return [json.dumps(comb) for comb in combinations]
 
 

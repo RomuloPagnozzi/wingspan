@@ -35,7 +35,7 @@ def test_draw_cards_from_tray():
     draw_cards_effect(state, tray_bird_ids=[tray_bird_id], deck_count=0, player_index=0)
 
     assert any(bird.id == tray_bird_id for bird in state.players[0].bird_hand)
-    assert len(state.bird_tray) == 3
+    assert len(state.bird_tray) == 2
 
 
 def test_draw_cards_different_player():

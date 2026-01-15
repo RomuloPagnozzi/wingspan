@@ -1,6 +1,7 @@
 import json
 from typing import Optional, Dict, List
 from game.data import GameState, roll_feeder
+from game.utils import ensure_bird_deck
 
 
 def draw_cards_effect(
@@ -21,11 +22,10 @@ def draw_cards_effect(
                 state.bird_tray.remove(bird)
                 break
 
-    for _ in range(deck_count):
+    ensure_bird_deck(state, deck_count)
+    actual_deck_draws = min(deck_count, len(state.bird_deck))
+    for _ in range(actual_deck_draws):
         target_player.bird_hand.append(state.bird_deck.pop())
-
-    while len(state.bird_tray) < 3 and state.bird_deck:
-        state.bird_tray.append(state.bird_deck.pop())
 
     return state
 
@@ -43,10 +43,12 @@ def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> GameState:
     for row in current_player.board:
         for spot in row:
             if spot.bird is not None and spot.bird.id == bird_id:
-                for _ in range(count):
+                ensure_bird_deck(state, count)
+                actual_tucks = min(count, len(state.bird_deck))
+                for _ in range(actual_tucks):
                     state.bird_deck.pop()
 
-                spot.bird.tucked_cards += count
+                spot.bird.tucked_cards += actual_tucks
                 return state
 
     raise ValueError(f"Bird {bird_id} not found on current player's board")

@@ -10,7 +10,9 @@ from .utils import (
     get_action_cubes_for_round,
     rotate_first_player,
     restock_bird_tray,
+    refresh_bird_tray,
     get_first_player_index,
+    ensure_bird_deck,
 )
 import json
 import random
@@ -391,12 +393,22 @@ def _execute_power_6(state: GameState, power_entry: dict) -> GameState:
     num_players = len(state.players)
     cards_to_draw = num_players + 1
 
-    drawn_cards = [state.bird_deck.pop() for _ in range(cards_to_draw)]
+    ensure_bird_deck(state, cards_to_draw)
+    actual_draw = min(cards_to_draw, len(state.bird_deck))
+    if actual_draw == 0:
+        return state
+
+    drawn_cards = [state.bird_deck.pop() for _ in range(actual_draw)]
 
     player_order = [activator]
     for i in range(1, num_players):
         player_order.append((activator + i) % num_players)
-    player_order.append(activator)
+
+    players_to_pick = min(actual_draw, num_players + 1)
+    if players_to_pick > num_players:
+        player_order.append(activator)
+    else:
+        player_order = player_order[:players_to_pick]
 
     state.action_data["sub_phase"] = "power_6_select_card"
     state.action_data["activator"] = activator
@@ -429,9 +441,6 @@ def _handle_power_6_select_card(state: GameState, action: str) -> GameState:
         state.action_data["awaiting_players"] = awaiting
         state.current_player_index = awaiting[0]
         return state
-
-    if len(available_cards) != 0:
-        raise ValueError(f"Expected 0 remaining cards, got {len(available_cards)}")
 
     activator_index = state.action_data["activator"]
     state.current_player_index = activator_index
@@ -823,6 +832,8 @@ def _execute_power_11(state: GameState, power_entry: dict) -> GameState:
     spot = power_entry.get("spot")
     if not spot or not spot.bird:
         raise ValueError("Power 11 requires activating bird")
+
+    ensure_bird_deck(state, 1)
 
     activating_bird = spot.bird
     drawn_bird = state.bird_deck.pop()
@@ -1267,6 +1278,8 @@ def _finalize_turn(state: GameState) -> GameState:
         state.game_phase = GamePhase.MAIN_TURN
         state.action_data = {}
         return state
+
+    refresh_bird_tray(state)
 
     state.game_phase = GamePhase.MAIN_TURN
     state.action_data = {}
