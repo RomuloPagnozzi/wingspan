@@ -6,6 +6,11 @@ from .utils import (
     get_triggered_powers,
     get_triggered_pink_powers,
     get_valid_birds_for_eggs,
+    check_round_end,
+    get_action_cubes_for_round,
+    rotate_first_player,
+    restock_bird_tray,
+    get_first_player_index,
 )
 import json
 import random
@@ -136,9 +141,6 @@ def _activate_powers(state: GameState, action: str) -> GameState:
     power_data = current_power["power_data"]
     power_type = power_data["data"]["id"]
 
-    if "player_index" in current_power:
-        state.current_player_index = current_power["player_index"]
-
     if action == "skip_power":
         state.action_data["current_power_index"] += 1
         return _check_powers_done(state)
@@ -169,6 +171,10 @@ def _check_powers_done(state: GameState) -> GameState:
     if current_index >= len(powers_queue):
         state.game_phase = GamePhase.END_TURN
         return _handle_end_turn(state, "")
+
+    next_power = powers_queue[current_index]
+    if "player_index" in next_power:
+        state.current_player_index = next_power["player_index"]
 
     return state
 
@@ -1239,16 +1245,42 @@ def _handle_power_21_select_die(state: GameState, action: str) -> GameState:
     return _check_powers_done(state)
 
 
+def _finalize_turn(state: GameState) -> GameState:
+    """Finalize turn: check for round end or advance to next player."""
+    if check_round_end(state):
+        restock_bird_tray(state)
+        rotate_first_player(state)
+
+        next_round = state.round + 1
+        if next_round > 4:
+            state.game_phase = GamePhase.GAME_OVER
+            state.action_data = {}
+            return state
+
+        cubes = get_action_cubes_for_round(next_round)
+        for player in state.players:
+            player.action_cubes = cubes
+            player.used_pink_powers.clear()
+
+        state.round = next_round
+        state.current_player_index = get_first_player_index(state)
+        state.game_phase = GamePhase.MAIN_TURN
+        state.action_data = {}
+        return state
+
+    state.game_phase = GamePhase.MAIN_TURN
+    state.action_data = {}
+    state.current_player_index = get_current_player_index(state)
+    state.players[state.current_player_index].used_pink_powers.clear()
+    return state
+
+
 def _handle_end_turn(state: GameState, action: str) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.get("end_turn_effects", [])
 
     if not effects:
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data = {}
-        state.current_player_index = get_current_player_index(state)
-        state.players[state.current_player_index].used_pink_powers.clear()
-        return state
+        return _finalize_turn(state)
 
     current_effect = effects[0]
     effect_type = current_effect["type"]
@@ -1278,10 +1310,7 @@ def _handle_end_turn(state: GameState, action: str) -> GameState:
 
             if not effects:
                 state.action_data.pop("end_turn_effects", None)
-                state.game_phase = GamePhase.MAIN_TURN
-                state.action_data = {}
-                state.current_player_index = get_current_player_index(state)
-                state.players[state.current_player_index].used_pink_powers.clear()
+                return _finalize_turn(state)
 
             return state
 

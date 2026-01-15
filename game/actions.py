@@ -486,4 +486,5 @@ _ACTION_GENERATORS = {
     GamePhase.PAY_FOOD_COST: _get_pay_food_cost_actions,
     GamePhase.ACTIVATE_POWERS: _get_activate_powers_actions,
     GamePhase.END_TURN: _get_end_turn_actions,
+    GamePhase.GAME_OVER: lambda state: [],
 }

@@ -33,6 +33,7 @@ class GamePhase(str, Enum):
     PAY_FOOD_COST = "pay_food_cost"
     ACTIVATE_POWERS = "activate_powers"
     END_TURN = "end_turn"
+    GAME_OVER = "game_over"
 
 
 def init_food() -> Dict[str, int]:
@@ -190,7 +191,7 @@ class GameState:
     discarded_bonuses: List[Bird] = field(default_factory=lambda: [], init=False)
     bird_tray: List = field(default_factory=lambda: [], init=False)
     feeder: Dict = field(default_factory=roll_feeder, init=False)
-    round: int = field(default=0, init=False)
+    round: int = field(default=1, init=False)
     current_player_index: int = field(default=0, init=False)
     game_phase: GamePhase = field(default=GamePhase.GAME_SETUP, init=False)
     action_data: Dict = field(default_factory=dict, init=False)

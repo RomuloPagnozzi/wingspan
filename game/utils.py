@@ -547,3 +547,36 @@ def get_food_gain_combinations(quantity: int) -> List[Dict[str, int]]:
 
     generate_combinations(quantity, {}, 0)
     return combinations
+
+
+def check_round_end(state: GameState) -> bool:
+    """Check if all players have used all action cubes."""
+    return all(player.action_cubes == 0 for player in state.players)
+
+
+def get_action_cubes_for_round(round_num: int) -> int:
+    """Get starting action cubes for a round (8/7/6/5)."""
+    return 9 - round_num
+
+
+def rotate_first_player(state: GameState) -> None:
+    """Pass first player token clockwise."""
+    current_idx = next(i for i, p in enumerate(state.players) if p.first_player)
+    next_idx = (current_idx + 1) % len(state.players)
+    state.players[current_idx].first_player = False
+    state.players[next_idx].first_player = True
+
+
+def restock_bird_tray(state: GameState) -> None:
+    """Discard bird tray and draw 3 new cards."""
+    if len(state.bird_deck) < 3:
+        raise ValueError(
+            f"Not enough cards in bird deck to restock tray. Need 3, have {len(state.bird_deck)}"
+        )
+    state.discarded_birds.extend(state.bird_tray)
+    state.bird_tray = [state.bird_deck.pop() for _ in range(3)]
+
+
+def get_first_player_index(state: GameState) -> int:
+    """Get index of first player."""
+    return next(i for i, p in enumerate(state.players) if p.first_player)
