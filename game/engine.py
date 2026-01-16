@@ -1,5 +1,14 @@
 import copy
-from .data import GameState, roll_feeder, GamePhase, Spot, get_bird_power, PinkTrigger
+from .data import (
+    GameState,
+    GamePhase,
+    Spot,
+    PinkTrigger,
+    roll_feeder,
+    get_bird_power,
+    update_player_scores,
+    update_round_goal_scores,
+)
 from .utils import (
     find_leftmost_empty_spot,
     get_current_player_index,
@@ -33,6 +42,7 @@ from .effects import (
     gain_food_effect,
     tuck_cards_effect,
 )
+from .powers import can_execute_power
 
 
 # =============================================================================
@@ -77,10 +87,7 @@ def _finish_main_action(
         }
         return state
 
-    state.game_phase = GamePhase.MAIN_TURN
-    state.action_data = {}
-    state.current_player_index = get_current_player_index(state)
-    return state
+    return _finalize_turn(state)
 
 
 # =============================================================================
@@ -986,13 +993,16 @@ def _execute_power_14(state: GameState, power_entry: dict) -> GameState:
 
         elif repeat_type == "brown":
             if other_power.get("color") == "brown":
-                eligible_birds.append(
-                    {
-                        "bird_id": other_spot.bird.id,
-                        "spot": other_spot,
-                        "power_data": other_power,
-                    }
-                )
+                if other_power["data"].get("id") == 14:
+                    continue
+                power_entry_candidate = {
+                    "bird_id": other_spot.bird.id,
+                    "spot": other_spot,
+                    "power_data": other_power,
+                    "player_index": state.current_player_index,
+                }
+                if can_execute_power(state, power_entry_candidate):
+                    eligible_birds.append(power_entry_candidate)
 
     if not eligible_birds:
         raise ValueError(
@@ -1258,7 +1268,11 @@ def _handle_power_21_select_die(state: GameState, action: str) -> GameState:
 
 def _finalize_turn(state: GameState) -> GameState:
     """Finalize turn: check for round end or advance to next player."""
+    current_player = state.players[state.current_player_index]
+    update_player_scores(current_player)
+
     if check_round_end(state):
+        update_round_goal_scores(state)
         restock_bird_tray(state)
         rotate_first_player(state)
 

@@ -216,7 +216,16 @@ def _can_execute_power_14(state: GameState, power_entry: Dict) -> bool:
 
         elif repeat_type == "brown":
             if other_power.get("color") == "brown":
-                return True
+                if other_power["data"].get("id") == 14:
+                    continue
+                power_entry_candidate = {
+                    "bird_id": other_spot.bird.id,
+                    "spot": other_spot,
+                    "power_data": other_power,
+                    "player_index": state.current_player_index,
+                }
+                if can_execute_power(state, power_entry_candidate):
+                    return True
 
     return False
 

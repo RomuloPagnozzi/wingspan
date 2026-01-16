@@ -7,6 +7,7 @@ sys.path.append(".")
 from game.data import initiate_state, GamePhase, get_bird_power, get_bird
 from game.engine import transition_state
 from game.actions import get_actions
+from game.powers import can_execute_power
 
 
 def get_all_birds(state):
@@ -204,7 +205,7 @@ def test_power_14_no_eligible_birds():
 
 
 def test_power_14_self_repeat_prevented():
-    """Test Power 14 cannot repeat itself."""
+    """Test Power 14 cannot repeat itself or other Power 14 birds."""
     state = initiate_state(2)
 
     all_birds = get_all_birds(state)
@@ -227,7 +228,7 @@ def test_power_14_self_repeat_prevented():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
 
-    # Place both in same habitat
+    # Place both in same habitat (only power 14 birds)
     state.players[0].board[0][0].bird = power_14_bird_1
     state.players[0].board[0][1].bird = power_14_bird_2
 
@@ -245,18 +246,12 @@ def test_power_14_self_repeat_prevented():
         "current_power_index": 0,
     }
 
-    # Execute Power 14
+    # Execute Power 14 - should do nothing since only other power 14 birds exist
     state = transition_state(state, "activate_power")
 
-    # Should enter sub-phase
-    assert state.action_data.get("sub_phase") == "power_14_select_bird"
-
-    # Verify activating bird is not in selection
-    actions = get_actions(state)
-    assert f"select_bird_{power_14_bird_1.id}" not in actions
-
-    # Verify other Power 14 bird IS selectable
-    assert f"select_bird_{power_14_bird_2.id}" in actions
+    # Power 14 cannot repeat other power 14 birds, so it does nothing and advances
+    # The turn should have moved on (no sub_phase set)
+    assert state.action_data.get("sub_phase") is None
 
 
 def test_power_14_different_habitat_isolated():
@@ -337,28 +332,48 @@ def test_power_14_brown_filters_correctly():
     assert power_14_bird, "Should find Power 14 (brown) bird"
 
     # Find birds with different power colors
-    brown_bird = None
     white_bird = None
 
     for bird in all_birds:
         power = get_bird_power(bird.id)
         if power and bird.id != power_14_bird.id:
-            if power.get("color") == "brown" and not brown_bird:
-                brown_bird = bird
-            elif power.get("color") == "white" and not white_bird:
+            if power.get("color") == "white" and not white_bird:
                 white_bird = bird
+                break
 
-    assert brown_bird and white_bird, "Should find both brown and white power birds"
+    assert white_bird, "Should find white power bird"
 
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
 
-    # Place all in same habitat
+    # Place power 14 bird and white bird in same habitat
     state.players[0].board[0][0].bird = power_14_bird
-    state.players[0].board[0][1].bird = brown_bird
     state.players[0].board[0][2].bird = white_bird
 
     activating_spot = state.players[0].board[0][0]
+
+    # Find a brown bird whose power can actually execute in this state
+    brown_bird = None
+    for bird in all_birds:
+        power = get_bird_power(bird.id)
+        if power and bird.id != power_14_bird.id and power.get("color") == "brown":
+            # Skip other power 14 birds
+            if power.get("data", {}).get("id") == 14:
+                continue
+            # Temporarily place to test if power can execute
+            state.players[0].board[0][1].bird = bird
+            power_entry_candidate = {
+                "bird_id": bird.id,
+                "spot": state.players[0].board[0][1],
+                "power_data": power,
+                "player_index": 0,
+            }
+            if can_execute_power(state, power_entry_candidate):
+                brown_bird = bird
+                break
+            state.players[0].board[0][1].bird = None
+
+    assert brown_bird, "Should find executable brown power bird"
 
     state.action_data = {
         "powers_queue": [
@@ -383,7 +398,6 @@ def test_power_14_brown_filters_correctly():
 
 def test_power_14_validation():
     """Test Power 14 validation works correctly."""
-    from game.powers import can_execute_power
 
     state = initiate_state(2)
 
@@ -402,16 +416,6 @@ def test_power_14_validation():
 
     assert power_14_bird, "Should find Power 14 (brown) bird"
 
-    # Find brown power bird
-    brown_power_bird = None
-    for bird in all_birds:
-        power = get_bird_power(bird.id)
-        if power and power.get("color") == "brown" and bird.id != power_14_bird.id:
-            brown_power_bird = bird
-            break
-
-    assert brown_power_bird, "Should find bird with brown power"
-
     state.current_player_index = 0
     state.players[0].board[0][0].bird = power_14_bird
     spot = state.players[0].board[0][0]
@@ -424,10 +428,30 @@ def test_power_14_validation():
     }
     assert not can_execute_power(state, power_entry)
 
-    # Place brown power bird in same habitat
-    state.players[0].board[0][1].bird = brown_power_bird
+    # Find brown power bird whose power can actually execute
+    brown_power_bird = None
+    for bird in all_birds:
+        power = get_bird_power(bird.id)
+        if power and power.get("color") == "brown" and bird.id != power_14_bird.id:
+            # Skip other power 14 birds
+            if power.get("data", {}).get("id") == 14:
+                continue
+            # Temporarily place to test if power can execute
+            state.players[0].board[0][1].bird = bird
+            power_entry_candidate = {
+                "bird_id": bird.id,
+                "spot": state.players[0].board[0][1],
+                "power_data": power,
+                "player_index": 0,
+            }
+            if can_execute_power(state, power_entry_candidate):
+                brown_power_bird = bird
+                break
+            state.players[0].board[0][1].bird = None
 
-    # Valid when brown power bird exists in habitat
+    assert brown_power_bird, "Should find bird with executable brown power"
+
+    # Valid when executable brown power bird exists in habitat
     assert can_execute_power(state, power_entry)
 
 
