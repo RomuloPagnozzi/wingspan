@@ -4,9 +4,26 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, get_bird
+from game.data import initiate_state, GamePhase, get_bird, ActionData, QueuedPower
 from game.engine import transition_state
 from game.actions import get_actions
+
+
+def setup_power_7_execution(state, player_index, bird_id, spot):
+    """Set up Power 7 execution with new ActionData structure."""
+    power_data = {"data": {"id": 7}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=7,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def test_power_7_full_game_scenario_with_3_players():
@@ -52,17 +69,7 @@ def test_power_7_full_game_scenario_with_3_players():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_7_bird.id,
-                "power_id": 7,
-                "power_data": {"data": {"id": 7}},
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
 
     # Get available actions - should be able to activate or skip
     actions = get_actions(state)
@@ -72,10 +79,11 @@ def test_power_7_full_game_scenario_with_3_players():
     # Activate Power 7
     state = transition_state(state, "activate_power")
 
-    # Should be in power_7_choose_starting_player sub-phase
+    # Should be in choose_starting_player phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert state.action_data.get("sub_phase") == "power_7_choose_starting_player"
-    assert state.action_data.get("activator") == 0
+    current_exec = state.action_data.execution_stack[-1]
+    assert current_exec.phase == "choose_starting_player"
+    assert current_exec.context.get("activator") == 0
 
     # Get available player selection actions
     actions = get_actions(state)
@@ -87,12 +95,13 @@ def test_power_7_full_game_scenario_with_3_players():
     # Player 0 chooses Player 1 to start
     state = transition_state(state, "choose_player_1")
 
-    # Should transition to die selection sub-phase
+    # Should transition to die selection phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert state.action_data.get("sub_phase") == "power_7_select_die"
+    current_exec = state.action_data.execution_stack[-1]
+    assert current_exec.phase == "select_die"
 
     # Verify player order: [1, 2, 0] (clockwise from Player 1)
-    awaiting_players = state.action_data.get("awaiting_players", [])
+    awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [1, 2, 0], "Should be clockwise from Player 1"
 
     # Current player should be Player 1
@@ -120,10 +129,11 @@ def test_power_7_full_game_scenario_with_3_players():
     # Should advance to Player 2
     assert state.current_player_index == 2
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert state.action_data.get("sub_phase") == "power_7_select_die"
+    current_exec = state.action_data.execution_stack[-1]
+    assert current_exec.phase == "select_die"
 
     # Verify awaiting_players updated
-    awaiting_players = state.action_data.get("awaiting_players", [])
+    awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [2, 0], "Player 1 removed from queue"
 
     # Player 2 selects die 1 (seed)
@@ -142,7 +152,8 @@ def test_power_7_full_game_scenario_with_3_players():
 
     # Should advance to Player 0
     assert state.current_player_index == 0
-    awaiting_players = state.action_data.get("awaiting_players", [])
+    current_exec = state.action_data.execution_stack[-1]
+    awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [0], "Only Player 0 remains"
 
     # Player 0 selects die 2 (invertebrate)
@@ -164,10 +175,8 @@ def test_power_7_full_game_scenario_with_3_players():
     # Should transition back to MAIN_TURN
     assert state.game_phase == GamePhase.MAIN_TURN
 
-    # Verify no sub-phase data remains
-    assert "sub_phase" not in state.action_data
-    assert "awaiting_players" not in state.action_data
-    assert "activator" not in state.action_data
+    # Verify execution stack is empty
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify final food totals
     assert (
@@ -216,29 +225,21 @@ def test_power_7_activator_chooses_self():
 
     # Setup power activation
     activating_spot = state.players[2].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_7_bird.id,
-                "power_id": 7,
-                "power_data": {"data": {"id": 7}},
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_7_execution(state, 2, power_7_bird.id, activating_spot)
 
     # Activate power
     state = transition_state(state, "activate_power")
 
     # Should be in player selection phase
-    assert state.action_data.get("sub_phase") == "power_7_choose_starting_player"
+    current_exec = state.action_data.execution_stack[-1]
+    assert current_exec.phase == "choose_starting_player"
 
     # Player 2 chooses themselves (Player 2)
     state = transition_state(state, "choose_player_2")
 
     # Verify player order: [2, 3, 0, 1] (clockwise from Player 2)
-    awaiting_players = state.action_data.get("awaiting_players", [])
+    current_exec = state.action_data.execution_stack[-1]
+    awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [2, 3, 0, 1], "Should be clockwise from Player 2"
 
     # Current player should be Player 2 (activator)
@@ -285,17 +286,7 @@ def test_power_7_feeder_empties_mid_power():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_7_bird.id,
-                "power_id": 7,
-                "power_data": {"data": {"id": 7}},
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
 
     # Activate and choose starting player
     state = transition_state(state, "activate_power")
@@ -350,17 +341,7 @@ def test_power_7_with_2_players():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_7_bird.id,
-                "power_id": 7,
-                "power_data": {"data": {"id": 7}},
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -369,7 +350,8 @@ def test_power_7_with_2_players():
     state = transition_state(state, "choose_player_1")
 
     # Verify player order: [1, 0]
-    awaiting_players = state.action_data.get("awaiting_players", [])
+    current_exec = state.action_data.execution_stack[-1]
+    awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [1, 0]
 
     # Both players select dice
@@ -414,17 +396,7 @@ def test_power_7_with_5_players():
 
     # Setup power activation
     activating_spot = state.players[3].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_7_bird.id,
-                "power_id": 7,
-                "power_data": {"data": {"id": 7}},
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_7_execution(state, 3, power_7_bird.id, activating_spot)
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -433,7 +405,8 @@ def test_power_7_with_5_players():
     state = transition_state(state, "choose_player_0")
 
     # Verify player order: [0, 1, 2, 3, 4] (clockwise from Player 0)
-    awaiting_players = state.action_data.get("awaiting_players", [])
+    current_exec = state.action_data.execution_stack[-1]
+    awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [0, 1, 2, 3, 4]
 
     # Track feeder state - will need to reroll once
@@ -483,17 +456,7 @@ def test_power_7_all_dice_same_face():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_7_bird.id,
-                "power_id": 7,
-                "power_data": {"data": {"id": 7}},
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
 
     # Activate and choose starting player
     state = transition_state(state, "activate_power")

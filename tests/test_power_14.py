@@ -4,10 +4,17 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, get_bird_power, get_bird
+from game.data import (
+    initiate_state,
+    GamePhase,
+    get_bird_power,
+    get_bird,
+    QueuedPower,
+    ActionData,
+)
 from game.engine import transition_state
 from game.actions import get_actions
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
 
 
 def get_all_birds(state):
@@ -18,6 +25,22 @@ def get_all_birds(state):
         + list(state.players[0].bird_hand)
         + list(state.players[1].bird_hand)
     )
+
+
+def setup_power_queue(state, power_bird, power_data, spot):
+    """Helper to set up the power queue with new ActionData structure."""
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=power_data["data"]["id"],
+            bird_id=power_bird.id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=state.current_player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def test_power_14_brown_repeat_simple_power():
@@ -57,17 +80,7 @@ def test_power_14_brown_repeat_simple_power():
     state.players[0].board[0][1].bird = power_3_bird
 
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_14_bird.id,
-                "power_id": 14,
-                "power_data": power_14_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_queue(state, power_14_bird, power_14_data, activating_spot)
 
     # Verify can activate
     actions = get_actions(state)
@@ -76,8 +89,9 @@ def test_power_14_brown_repeat_simple_power():
     # Execute Power 14
     state = transition_state(state, "activate_power")
 
-    # Should enter sub-phase for bird selection
-    assert state.action_data.get("sub_phase") == "power_14_select_bird"
+    # Should have an execution on stack with select_bird phase
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].phase == "select_bird"
 
     # Verify bird selection available
     actions = get_actions(state)
@@ -89,8 +103,8 @@ def test_power_14_brown_repeat_simple_power():
     # Verify Power 3 was executed (bird should have cached food)
     assert power_3_bird.stashed_food == 1
 
-    # Verify cleanup - no sub_phase, turn should be done
-    assert "sub_phase" not in state.action_data
+    # Verify cleanup - stack should be empty, turn should be done
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_14_predator_repeat():
@@ -129,24 +143,14 @@ def test_power_14_predator_repeat():
     state.players[0].board[2][1].bird = power_11_bird
 
     activating_spot = state.players[0].board[2][0]
-
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_14_bird.id,
-                "power_id": 14,
-                "power_data": power_14_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_queue(state, power_14_bird, power_14_data, activating_spot)
 
     # Execute Power 14
     state = transition_state(state, "activate_power")
 
     # Should enter sub-phase
-    assert state.action_data.get("sub_phase") == "power_14_select_bird"
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].phase == "select_bird"
 
     # Select Power 11 bird
     actions = get_actions(state)
@@ -155,8 +159,8 @@ def test_power_14_predator_repeat():
     state = transition_state(state, f"select_bird_{power_11_bird.id}")
 
     # Verify Power 11 was executed (predator power draws from deck and tucks/discards)
-    # The power executes immediately, no queue addition
-    assert "sub_phase" not in state.action_data
+    # Stack should be empty
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_14_no_eligible_birds():
@@ -185,18 +189,7 @@ def test_power_14_no_eligible_birds():
     state.players[0].board[0][0].bird = power_14_bird
 
     activating_spot = state.players[0].board[0][0]
-
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_14_bird.id,
-                "power_id": 14,
-                "power_data": power_14_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_queue(state, power_14_bird, power_14_data, activating_spot)
 
     # Cannot activate (only skip available)
     actions = get_actions(state)
@@ -233,25 +226,14 @@ def test_power_14_self_repeat_prevented():
     state.players[0].board[0][1].bird = power_14_bird_2
 
     activating_spot = state.players[0].board[0][0]
+    setup_power_queue(state, power_14_bird_1, power_14_data_1, activating_spot)
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_14_bird_1.id,
-                "power_id": 14,
-                "power_data": power_14_data_1,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
-
-    # Execute Power 14 - should do nothing since only other power 14 birds exist
-    state = transition_state(state, "activate_power")
-
-    # Power 14 cannot repeat other power 14 birds, so it does nothing and advances
-    # The turn should have moved on (no sub_phase set)
-    assert state.action_data.get("sub_phase") is None
+    # Power 14 cannot repeat other power 14 birds, so activate_power should not be available
+    actions = get_actions(state)
+    assert (
+        "activate_power" not in actions
+    ), "Power 14 should not be activatable when only other Power 14 birds exist"
+    assert "skip_power" in actions, "skip_power should be the only option"
 
 
 def test_power_14_different_habitat_isolated():
@@ -293,18 +275,7 @@ def test_power_14_different_habitat_isolated():
     state.players[0].board[1][0].bird = brown_power_bird
 
     activating_spot = state.players[0].board[0][0]
-
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_14_bird.id,
-                "power_id": 14,
-                "power_data": power_14_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_queue(state, power_14_bird, power_14_data, activating_spot)
 
     # Cannot activate (bird in different habitat)
     actions = get_actions(state)
@@ -375,17 +346,7 @@ def test_power_14_brown_filters_correctly():
 
     assert brown_bird, "Should find executable brown power bird"
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_14_bird.id,
-                "power_id": 14,
-                "power_data": power_14_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_queue(state, power_14_bird, power_14_data, activating_spot)
 
     # Execute Power 14
     state = transition_state(state, "activate_power")
@@ -455,6 +416,104 @@ def test_power_14_validation():
     assert can_execute_power(state, power_entry)
 
 
+def test_power_14_repeat_power_with_subphase():
+    """Test Power 14 repeating a power that has its own sub-phase (Power 17).
+
+    This tests that after selecting a bird to repeat, if the repeated power
+    sets up a sub-phase (like Power 17's card selection), the action generator
+    correctly uses the execution stack to find the right power's choices.
+    """
+    state = initiate_state(2)
+
+    all_birds = get_all_birds(state)
+
+    # Find Power 14 (brown) bird
+    power_14_bird = None
+    power_14_data = None
+    for bird in all_birds:
+        power = get_bird_power(bird.id)
+        if power and power.get("data") and power["data"].get("id") == 14:
+            if power["data"].get("details", {}).get("type") == "brown":
+                power_14_bird = bird
+                power_14_data = power
+                break
+
+    assert power_14_bird, "Should find Power 14 (brown) bird"
+
+    # Find Power 17 bird (tuck card from hand)
+    power_17_bird = None
+    power_17_data = None
+    for bird in all_birds:
+        power = get_bird_power(bird.id)
+        if power and power.get("data") and power["data"].get("id") == 17:
+            power_17_bird = bird
+            power_17_data = power
+            break
+
+    assert power_17_bird, "Should find Power 17 bird"
+
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+
+    # Ensure player has at least 1 card in hand (needed for Power 17)
+    if len(state.players[0].bird_hand) < 1:
+        state.players[0].bird_hand.append(state.bird_deck.pop())
+
+    # Place both birds in same habitat (forest)
+    state.players[0].board[0][0].bird = power_14_bird
+    state.players[0].board[0][1].bird = power_17_bird
+
+    activating_spot = state.players[0].board[0][0]
+    setup_power_queue(state, power_14_bird, power_14_data, activating_spot)
+
+    # Execute Power 14
+    actions = get_actions(state)
+    assert "activate_power" in actions
+    state = transition_state(state, "activate_power")
+
+    # Should be in Power 14's bird selection phase
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].phase == "select_bird"
+
+    # Verify Power 17 bird is selectable
+    actions = get_actions(state)
+    assert f"select_bird_{power_17_bird.id}" in actions
+
+    # Select Power 17 bird - this triggers Power 17 which sets up select_card phase
+    state = transition_state(state, f"select_bird_{power_17_bird.id}")
+
+    # Power 17 should now be on the stack with its card selection phase
+    # Power 14 should have popped itself
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].power_id == 17
+    assert (
+        state.action_data.execution_stack[0].phase == "select_card"
+    ), f"Expected phase='select_card', got '{state.action_data.execution_stack[0].phase}'"
+
+    # The action generator now correctly uses the execution stack to find Power 17's choices
+    actions = get_actions(state)
+    assert len(actions) > 0, (
+        f"Should have tuck_card actions for Power 17, but got empty. "
+        f"phase={state.action_data.execution_stack[0].phase if state.action_data.execution_stack else 'no stack'}, "
+        f"player hand size={len(state.players[0].bird_hand)}"
+    )
+    assert any(
+        a.startswith("tuck_card_") for a in actions
+    ), f"Expected tuck_card actions, got: {actions}"
+
+    # Complete Power 17 by tucking a card
+    tuck_action = [a for a in actions if a.startswith("tuck_card_")][0]
+    state = transition_state(state, tuck_action)
+
+    # Verify cleanup - power should be done or in food selection
+    if state.action_data.execution_stack:
+        # If Power 17 has multiple types, it might be in food selection
+        assert state.action_data.execution_stack[0].phase == "select_food"
+    else:
+        # Power completed
+        pass
+
+
 if __name__ == "__main__":
     print("Running Power 14 tests...")
 
@@ -478,5 +537,8 @@ if __name__ == "__main__":
 
     test_power_14_validation()
     print("✓ test_power_14_validation passed")
+
+    test_power_14_repeat_power_with_subphase()
+    print("✓ test_power_14_repeat_power_with_subphase passed")
 
     print("\n✅ All Power 14 tests passed!")

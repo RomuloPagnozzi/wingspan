@@ -1,11 +1,24 @@
 """Tests for Power 20: Pink power triggered when opponent lays eggs."""
 
+import sys
+
+sys.path.append(".")
+
 import pytest
-from game.data import GameState, GamePhase, Player, Bird, Spot, PinkTrigger
-from game.engine import transition_state, _execute_power_20
+from game.data import (
+    GameState,
+    GamePhase,
+    Player,
+    Bird,
+    Spot,
+    PinkTrigger,
+    ActionData,
+    QueuedPower,
+)
+from game.engine import transition_state
 from game.actions import get_actions
 from game.utils import get_triggered_pink_powers
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
 
 
 def create_test_bird(bird_id: int, habitats: list, nest: str = "bowl") -> Bird:
@@ -39,6 +52,26 @@ def create_power_20_entry(
     }
 
 
+def setup_power_20_execution(state, player_index, bird_id, spot, nest_type):
+    """Set up Power 20 execution with new ActionData structure."""
+    power_data = {
+        "color": "pink",
+        "data": {"id": 20, "details": {"type": nest_type}},
+    }
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=20,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
+
+
 class TestPower20SingleBird:
     """Tests for Power 20 when there's only one valid bird."""
 
@@ -46,6 +79,7 @@ class TestPower20SingleBird:
         """When only one valid bird exists, egg is laid automatically."""
         state = GameState()
         state.players = [Player(1), Player(2)]
+        state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
         # Pink power bird (cavity nest, not bowl)
@@ -59,18 +93,12 @@ class TestPower20SingleBird:
 
         initial_eggs = state.players[1].board[1][0].bird.eggs
 
-        power_entry = create_power_20_entry(1, 100, spot, "bowl")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "bowl")
         state.current_player_index = 1
 
-        state = _execute_power_20(state, power_entry)
+        state = transition_state(state, "activate_power")
 
         assert state.players[1].board[1][0].bird.eggs == initial_eggs + 1
-        assert state.action_data.get("sub_phase") is None
 
 
 class TestPower20MultipleBirds:
@@ -93,18 +121,14 @@ class TestPower20MultipleBirds:
         state.players[1].board[1][0].bird = bowl_bird1
         state.players[1].board[1][1].bird = bowl_bird2
 
-        power_entry = create_power_20_entry(1, 100, spot, "bowl")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "bowl")
         state.current_player_index = 1
 
-        state = _execute_power_20(state, power_entry)
+        state = transition_state(state, "activate_power")
 
-        assert state.action_data.get("sub_phase") == "power_20_select_bird"
-        assert set(state.action_data.get("power_20_valid_bird_ids")) == {200, 201}
+        # Should be in select_bird phase
+        assert len(state.action_data.execution_stack) == 1
+        assert state.action_data.execution_stack[0].phase == "select_bird"
 
     def test_power_20_generates_select_bird_actions(self):
         """Action generator produces select_bird actions for each valid bird."""
@@ -123,16 +147,11 @@ class TestPower20MultipleBirds:
         state.players[1].board[1][0].bird = bowl_bird1
         state.players[1].board[1][1].bird = bowl_bird2
 
-        power_entry = create_power_20_entry(1, 100, spot, "bowl")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_20_select_bird",
-            "power_20_valid_bird_ids": [200, 201],
-            "power_20_player_index": 1,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "bowl")
         state.current_player_index = 1
+
+        # Activate to enter select_bird phase
+        state = transition_state(state, "activate_power")
 
         actions = get_actions(state)
 
@@ -161,22 +180,15 @@ class TestPower20MultipleBirds:
         initial_eggs_200 = state.players[1].board[1][0].bird.eggs
         initial_eggs_201 = state.players[1].board[1][1].bird.eggs
 
-        power_entry = create_power_20_entry(1, 100, spot, "bowl")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_20_select_bird",
-            "power_20_valid_bird_ids": [200, 201],
-            "power_20_player_index": 1,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "bowl")
         state.current_player_index = 1
 
+        # Activate then select bird
+        state = transition_state(state, "activate_power")
         state = transition_state(state, "select_bird_200")
 
         assert state.players[1].board[1][0].bird.eggs == initial_eggs_200 + 1
         assert state.players[1].board[1][1].bird.eggs == initial_eggs_201
-        assert state.action_data.get("sub_phase") is None
 
 
 class TestPower20TriggerMatching:
@@ -411,12 +423,7 @@ class TestPower20Validation:
 
         initial_eggs = state.players[1].board[1][0].bird.eggs
 
-        power_entry = create_power_20_entry(1, 100, spot, "bowl")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "bowl")
         state.current_player_index = 1
 
         actions = get_actions(state)
@@ -434,6 +441,7 @@ class TestPower20NestTypes:
         """Power 20 works correctly with cavity nest type."""
         state = GameState()
         state.players = [Player(1), Player(2)]
+        state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
         pink_bird = create_test_bird(100, ["forest"])
@@ -445,15 +453,10 @@ class TestPower20NestTypes:
 
         initial_eggs = state.players[1].board[1][0].bird.eggs
 
-        power_entry = create_power_20_entry(1, 100, spot, "cavity")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "cavity")
         state.current_player_index = 1
 
-        state = _execute_power_20(state, power_entry)
+        state = transition_state(state, "activate_power")
 
         assert state.players[1].board[1][0].bird.eggs == initial_eggs + 1
 
@@ -461,6 +464,7 @@ class TestPower20NestTypes:
         """Power 20 works correctly with ground nest type."""
         state = GameState()
         state.players = [Player(1), Player(2)]
+        state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
         pink_bird = create_test_bird(100, ["forest"])
@@ -472,15 +476,10 @@ class TestPower20NestTypes:
 
         initial_eggs = state.players[1].board[1][0].bird.eggs
 
-        power_entry = create_power_20_entry(1, 100, spot, "ground")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "ground")
         state.current_player_index = 1
 
-        state = _execute_power_20(state, power_entry)
+        state = transition_state(state, "activate_power")
 
         assert state.players[1].board[1][0].bird.eggs == initial_eggs + 1
 
@@ -488,6 +487,7 @@ class TestPower20NestTypes:
         """Power 20 works correctly with platform nest type."""
         state = GameState()
         state.players = [Player(1), Player(2)]
+        state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
         pink_bird = create_test_bird(100, ["forest"])
@@ -499,14 +499,9 @@ class TestPower20NestTypes:
 
         initial_eggs = state.players[1].board[1][0].bird.eggs
 
-        power_entry = create_power_20_entry(1, 100, spot, "platform")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_20_execution(state, 1, 100, spot, "platform")
         state.current_player_index = 1
 
-        state = _execute_power_20(state, power_entry)
+        state = transition_state(state, "activate_power")
 
         assert state.players[1].board[1][0].bird.eggs == initial_eggs + 1

@@ -4,10 +4,30 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase
+from game.data import initiate_state, GamePhase, ActionData, QueuedPower
 from game.engine import transition_state
 from game.actions import get_actions
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
+
+
+def setup_power_16_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 16 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 16}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=16,
+            bird_id=bird_id,
+            spot_row=(
+                spot.row if spot else 0
+            ),  # All powers have spots (bird locations); None is just a testing convenience
+            spot_col=spot.col if spot else 0,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def create_power_16_data():
@@ -29,17 +49,7 @@ def setup_power_16_state(state, food_dict):
 
     power_data = create_power_16_data()
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": 1,
-                "power_id": 16,
-                "power_data": power_data,
-                "spot": None,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_16_execution(state, state.current_player_index, 1, None, power_data)
 
     return state
 
@@ -87,7 +97,7 @@ def test_power_16_generates_correct_actions_single_food_type():
 
     state = transition_state(state, "activate_power")
 
-    assert state.action_data.get("sub_phase") == "power_16_select_trade"
+    assert state.action_data.execution_stack[-1].phase == "select_trade"
 
     actions = get_actions(state)
 
@@ -110,7 +120,7 @@ def test_power_16_generates_correct_actions_multiple_food_types():
 
     state = transition_state(state, "activate_power")
 
-    assert state.action_data.get("sub_phase") == "power_16_select_trade"
+    assert state.action_data.execution_stack[-1].phase == "select_trade"
 
     actions = get_actions(state)
 
@@ -143,7 +153,7 @@ def test_power_16_trade_executes_correctly():
     assert state.players[0].food.get("invertebrate") == 1
 
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert "sub_phase" not in state.action_data
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_16_trade_removes_food_type_when_depleted():
@@ -158,7 +168,7 @@ def test_power_16_trade_removes_food_type_when_depleted():
     assert state.players[0].food.get("fruit") == 1
 
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert "sub_phase" not in state.action_data
+    assert len(state.action_data.execution_stack) == 0
 
 
 if __name__ == "__main__":

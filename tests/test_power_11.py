@@ -4,9 +4,35 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, load_deck, get_bird_power, get_bird
+from game.data import (
+    initiate_state,
+    GamePhase,
+    load_deck,
+    get_bird_power,
+    get_bird,
+    ActionData,
+    QueuedPower,
+)
 from game.engine import transition_state
 from game.actions import get_actions
+
+
+def setup_power_11_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 11 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 11}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=11,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def find_birds_with_power_11():
@@ -56,17 +82,9 @@ def test_power_11_tuck_card():
 
     initial_tucked = power_11_bird.tucked_cards
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 11,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_11_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     state = transition_state(state, "activate_power")
 
@@ -97,17 +115,9 @@ def test_power_11_discard_card():
 
     initial_tucked = power_11_bird.tucked_cards
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 11,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_11_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     state = transition_state(state, "activate_power")
 
@@ -137,36 +147,46 @@ def test_power_11_multiple_activations():
     small_bird = [b for b in birds if b.wingspan < 75][0]
     large_bird = [b for b in birds if b.wingspan >= 75][0]
 
-    state.bird_deck = [large_bird, small_bird]
+    # Test queue processing: two Power 11 activations in sequence
+    # Each activation draws exactly 1 card and processes it
+    # Deck is LIFO (list.pop()), so last item in list is drawn first
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 11,
-                "power_data": power_data,
-                "spot": activating_spot,
-            },
-            {
-                "bird_id": bird_id,
-                "power_id": 11,
-                "power_data": power_data,
-                "spot": activating_spot,
-            },
-        ],
-        "current_power_index": 0,
-    }
+    state.bird_deck = [small_bird, large_bird]  # large_bird will be popped first
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=11,
+            bird_id=bird_id,
+            spot_row=activating_spot.row,
+            spot_col=activating_spot.col,
+            player_index=state.current_player_index,
+            power_data=power_data,
+        ),
+        QueuedPower(
+            power_id=11,
+            bird_id=bird_id,
+            spot_row=activating_spot.row,
+            spot_col=activating_spot.col,
+            player_index=state.current_player_index,
+            power_data=power_data,
+        ),
+    ]
+    state.action_data.current_power_index = 0
 
     initial_tucked = power_11_bird.tucked_cards
 
+    # First activation - draws large_bird (popped from end of list)
     state = transition_state(state, "activate_power")
-    assert power_11_bird.tucked_cards == initial_tucked + 1
-
-    state = transition_state(state, "activate_power")
-    assert power_11_bird.tucked_cards == initial_tucked + 1
+    assert power_11_bird.tucked_cards == initial_tucked  # No tuck (wingspan >= 75)
     assert len(state.discarded_birds) == 1
     assert state.discarded_birds[0] == large_bird
-    assert state.game_phase == GamePhase.MAIN_TURN
+    assert state.game_phase == GamePhase.ACTIVATE_POWERS  # Still processing queue
+
+    # Second activation - draws small_bird
+    state = transition_state(state, "activate_power")
+    assert power_11_bird.tucked_cards == initial_tucked + 1  # Tucked (wingspan < 75)
+    assert len(state.discarded_birds) == 1  # Still only large_bird discarded
+    assert state.game_phase == GamePhase.MAIN_TURN  # Queue complete
 
 
 if __name__ == "__main__":

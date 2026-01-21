@@ -4,9 +4,34 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, load_deck, get_bird_power
+from game.data import (
+    initiate_state,
+    GamePhase,
+    load_deck,
+    get_bird_power,
+    ActionData,
+    QueuedPower,
+)
 from game.engine import transition_state
 from game.actions import get_actions
+
+
+def setup_power_8_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 8 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 8}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=8,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def find_bird_with_power_8(source, food_types, quantity, can_cache):
@@ -49,17 +74,9 @@ def test_power_8_supply_single_food_no_cache():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 8,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_8_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
@@ -76,11 +93,11 @@ def test_power_8_supply_single_food_no_cache():
     assert state.players[0].food.get("fruit", 0) == expected_fruit
 
     # Verify no sub-phases
-    assert "sub_phase" not in state.action_data
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify cleanup and completion
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert not any(k.startswith("power_8_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_8_supply_multiple_quantity():
@@ -106,17 +123,9 @@ def test_power_8_supply_multiple_quantity():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 8,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_8_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
@@ -133,11 +142,11 @@ def test_power_8_supply_multiple_quantity():
     assert state.players[0].food.get("seed", 0) == expected_seed
 
     # Verify no sub-phases
-    assert "sub_phase" not in state.action_data
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify cleanup
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert not any(k.startswith("power_8_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_8_birdfeeder_all_dice():
@@ -172,17 +181,9 @@ def test_power_8_birdfeeder_all_dice():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 8,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_8_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
@@ -203,11 +204,11 @@ def test_power_8_birdfeeder_all_dice():
     assert len(state.feeder) == 2
 
     # Verify no sub-phases
-    assert "sub_phase" not in state.action_data
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify cleanup
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert not any(k.startswith("power_8_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_8_birdfeeder_die_selection_then_cache():
@@ -240,17 +241,9 @@ def test_power_8_birdfeeder_die_selection_then_cache():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 8,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_8_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
@@ -264,7 +257,7 @@ def test_power_8_birdfeeder_die_selection_then_cache():
     state = transition_state(state, "activate_power")
 
     # Verify sub-phase: die selection
-    assert state.action_data.get("sub_phase") == "power_8_select_die"
+    assert state.action_data.execution_stack[-1].phase == "select_die"
 
     # Verify 2 die selection actions available
     actions = get_actions(state)
@@ -285,7 +278,7 @@ def test_power_8_birdfeeder_die_selection_then_cache():
     assert len(state.feeder) == 2
 
     # Verify transitions to cache choice sub-phase
-    assert state.action_data.get("sub_phase") == "power_8_choose_cache"
+    assert state.action_data.execution_stack[-1].phase == "choose_cache"
 
     # Verify cache actions available
     actions = get_actions(state)
@@ -301,8 +294,8 @@ def test_power_8_birdfeeder_die_selection_then_cache():
 
     # Verify cleanup and completion
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert "sub_phase" not in state.action_data
-    assert not any(k.startswith("power_8_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_8_food_type_then_die_selection():
@@ -341,17 +334,9 @@ def test_power_8_food_type_then_die_selection():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 8,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_8_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
@@ -364,7 +349,7 @@ def test_power_8_food_type_then_die_selection():
     state = transition_state(state, "activate_power")
 
     # Verify sub-phase: food type selection
-    assert state.action_data.get("sub_phase") == "power_8_select_food_type"
+    assert state.action_data.execution_stack[-1].phase == "select_food_type"
 
     # Verify food type actions available
     actions = get_actions(state)
@@ -375,10 +360,10 @@ def test_power_8_food_type_then_die_selection():
     state = transition_state(state, "select_food_type_fruit")
 
     # Verify transitions to die selection
-    assert state.action_data.get("sub_phase") == "power_8_select_die"
+    assert state.action_data.execution_stack[-1].phase == "select_die"
 
     # Verify food type stored
-    assert state.action_data.get("power_8_food_type") == "fruit"
+    assert state.action_data.execution_stack[-1].context.get("food_type") == "fruit"
 
     # Verify only fruit dice options available
     actions = get_actions(state)
@@ -399,8 +384,8 @@ def test_power_8_food_type_then_die_selection():
 
     # Verify cleanup and completion
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert "sub_phase" not in state.action_data
-    assert not any(k.startswith("power_8_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_8_wild_dice_display_format():
@@ -435,17 +420,9 @@ def test_power_8_wild_dice_display_format():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 8,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_8_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
@@ -458,7 +435,7 @@ def test_power_8_wild_dice_display_format():
     state = transition_state(state, "activate_power")
 
     # Verify sub-phase: die selection
-    assert state.action_data.get("sub_phase") == "power_8_select_die"
+    assert state.action_data.execution_stack[-1].phase == "select_die"
 
     # Verify action format - only dice with selected food type appear
     actions = get_actions(state)
@@ -482,5 +459,5 @@ def test_power_8_wild_dice_display_format():
 
     # Verify cleanup
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert "sub_phase" not in state.action_data
-    assert not any(k.startswith("power_8_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
+    assert len(state.action_data.execution_stack) == 0

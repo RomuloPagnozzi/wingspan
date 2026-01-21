@@ -4,9 +4,35 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, load_deck, get_bird_power, get_bird
+from game.data import (
+    initiate_state,
+    GamePhase,
+    load_deck,
+    get_bird_power,
+    get_bird,
+    ActionData,
+    QueuedPower,
+)
 from game.engine import transition_state
 from game.actions import get_actions
+
+
+def setup_power_10_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 10 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 10}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=10,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def find_birds_with_power_10():
@@ -70,17 +96,9 @@ def test_power_10_this_true():
     initial_eggs = power_10_bird.eggs
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify can activate
     actions = get_actions(state)
@@ -93,10 +111,7 @@ def test_power_10_this_true():
     assert power_10_bird.eggs == initial_eggs + 1, "Bird should have one more egg"
 
     # Verify no sub-phase was created (auto-completed)
-    assert (
-        "sub_phase" not in state.action_data
-        or state.action_data.get("sub_phase") is None
-    )
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify power completed (transitioned to MAIN_TURN)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -126,17 +141,9 @@ def test_power_10_this_true_at_limit():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify cannot activate (only skip available)
     actions = get_actions(state)
@@ -185,17 +192,9 @@ def test_power_10_type_bowl():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
@@ -219,10 +218,7 @@ def test_power_10_type_bowl():
     ), "Bowl bird 2 at limit should be unchanged"
 
     # Verify no sub-phase was created (auto-completed)
-    assert (
-        "sub_phase" not in state.action_data
-        or state.action_data.get("sub_phase") is None
-    )
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify power completed (transitioned to MAIN_TURN)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -264,17 +260,9 @@ def test_power_10_type_cavity():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
@@ -333,17 +321,9 @@ def test_power_10_type_ground():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
@@ -402,17 +382,9 @@ def test_power_10_type_platform():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
@@ -464,17 +436,9 @@ def test_power_10_type_any_single_bird():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
@@ -485,10 +449,7 @@ def test_power_10_type_any_single_bird():
     ), "Only valid bird should have one more egg"
 
     # Verify no sub-phase was created (auto-completed)
-    assert (
-        "sub_phase" not in state.action_data
-        or state.action_data.get("sub_phase") is None
-    )
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify power completed (transitioned to MAIN_TURN)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -525,23 +486,15 @@ def test_power_10_type_any_multiple_birds():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should enter sub-phase)
     state = transition_state(state, "activate_power")
 
     # Verify sub-phase created
-    assert state.action_data.get("sub_phase") == "power_10_select_bird"
+    assert state.action_data.execution_stack[-1].phase == "select_bird"
 
     # Verify bird selection actions available
     actions = get_actions(state)
@@ -549,7 +502,9 @@ def test_power_10_type_any_multiple_birds():
     assert len(bird_actions) == 3, "Should have 3 bird selection actions"
 
     # Verify valid bird IDs stored
-    valid_bird_ids = state.action_data.get("power_10_valid_bird_ids", [])
+    valid_bird_ids = state.action_data.execution_stack[-1].context.get(
+        "valid_bird_ids", []
+    )
     assert len(valid_bird_ids) == 3
     assert other_birds[0].id in valid_bird_ids
     assert other_birds[1].id in valid_bird_ids
@@ -591,17 +546,9 @@ def test_power_10_type_any_selection():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should enter sub-phase)
     state = transition_state(state, "activate_power")
@@ -622,11 +569,7 @@ def test_power_10_type_any_selection():
     ), "Bird 2 should be unchanged"
 
     # Verify cleanup
-    assert (
-        "sub_phase" not in state.action_data
-        or state.action_data.get("sub_phase") is None
-    )
-    assert "power_10_valid_bird_ids" not in state.action_data
+    assert len(state.action_data.execution_stack) == 0
 
     # Verify power completed (transitioned to MAIN_TURN)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -664,17 +607,9 @@ def test_power_10_no_valid_birds_specific_type():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify cannot activate (only skip available)
     actions = get_actions(state)
@@ -717,17 +652,9 @@ def test_power_10_all_birds_at_limit():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify cannot activate (only skip available)
     actions = get_actions(state)
@@ -780,17 +707,9 @@ def test_power_10_mixed_capacity_birds():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 10,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_10_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
@@ -816,7 +735,7 @@ def test_power_10_mixed_capacity_birds():
 
 def test_power_10_validation():
     """Test Power 10 validation works correctly for all variants."""
-    from game.powers import can_execute_power
+    from game.powers_validators import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

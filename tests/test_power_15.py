@@ -5,9 +5,34 @@ from unittest.mock import patch
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, get_bird_power
+from game.data import (
+    initiate_state,
+    GamePhase,
+    get_bird,
+    get_bird_power,
+    ActionData,
+    QueuedPower,
+)
 from game.engine import transition_state
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
+
+
+def setup_power_15_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 15 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 15}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=15,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def get_all_birds(state):
@@ -65,19 +90,11 @@ def test_power_15_caches_food_on_match():
     state.feeder = []
     power_15_bird.stashed_food = 0
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_15_bird.id,
-                "power_id": 15,
-                "power_data": power_15_data,
-                "spot": spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_15_execution(
+        state, state.current_player_index, power_15_bird.id, spot, power_15_data
+    )
 
-    with patch("game.engine.random.choice", return_value=[food_type]):
+    with patch("game.power_handlers.random.choice", return_value=[food_type]):
         state = transition_state(state, "activate_power")
 
     assert power_15_bird.stashed_food == 1
@@ -102,19 +119,11 @@ def test_power_15_no_cache_on_no_match():
     state.feeder = []
     power_15_bird.stashed_food = 0
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": power_15_bird.id,
-                "power_id": 15,
-                "power_data": power_15_data,
-                "spot": spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_15_execution(
+        state, state.current_player_index, power_15_bird.id, spot, power_15_data
+    )
 
-    with patch("game.engine.random.choice", return_value=[non_matching]):
+    with patch("game.power_handlers.random.choice", return_value=[non_matching]):
         state = transition_state(state, "activate_power")
 
     assert power_15_bird.stashed_food == 0

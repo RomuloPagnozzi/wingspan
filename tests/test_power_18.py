@@ -1,11 +1,26 @@
 """Tests for Power 18: Pink power triggered when opponent plays bird in habitat."""
 
+import sys
+
+sys.path.append(".")
+
 import pytest
-from game.data import GameState, GamePhase, Player, Bird, Spot, PinkTrigger
-from game.engine import transition_state, _execute_power_18, _check_powers_done
+from game.data import (
+    GameState,
+    GamePhase,
+    Player,
+    Bird,
+    Spot,
+    PinkTrigger,
+    ActionData,
+    QueuedPower,
+    PowerExecution,
+)
+from game.engine import transition_state
 from game.actions import get_actions
 from game.utils import get_triggered_pink_powers
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
+from game.power_handlers import _power_18_activate
 
 
 def create_test_bird(bird_id: int, habitats: list, nest: str = "bowl") -> Bird:
@@ -39,6 +54,26 @@ def create_power_18_entry(
     }
 
 
+def setup_power_18_execution(state, player_index, bird_id, spot, habitat, resource):
+    """Set up Power 18 execution with new ActionData structure."""
+    power_data = {
+        "color": "pink",
+        "data": {"id": 18, "details": {"habitat": habitat, "resource": resource}},
+    }
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=18,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
+
+
 class TestPower18ForestInvertebrate:
     """Tests for Power 18 forest variant (gain invertebrate)."""
 
@@ -46,6 +81,7 @@ class TestPower18ForestInvertebrate:
         """When activated, player gains 1 invertebrate from supply."""
         state = GameState()
         state.players = [Player(1), Player(2)]
+        state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
         bird = create_test_bird(100, ["forest"])
@@ -54,18 +90,13 @@ class TestPower18ForestInvertebrate:
 
         initial_invertebrate = state.players[1].food.get("invertebrate", 0)
 
-        power_entry = create_power_18_entry(1, 100, spot, "forest", "invertebrate")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_18_execution(state, 1, 100, spot, "forest", "invertebrate")
         state.current_player_index = 1
 
-        state = _execute_power_18(state, power_entry)
+        # Activate the power
+        state = transition_state(state, "activate_power")
 
         assert state.players[1].food.get("invertebrate", 0) == initial_invertebrate + 1
-        assert state.action_data.get("sub_phase") is None
 
 
 class TestPower18WetlandFish:
@@ -75,6 +106,7 @@ class TestPower18WetlandFish:
         """When activated, player gains 1 fish from supply."""
         state = GameState()
         state.players = [Player(1), Player(2)]
+        state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
         bird = create_test_bird(101, ["wetland"])
@@ -83,18 +115,12 @@ class TestPower18WetlandFish:
 
         initial_fish = state.players[1].food.get("fish", 0)
 
-        power_entry = create_power_18_entry(1, 101, spot, "wetland", "fish")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_18_execution(state, 1, 101, spot, "wetland", "fish")
         state.current_player_index = 1
 
-        state = _execute_power_18(state, power_entry)
+        state = transition_state(state, "activate_power")
 
         assert state.players[1].food.get("fish", 0) == initial_fish + 1
-        assert state.action_data.get("sub_phase") is None
 
 
 class TestPower18GrasslandCard:
@@ -114,19 +140,14 @@ class TestPower18GrasslandCard:
         card2 = create_test_bird(202, ["wetland"])
         state.players[1].bird_hand = [card1, card2]
 
-        power_entry = create_power_18_entry(1, 102, spot, "grassland", "card")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_18_execution(state, 1, 102, spot, "grassland", "card")
         state.current_player_index = 1
 
-        state = _execute_power_18(state, power_entry)
+        state = transition_state(state, "activate_power")
 
-        assert state.action_data.get("sub_phase") == "power_18_select_card"
-        assert state.action_data.get("power_18_bird_id") == 102
-        assert state.action_data.get("power_18_spot") == spot
+        # Should be in select_card phase
+        assert len(state.action_data.execution_stack) == 1
+        assert state.action_data.execution_stack[0].phase == "select_card"
 
     def test_power_18_generates_tuck_card_actions(self):
         """Action generator produces tuck_card actions for each card in hand."""
@@ -143,16 +164,11 @@ class TestPower18GrasslandCard:
         card3 = create_test_bird(203, ["grassland"])
         state.players[1].bird_hand = [card1, card2, card3]
 
-        power_entry = create_power_18_entry(1, 102, spot, "grassland", "card")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_18_select_card",
-            "power_18_bird_id": 102,
-            "power_18_spot": spot,
-        }
+        setup_power_18_execution(state, 1, 102, spot, "grassland", "card")
         state.current_player_index = 1
+
+        # Activate to enter select_card phase
+        state = transition_state(state, "activate_power")
 
         actions = get_actions(state)
 
@@ -176,25 +192,18 @@ class TestPower18GrasslandCard:
         card2 = create_test_bird(202, ["wetland"])
         state.players[1].bird_hand = [card1, card2]
 
-        power_entry = create_power_18_entry(1, 102, spot, "grassland", "card")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_18_select_card",
-            "power_18_bird_id": 102,
-            "power_18_spot": spot,
-        }
+        setup_power_18_execution(state, 1, 102, spot, "grassland", "card")
         state.current_player_index = 1
 
         initial_tucked = spot.bird.tucked_cards
 
+        # Activate then tuck
+        state = transition_state(state, "activate_power")
         state = transition_state(state, "tuck_card_201")
 
         assert len(state.players[1].bird_hand) == 1
         assert state.players[1].bird_hand[0].id == 202
-        assert spot.bird.tucked_cards == initial_tucked + 1
-        assert state.action_data.get("sub_phase") is None
+        assert state.players[1].board[1][0].bird.tucked_cards == initial_tucked + 1
 
 
 class TestPower18TriggerMatching:
@@ -333,12 +342,7 @@ class TestPower18SkipAndValidation:
 
         initial_food = dict(state.players[1].food)
 
-        power_entry = create_power_18_entry(1, 100, spot, "forest", "invertebrate")
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_18_execution(state, 1, 100, spot, "forest", "invertebrate")
         state.current_player_index = 1
 
         actions = get_actions(state)

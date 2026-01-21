@@ -356,7 +356,11 @@ def get_card_draw_combinations(
     available_tray_bird_ids: List[int],
     max_deck_cards: int | None = None,
 ) -> List[Dict]:
-    """Return all valid ways to draw cards from mix of tray and deck."""
+    """Return all valid ways to draw cards from mix of tray and deck.
+
+    If insufficient cards are available, generates combinations for drawing
+    all available cards (partial draw).
+    """
 
     if cards_needed <= 0:
         raise ValueError("Number of cards must be positive")
@@ -364,11 +368,23 @@ def get_card_draw_combinations(
     if max_deck_cards is None:
         max_deck_cards = cards_needed
 
+    # Calculate actual maximum drawable cards
+    total_available = len(available_tray_bird_ids) + max_deck_cards
+
+    # If no cards available at all, this is a bug - the gate check should prevent this
+    if total_available == 0:
+        raise ValueError(
+            f"Cannot draw cards: no cards available (tray empty, deck empty). "
+            f"This should have been prevented by the action gate check."
+        )
+
+    actual_cards_needed = min(cards_needed, total_available)
+
     combinations_list = []
-    max_from_tray = min(cards_needed, len(available_tray_bird_ids))
+    max_from_tray = min(actual_cards_needed, len(available_tray_bird_ids))
 
     for tray_count in range(max_from_tray + 1):
-        deck_count = cards_needed - tray_count
+        deck_count = actual_cards_needed - tray_count
 
         if deck_count > max_deck_cards:
             continue
@@ -618,3 +634,17 @@ def restock_bird_tray(state: GameState) -> None:
 def get_first_player_index(state: GameState) -> int:
     """Get index of first player."""
     return next(i for i, p in enumerate(state.players) if p.first_player)
+
+
+def get_collect_food_actions(state: GameState) -> List[str]:
+    """Return possible foods to collect from the bird feeder."""
+    actions = []
+
+    for die_index, food_types in state.feeder.items():
+        for food_type in food_types:
+            actions.append(f"select_die_{die_index}_{food_type}")
+
+    if len(set(tuple(sorted(die_face)) for die_face in state.feeder.values())) == 1:
+        actions.append("reroll_all")
+
+    return actions

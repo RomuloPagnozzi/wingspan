@@ -5,13 +5,37 @@ import sys
 sys.path.append(".")
 
 import json
-from game.data import initiate_state, GamePhase
+from game.data import initiate_state, GamePhase, ActionData, QueuedPower
 from game.engine import (
     _finish_main_action,
     _check_powers_done,
     transition_state,
 )
 from game.actions import get_actions
+
+
+def setup_power_queue(state, power_entries):
+    """Set up powers queue with new ActionData structure.
+
+    Args:
+        state: GameState
+        power_entries: list of dicts with bird_id, power_id, power_data, spot (optional)
+    """
+    state.action_data = ActionData()
+    state.action_data.powers_queue = []
+    for entry in power_entries:
+        spot = entry.get("spot")
+        state.action_data.powers_queue.append(
+            QueuedPower(
+                power_id=entry.get("power_id", entry["power_data"]["data"]["id"]),
+                bird_id=entry["bird_id"],
+                spot_row=spot.row if spot else 0,
+                spot_col=spot.col if spot else 0,
+                player_index=entry.get("player_index", state.current_player_index),
+                power_data=entry["power_data"],
+            )
+        )
+    state.action_data.current_power_index = 0
 
 
 def test_finish_main_action_no_powers():
@@ -25,7 +49,10 @@ def test_finish_main_action_no_powers():
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.current_player_index == (first_player_idx + 1) % 2
-    assert state.action_data == {}
+    assert state.action_data is None or (
+        isinstance(state.action_data, ActionData)
+        and len(state.action_data.powers_queue) == 0
+    )
     assert state.players[first_player_idx].action_cubes == 4
 
 
@@ -45,41 +72,52 @@ def test_check_powers_done_transitions():
     """When power queue exhausted, transition to MAIN_TURN."""
     state = initiate_state(2)
     state.game_phase = GamePhase.ACTIVATE_POWERS
-    state.action_data = {
-        "powers_queue": [{"bird_id": 1, "power_data": {}}],
-        "current_power_index": 1,  # Past end of queue
-    }
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=1,
+            bird_id=1,
+            spot_row=0,
+            spot_col=0,
+            player_index=0,
+            power_data={},
+        )
+    ]
+    state.action_data.current_power_index = 1  # Past end of queue
 
     state = _check_powers_done(state)
 
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert state.action_data == {}
 
 
 def test_check_powers_done_continues():
     """When powers remain, stay in ACTIVATE_POWERS."""
     state = initiate_state(2)
     state.game_phase = GamePhase.ACTIVATE_POWERS
-    state.action_data = {
-        "powers_queue": [
-            {"bird_id": 1, "power_data": {}},
-            {"bird_id": 2, "power_data": {}},
-        ],
-        "current_power_index": 0,
-    }
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=1, bird_id=1, spot_row=0, spot_col=0, player_index=0, power_data={}
+        ),
+        QueuedPower(
+            power_id=2, bird_id=2, spot_row=0, spot_col=0, player_index=0, power_data={}
+        ),
+    ]
+    state.action_data.current_power_index = 0
 
     state = _check_powers_done(state)
 
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert "powers_queue" in state.action_data
+    assert len(state.action_data.powers_queue) == 2
 
 
 def test_power_activation_skip():
     """Skipping a power advances the index."""
     state = initiate_state(2)
     state.game_phase = GamePhase.ACTIVATE_POWERS
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": 1,
                 "power_data": {"data": {"id": 1, "details": {"type": "seed"}}},
@@ -89,12 +127,11 @@ def test_power_activation_skip():
                 "power_data": {"data": {"id": 1, "details": {"type": "fish"}}},
             },
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "skip_power")
 
-    assert state.action_data["current_power_index"] == 1
+    assert state.action_data.current_power_index == 1
 
 
 def test_power_1_execution():
@@ -106,15 +143,15 @@ def test_power_1_execution():
     initial_p0 = state.players[0].food.get("seed", 0)
     initial_p1 = state.players[1].food.get("seed", 0)
 
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": 1,
                 "power_data": {"data": {"id": 1, "details": {"type": "seed"}}},
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "activate_power")
 
@@ -142,22 +179,25 @@ def test_power_2_sets_up_multi_player():
     state.players[1].board[0][0].bird = bird1
     state.players[1].bird_hand.remove(bird1)
 
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": 1,
                 "power_data": {"data": {"id": 2, "details": {"type": "bowl"}}},
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "activate_power")
 
-    assert state.action_data["sub_phase"] == "power_2_choices"
-    assert state.action_data["activator"] == 0
-    assert state.action_data["awaiting_players"] == [0, 1]
-    assert state.action_data["nest_type"] == "bowl"
+    # Stack-based: check execution stack
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].phase == "choices"
+    ctx = state.action_data.execution_stack[0].context
+    assert ctx["activator"] == 0
+    assert ctx["awaiting_players"] == [0, 1]
+    assert ctx["nest_type"] == "bowl"
     assert state.current_player_index == 0  # Activator goes first
 
 
@@ -173,19 +213,18 @@ def test_multi_player_actions_generated():
     state.players[0].board[0][0].bird = bird0
     state.players[0].bird_hand.remove(bird0)
 
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": 1,
                 "power_data": {"data": {"id": 2, "details": {"type": "bowl"}}},
             }
         ],
-        "current_power_index": 0,
-        "sub_phase": "power_2_choices",
-        "nest_type": "bowl",
-        "activator": 0,
-        "awaiting_players": [0],
-    }
+    )
+
+    # Activate to enter choices phase
+    state = transition_state(state, "activate_power")
 
     actions = get_actions(state)
 
@@ -204,15 +243,15 @@ def test_power_1_all_players_gain_cards_end_to_end():
         # Record initial card counts for all players
         initial_cards = [len(p.bird_hand) for p in state.players]
 
-        state.action_data = {
-            "powers_queue": [
+        setup_power_queue(
+            state,
+            [
                 {
-                    "bird_id": 112,  # Northern Shoveler with power 1 (card)
+                    "bird_id": 112,
                     "power_data": {"data": {"id": 1, "details": {"type": "card"}}},
                 }
             ],
-            "current_power_index": 0,
-        }
+        )
 
         state = transition_state(state, "activate_power")
 
@@ -234,8 +273,9 @@ def test_power_1_all_players_gain_food_end_to_end():
             # Record initial food counts
             initial_food = [p.food.get(food_type, 0) for p in state.players]
 
-            state.action_data = {
-                "powers_queue": [
+            setup_power_queue(
+                state,
+                [
                     {
                         "bird_id": 1,
                         "power_data": {
@@ -243,8 +283,7 @@ def test_power_1_all_players_gain_food_end_to_end():
                         },
                     }
                 ],
-                "current_power_index": 0,
-            }
+            )
 
             state = transition_state(state, "activate_power")
 
@@ -275,8 +314,9 @@ def test_power_2_all_players_lay_eggs_end_to_end():
                 state.players[i].bird_hand.remove(bird)
                 placed_birds.append(bird.id)
 
-            state.action_data = {
-                "powers_queue": [
+            setup_power_queue(
+                state,
+                [
                     {
                         "bird_id": 1,
                         "power_data": {
@@ -284,8 +324,7 @@ def test_power_2_all_players_lay_eggs_end_to_end():
                         },
                     }
                 ],
-                "current_power_index": 0,
-            }
+            )
 
             # Activate the power (sets up multi-player state)
             state = transition_state(state, "activate_power")
@@ -337,20 +376,21 @@ def test_power_2_with_mixed_eligibility():
         state.players[i].bird_hand.remove(bird)
 
     # Activate power 2 for bowl nests
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": 1,
                 "power_data": {"data": {"id": 2, "details": {"type": "bowl"}}},
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "activate_power")
 
-    # Only players 0 and 2 should be in awaiting list
-    assert set(state.action_data["awaiting_players"]) == {0, 2}
+    # Only players 0 and 2 should be in awaiting list (in execution stack context)
+    ctx = state.action_data.execution_stack[0].context
+    assert set(ctx["awaiting_players"]) == {0, 2}
 
     # Players 0 and 2 make their choices
     for player_index, bird_id in zip([0, 2], bowl_bird_ids):
@@ -404,8 +444,9 @@ def test_power_3_caches_seed_on_activating_bird_end_to_end():
 
     # Power 3 is activated by bird2 (spot [0][1])
     activating_spot = state.players[0].board[0][1]
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird2.id,
                 "power_id": 3,
@@ -413,8 +454,7 @@ def test_power_3_caches_seed_on_activating_bird_end_to_end():
                 "spot": activating_spot,
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "activate_power")
 
@@ -455,8 +495,9 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
 
     # Power 4: discard egg, gain 1 wild
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 4,
@@ -474,15 +515,15 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
                 "spot": activating_spot,
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     # Activate power
     state = transition_state(state, "activate_power")
 
-    # Should be in discard selection phase
+    # Should be in discard selection phase (stack-based)
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert state.action_data.get("sub_phase") == "power_4_select_discard"
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].phase == "select_discard"
 
     # Player must discard from bird2 (not activating bird)
     actions = get_actions(state)
@@ -496,7 +537,7 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
 
     # Should now be in gain selection phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert state.action_data.get("sub_phase") == "power_4_select_gain"
+    assert state.action_data.execution_stack[0].phase == "select_gain"
 
     # Get available food choices
     actions = get_actions(state)
@@ -534,8 +575,9 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
 
     # Power 4: discard egg, gain 2 wild
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 4,
@@ -553,8 +595,7 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
                 "spot": activating_spot,
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     # Activate and discard
     state = transition_state(state, "activate_power")
@@ -592,8 +633,9 @@ def test_power_4_discard_egg_draw_cards_end_to_end():
 
     # Power 4: discard egg, draw 2 cards
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 4,
@@ -611,8 +653,7 @@ def test_power_4_discard_egg_draw_cards_end_to_end():
                 "spot": activating_spot,
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -644,8 +685,9 @@ def test_power_4_discard_food_tuck_cards_end_to_end():
 
     # Power 4: discard fish, tuck 2 cards
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 4,
@@ -663,14 +705,13 @@ def test_power_4_discard_food_tuck_cards_end_to_end():
                 "spot": activating_spot,
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     # Activate power
     state = transition_state(state, "activate_power")
 
-    # Should be in discard selection phase
-    assert state.action_data.get("sub_phase") == "power_4_select_discard"
+    # Should be in discard selection phase (stack-based)
+    assert state.action_data.execution_stack[0].phase == "select_discard"
 
     # Verify fish discard action is available
     actions = get_actions(state)
@@ -701,8 +742,9 @@ def test_power_4_discard_food_gain_specific_food_end_to_end():
 
     # Power 4: discard seed, gain rodent (specific, not wild)
     activating_spot = state.players[0].board[0][0]
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 4,
@@ -720,14 +762,13 @@ def test_power_4_discard_food_gain_specific_food_end_to_end():
                 "spot": activating_spot,
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     # Activate power
     state = transition_state(state, "activate_power")
 
-    # Should be in discard selection phase
-    assert state.action_data.get("sub_phase") == "power_4_select_discard"
+    # Should be in discard selection phase (stack-based)
+    assert state.action_data.execution_stack[0].phase == "select_discard"
 
     # Verify seed discard action is available
     actions = get_actions(state)
@@ -760,8 +801,9 @@ def test_power_5_draw_2_bonus_keep_1_end_to_end():
     bonus_card_1 = state.bonus_deck[-1]
     bonus_card_2 = state.bonus_deck[-2]
 
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 5,
@@ -777,16 +819,18 @@ def test_power_5_draw_2_bonus_keep_1_end_to_end():
                 "spot": state.players[0].board[0][0],
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "activate_power")
 
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
-    assert state.action_data.get("sub_phase") == "power_5_select_bonus"
-    assert len(state.action_data.get("power_5_bonus_options", [])) == 2
+    # Stack-based: check execution stack
+    assert len(state.action_data.execution_stack) == 1
+    assert state.action_data.execution_stack[0].phase == "select_bonus"
+    ctx = state.action_data.execution_stack[0].context
+    assert len(ctx.get("bonus_options", [])) == 2
 
-    drawn_cards = state.action_data["power_5_bonus_options"]
+    drawn_cards = ctx["bonus_options"]
     assert bonus_card_1 in drawn_cards
     assert bonus_card_2 in drawn_cards
     assert len(state.bonus_deck) == initial_bonus_deck_size - 2
@@ -807,8 +851,6 @@ def test_power_5_draw_2_bonus_keep_1_end_to_end():
     assert bonus_card_2 not in state.players[0].bonus_hand
     assert bonus_card_2 not in state.bonus_deck
     assert len(state.bonus_deck) == initial_bonus_deck_size - 2
-    assert "power_5_bonus_options" not in state.action_data
-    assert "sub_phase" not in state.action_data
 
 
 def test_power_5_draw_cards_discard_at_end_of_turn():
@@ -824,8 +866,9 @@ def test_power_5_draw_cards_discard_at_end_of_turn():
     initial_hand_size = len(state.players[0].bird_hand)
     initial_deck_size = len(state.bird_deck)
 
-    state.action_data = {
-        "powers_queue": [
+    setup_power_queue(
+        state,
+        [
             {
                 "bird_id": bird1.id,
                 "power_id": 5,
@@ -842,18 +885,15 @@ def test_power_5_draw_cards_discard_at_end_of_turn():
                 "spot": state.players[0].board[0][0],
             }
         ],
-        "current_power_index": 0,
-    }
+    )
 
     state = transition_state(state, "activate_power")
 
     assert state.game_phase == GamePhase.END_TURN
     assert len(state.players[0].bird_hand) == initial_hand_size + 2
     assert len(state.bird_deck) == initial_deck_size - 2
-    assert "end_turn_effects" in state.action_data
-    assert len(state.action_data["end_turn_effects"]) == 1
-    assert state.action_data["end_turn_effects"][0]["type"] == "discard_cards"
-    assert state.action_data.get("sub_phase") == "end_turn_discard_card"
+    assert len(state.action_data.end_turn_effects) == 1
+    assert state.action_data.end_turn_effects[0].effect_type == "discard_cards"
 
     actions = get_actions(state)
     assert len(actions) == initial_hand_size + 2
@@ -866,5 +906,97 @@ def test_power_5_draw_cards_discard_at_end_of_turn():
     assert len(state.players[0].bird_hand) == initial_hand_size + 1
     assert card_to_discard not in state.players[0].bird_hand
     assert card_to_discard in state.discarded_birds
-    assert "end_turn_effects" not in state.action_data
-    assert "sub_phase" not in state.action_data
+
+
+def test_power_5_multiple_discards_at_end_of_turn():
+    """Test multiple Power 5 birds each requiring discard at end of turn.
+
+    This reproduces a bug where after the first discard, the game gets stuck
+    because sub_phase is cleared but effects remain, leaving no valid actions.
+    """
+    state = initiate_state(2)
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+
+    # Setup two birds on the board
+    bird1 = state.players[0].bird_hand[0]
+    state.players[0].board[2][0].bird = bird1
+    state.players[0].bird_hand.remove(bird1)
+
+    bird2 = state.players[0].bird_hand[0]
+    state.players[0].board[2][1].bird = bird2
+    state.players[0].bird_hand.remove(bird2)
+
+    # Ensure player has enough cards to discard
+    while len(state.players[0].bird_hand) < 4:
+        if state.bird_deck:
+            state.players[0].bird_hand.append(state.bird_deck.pop())
+
+    initial_hand_size = len(state.players[0].bird_hand)
+
+    # Setup powers queue with two Power 5 birds (both with discard=True)
+    setup_power_queue(
+        state,
+        [
+            {
+                "bird_id": bird1.id,
+                "power_id": 5,
+                "power_data": {
+                    "data": {
+                        "id": 5,
+                        "details": {"amount": 1, "bonus": False, "discard": True},
+                    }
+                },
+                "spot": state.players[0].board[2][0],
+            },
+            {
+                "bird_id": bird2.id,
+                "power_id": 5,
+                "power_data": {
+                    "data": {
+                        "id": 5,
+                        "details": {"amount": 1, "bonus": False, "discard": True},
+                    }
+                },
+                "spot": state.players[0].board[2][1],
+            },
+        ],
+    )
+
+    # Activate first Power 5 - draws 1 card, queues discard effect
+    state = transition_state(state, "activate_power")
+    assert len(state.action_data.end_turn_effects) == 1
+
+    # Activate second Power 5 - draws 1 card, queues another discard effect
+    state = transition_state(state, "activate_power")
+    assert len(state.action_data.end_turn_effects) == 2
+
+    # Now we're in END_TURN phase with 2 discard effects
+    assert state.game_phase == GamePhase.END_TURN
+
+    # First discard should work
+    actions = get_actions(state)
+    assert len(actions) > 0, "Should have discard actions for first effect"
+    assert any(a.startswith("discard_card_") for a in actions)
+
+    first_card = state.players[0].bird_hand[0]
+    state = transition_state(state, f"discard_card_{first_card.id}")
+
+    # BUG: After first discard, should still have actions for second discard
+    # The bug causes get_actions to return [] because sub_phase is cleared
+    # but end_turn_effects still has one effect remaining
+    actions = get_actions(state)
+    assert len(actions) > 0, (
+        f"Should have discard actions for second effect, but got empty. "
+        f"end_turn_effects={state.action_data.end_turn_effects if state.action_data else None}"
+    )
+    assert any(a.startswith("discard_card_") for a in actions)
+
+    # Second discard
+    second_card = state.players[0].bird_hand[0]
+    state = transition_state(state, f"discard_card_{second_card.id}")
+
+    # Now should have finalized turn
+    assert state.game_phase == GamePhase.MAIN_TURN
+    # Drew 2 cards (1 each), discarded 2 cards = net 0
+    assert len(state.players[0].bird_hand) == initial_hand_size

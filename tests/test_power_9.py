@@ -4,9 +4,35 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, load_deck, get_bird_power, get_bird
+from game.data import (
+    initiate_state,
+    GamePhase,
+    load_deck,
+    get_bird_power,
+    get_bird,
+    ActionData,
+    QueuedPower,
+)
 from game.engine import transition_state
 from game.actions import get_actions
+
+
+def setup_power_9_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 9 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 9}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=9,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def find_bird_with_power_9(min_habitats=2):
@@ -47,17 +73,9 @@ def test_power_9_bird_solo_in_row():
     activating_spot = state.players[0].board[current_row][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 9,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_9_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Record initial position
     initial_col = activating_spot.col
@@ -71,9 +89,9 @@ def test_power_9_bird_solo_in_row():
     state = transition_state(state, "activate_power")
 
     # Check if auto-completed or requires choice
-    if "sub_phase" in state.action_data:
+    if len(state.action_data.execution_stack) > 0:
         # Multiple valid habitats - requires selection
-        assert state.action_data.get("sub_phase") == "power_9_select_habitat"
+        assert state.action_data.execution_stack[-1].phase == "select_habitat"
 
         # Verify habitat selection actions available
         actions = get_actions(state)
@@ -111,7 +129,7 @@ def test_power_9_bird_solo_in_row():
 
     # Verify cleanup
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert not any(k.startswith("power_9_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_9_full_row_bird_last():
@@ -145,17 +163,9 @@ def test_power_9_full_row_bird_last():
     activating_spot = state.players[0].board[current_row][2]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 9,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_9_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify can activate (bird is rightmost)
     actions = get_actions(state)
@@ -165,8 +175,8 @@ def test_power_9_full_row_bird_last():
     state = transition_state(state, "activate_power")
 
     # Should have habitat selection choices
-    if "sub_phase" in state.action_data:
-        assert state.action_data.get("sub_phase") == "power_9_select_habitat"
+    if len(state.action_data.execution_stack) > 0:
+        assert state.action_data.execution_stack[-1].phase == "select_habitat"
 
         actions = get_actions(state)
         habitat_actions = [a for a in actions if a.startswith("select_habitat_")]
@@ -193,8 +203,8 @@ def test_power_9_full_row_bird_last():
 
     # Verify cleanup
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert "sub_phase" not in state.action_data
-    assert not any(k.startswith("power_9_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
+    assert len(state.action_data.execution_stack) == 0
 
 
 def test_power_9_bird_not_rightmost():
@@ -226,17 +236,9 @@ def test_power_9_bird_not_rightmost():
     activating_spot = state.players[0].board[current_row][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 9,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_9_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify cannot activate (bird is not rightmost)
     actions = get_actions(state)
@@ -290,17 +292,9 @@ def test_power_9_all_other_rows_full():
     activating_spot = state.players[0].board[current_row][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 9,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_9_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify cannot activate (no valid target habitats with empty spots)
     actions = get_actions(state)

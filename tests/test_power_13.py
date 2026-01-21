@@ -4,9 +4,34 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, get_bird, get_bird_power, GamePhase
+from game.data import (
+    initiate_state,
+    get_bird,
+    get_bird_power,
+    GamePhase,
+    ActionData,
+    QueuedPower,
+)
 from game.actions import get_actions
 from game.engine import transition_state
+
+
+def setup_power_13_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 13 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 13}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=13,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def test_power_13_card_single_player():
@@ -39,17 +64,9 @@ def test_power_13_card_single_player():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 13,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_13_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should complete immediately for card variant)
     state = transition_state(state, "activate_power")
@@ -61,8 +78,7 @@ def test_power_13_card_single_player():
 
     # Verify no sub_phase created (card variant completes immediately)
     assert (
-        "sub_phase" not in state.action_data
-        or state.action_data.get("sub_phase") is None
+        len(state.action_data.execution_stack) == 0
     ), "Card variant should not create sub_phase"
 
     # Verify power completed (transitioned to MAIN_TURN)
@@ -98,17 +114,9 @@ def test_power_13_card_multiple_tied():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 13,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_13_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation
     state = transition_state(state, "activate_power")
@@ -126,7 +134,7 @@ def test_power_13_card_multiple_tied():
 
     # Verify no sub_phase created
     assert (
-        "sub_phase" not in state.action_data
+        len(state.action_data.execution_stack) == 0
     ), "Card variant should not create sub_phase"
 
     # Verify power completed
@@ -175,26 +183,18 @@ def test_power_13_die_single_player():
     activating_spot = state.players[0].board[1][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 13,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_13_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation (should enter sub_phase for die selection)
     state = transition_state(state, "activate_power")
 
     # Verify sub_phase created
     assert (
-        state.action_data.get("sub_phase") == "power_13_select_die"
+        state.action_data.execution_stack[-1].phase == "select_die"
     ), "Should create power_13_select_die sub_phase"
-    assert state.action_data.get("awaiting_players") == [
+    assert state.action_data.execution_stack[-1].context.get("awaiting_players") == [
         0
     ], "Player 0 should be awaiting"
 
@@ -216,7 +216,7 @@ def test_power_13_die_single_player():
 
     # Verify power completed
     assert state.game_phase == GamePhase.MAIN_TURN, "Should return to MAIN_TURN"
-    assert "sub_phase" not in state.action_data, "sub_phase should be cleaned up"
+    assert len(state.action_data.execution_stack) == 0, "sub_phase should be cleaned up"
 
 
 def test_power_13_die_multiple_players():
@@ -255,23 +255,17 @@ def test_power_13_die_multiple_players():
     activating_spot = state.players[1].board[1][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 13,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_13_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation
     state = transition_state(state, "activate_power")
 
     # Verify awaiting_players includes all 3 players
-    assert sorted(state.action_data.get("awaiting_players", [])) == [
+    assert sorted(
+        state.action_data.execution_stack[-1].context.get("awaiting_players", [])
+    ) == [
         0,
         1,
         2,
@@ -304,11 +298,9 @@ def test_power_13_die_multiple_players():
 
     # Verify power completed and cleanup done
     assert state.game_phase == GamePhase.MAIN_TURN, "Should return to MAIN_TURN"
-    assert "sub_phase" not in state.action_data, "sub_phase should be cleaned up"
     assert (
-        "awaiting_players" not in state.action_data
-    ), "awaiting_players should be cleaned up"
-    assert "activator" not in state.action_data, "activator should be cleaned up"
+        len(state.action_data.execution_stack) == 0
+    ), "Execution stack should be cleaned up"
 
 
 def test_power_13_reroll_all_dice():
@@ -339,17 +331,9 @@ def test_power_13_reroll_all_dice():
     activating_spot = state.players[0].board[1][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 13,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_13_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation
     state = transition_state(state, "activate_power")
@@ -365,7 +349,7 @@ def test_power_13_reroll_all_dice():
     # Verify feeder rerolled
     assert len(state.feeder) == 5, "Feeder should still have 5 dice"
     assert (
-        state.action_data.get("sub_phase") == "power_13_select_die"
+        state.action_data.execution_stack[-1].phase == "select_die"
     ), "Should still be in die selection sub_phase"
     assert state.current_player_index == 0, "Same player should continue"
 
@@ -412,17 +396,9 @@ def test_power_13_feeder_empties_during_power():
     activating_spot = state.players[0].board[1][0]
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 13,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_13_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Execute activation
     state = transition_state(state, "activate_power")
@@ -451,7 +427,7 @@ def test_power_13_feeder_empties_during_power():
 
 def test_power_13_validation():
     """Test Power 13 validation always returns True (no preconditions)."""
-    from game.powers import can_execute_power
+    from game.powers_validators import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

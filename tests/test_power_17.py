@@ -4,10 +4,28 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase
+from game.data import initiate_state, GamePhase, ActionData, QueuedPower
 from game.engine import transition_state
 from game.actions import get_actions
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
+
+
+def setup_power_17_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 17 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 17}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=17,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def create_power_17_data(types):
@@ -32,17 +50,9 @@ def setup_power_17_state(state, types):
 
     power_data = create_power_17_data(types)
 
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird.id,
-                "power_id": 17,
-                "power_data": power_data,
-                "spot": spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_17_execution(
+        state, state.current_player_index, bird.id, spot, power_data
+    )
 
     return state
 
@@ -87,7 +97,7 @@ def test_power_17_generates_tuck_actions():
 
     state = transition_state(state, "activate_power")
 
-    assert state.action_data.get("sub_phase") == "power_17_select_card"
+    assert state.action_data.execution_stack[-1].phase == "select_card"
 
     actions = get_actions(state)
     expected = [f"tuck_card_{cid}" for cid in card_ids]
@@ -107,7 +117,7 @@ def test_power_17_two_food_types_generates_food_actions():
     state = transition_state(state, "activate_power")
     state = transition_state(state, f"tuck_card_{card_id}")
 
-    assert state.action_data.get("sub_phase") == "power_17_select_food"
+    assert state.action_data.execution_stack[-1].phase == "select_food"
 
     actions = get_actions(state)
 
@@ -121,7 +131,8 @@ def test_power_17_tuck_removes_card_and_increments_tucked():
     state = initiate_state(2)
     state = setup_power_17_state(state, ["fruit"])
 
-    spot = state.action_data["powers_queue"][0]["spot"]
+    # Get spot from board where bird was placed in setup_power_17_state
+    spot = state.players[0].board[0][0]
     initial_tucked = spot.bird.tucked_cards
     initial_hand_size = len(state.players[0].bird_hand)
     card_to_tuck = state.players[0].bird_hand[0]
@@ -131,7 +142,8 @@ def test_power_17_tuck_removes_card_and_increments_tucked():
 
     assert len(state.players[0].bird_hand) == initial_hand_size - 1
     assert card_to_tuck not in state.players[0].bird_hand
-    assert spot.bird.tucked_cards == initial_tucked + 1
+    # Get bird from new state after transitions
+    assert state.players[0].board[0][0].bird.tucked_cards == initial_tucked + 1
 
 
 def test_power_17_bonus_card():
@@ -155,14 +167,16 @@ def test_power_17_bonus_egg():
     state = initiate_state(2)
     state = setup_power_17_state(state, ["egg"])
 
-    spot = state.action_data["powers_queue"][0]["spot"]
+    # Get spot from board where bird was placed in setup_power_17_state
+    spot = state.players[0].board[0][0]
     initial_eggs = spot.bird.eggs
     card_id = state.players[0].bird_hand[0].id
 
     state = transition_state(state, "activate_power")
     state = transition_state(state, f"tuck_card_{card_id}")
 
-    assert spot.bird.eggs == initial_eggs + 1
+    # Get bird from new state after transitions
+    assert state.players[0].board[0][0].bird.eggs == initial_eggs + 1
 
 
 def test_power_17_bonus_fruit():
@@ -234,7 +248,7 @@ def test_power_17_transitions_to_main_turn():
     state = transition_state(state, f"tuck_card_{card_id}")
 
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert not any(k.startswith("power_17_") for k in state.action_data)
+    assert len(state.action_data.execution_stack) == 0
 
 
 if __name__ == "__main__":

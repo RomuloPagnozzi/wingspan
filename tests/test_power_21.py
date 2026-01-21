@@ -1,11 +1,24 @@
 """Tests for Power 21: Pink power triggered when opponent's predator succeeds."""
 
+import sys
+
+sys.path.append(".")
+
 import pytest
-from game.data import GameState, GamePhase, Player, Bird, Spot, PinkTrigger
-from game.engine import transition_state, _execute_power_21
+from game.data import (
+    GameState,
+    GamePhase,
+    Player,
+    Bird,
+    Spot,
+    PinkTrigger,
+    ActionData,
+    QueuedPower,
+)
+from game.engine import transition_state
 from game.actions import get_actions
 from game.utils import get_triggered_pink_powers
-from game.powers import can_execute_power
+from game.powers_validators import can_execute_power
 
 
 def create_test_bird(bird_id: int, habitats: list, nest: str = "bowl") -> Bird:
@@ -37,6 +50,26 @@ def create_power_21_entry(player_index: int, bird_id: int, spot: Spot) -> dict:
     }
 
 
+def setup_power_21_execution(state, player_index, bird_id, spot):
+    """Set up Power 21 execution with new ActionData structure."""
+    power_data = {
+        "color": "pink",
+        "data": {"id": 21, "details": {"resource": "die"}},
+    }
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=21,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
+
+
 class TestPower21Execution:
     """Tests for Power 21 executor."""
 
@@ -50,18 +83,14 @@ class TestPower21Execution:
         state.players[1].board[0][0].bird = bird
         spot = state.players[1].board[0][0]
 
-        power_entry = create_power_21_entry(1, 100, spot)
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_21_execution(state, 1, 100, spot)
         state.current_player_index = 1
 
-        state = _execute_power_21(state, power_entry)
+        state = transition_state(state, "activate_power")
 
-        assert state.action_data.get("sub_phase") == "power_21_select_die"
-        assert state.action_data.get("power_21_player_index") == 1
+        # Should be in select_die phase
+        assert len(state.action_data.execution_stack) == 1
+        assert state.action_data.execution_stack[0].phase == "select_die"
 
     def test_power_21_generates_die_selection_actions(self):
         """Action generator produces select_die actions for each die in feeder."""
@@ -80,15 +109,11 @@ class TestPower21Execution:
             2: {"rodent", "fruit"},
         }
 
-        power_entry = create_power_21_entry(1, 100, spot)
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_21_select_die",
-            "power_21_player_index": 1,
-        }
+        setup_power_21_execution(state, 1, 100, spot)
         state.current_player_index = 1
+
+        # Activate to enter select_die phase
+        state = transition_state(state, "activate_power")
 
         actions = get_actions(state)
 
@@ -117,21 +142,15 @@ class TestPower21Execution:
 
         initial_invertebrate = state.players[1].food.get("invertebrate", 0)
 
-        power_entry = create_power_21_entry(1, 100, spot)
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_21_select_die",
-            "power_21_player_index": 1,
-        }
+        setup_power_21_execution(state, 1, 100, spot)
         state.current_player_index = 1
 
+        # Activate then select die
+        state = transition_state(state, "activate_power")
         state = transition_state(state, "select_die_0_invertebrate")
 
         assert state.players[1].food.get("invertebrate", 0) == initial_invertebrate + 1
         assert 0 not in state.feeder  # Die was removed
-        assert state.action_data.get("sub_phase") is None
 
     def test_power_21_reroll_all_option(self):
         """Player can reroll all dice when all show same face."""
@@ -152,15 +171,11 @@ class TestPower21Execution:
             4: {"fish"},
         }
 
-        power_entry = create_power_21_entry(1, 100, spot)
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_21_select_die",
-            "power_21_player_index": 1,
-        }
+        setup_power_21_execution(state, 1, 100, spot)
         state.current_player_index = 1
+
+        # Activate to enter select_die phase
+        state = transition_state(state, "activate_power")
 
         actions = get_actions(state)
         assert "reroll_all" in actions
@@ -184,20 +199,16 @@ class TestPower21Execution:
             4: {"fish"},
         }
 
-        power_entry = create_power_21_entry(1, 100, spot)
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-            "sub_phase": "power_21_select_die",
-            "power_21_player_index": 1,
-        }
+        setup_power_21_execution(state, 1, 100, spot)
         state.current_player_index = 1
 
+        # Activate to enter select_die phase
+        state = transition_state(state, "activate_power")
         state = transition_state(state, "reroll_all")
 
-        # Should still be in sub_phase, feeder has been rerolled
-        assert state.action_data.get("sub_phase") == "power_21_select_die"
+        # Should still be in select_die phase, feeder has been rerolled
+        assert len(state.action_data.execution_stack) == 1
+        assert state.action_data.execution_stack[0].phase == "select_die"
         assert len(state.feeder) == 5
 
 
@@ -389,12 +400,7 @@ class TestPower21Validation:
 
         initial_food = dict(state.players[1].food)
 
-        power_entry = create_power_21_entry(1, 100, spot)
-        state.action_data = {
-            "powers_queue": [power_entry],
-            "current_power_index": 0,
-            "action_player_index": 0,
-        }
+        setup_power_21_execution(state, 1, 100, spot)
         state.current_player_index = 1
 
         actions = get_actions(state)

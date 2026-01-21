@@ -4,9 +4,35 @@ import sys
 
 sys.path.append(".")
 
-from game.data import initiate_state, GamePhase, load_deck, get_bird_power, get_bird
+from game.data import (
+    initiate_state,
+    GamePhase,
+    load_deck,
+    get_bird_power,
+    get_bird,
+    ActionData,
+    QueuedPower,
+)
 from game.engine import transition_state
 from game.actions import get_actions
+
+
+def setup_power_12_execution(state, player_index, bird_id, spot, power_data=None):
+    """Set up Power 12 execution with new ActionData structure."""
+    if power_data is None:
+        power_data = {"data": {"id": 12}}
+    state.action_data = ActionData()
+    state.action_data.powers_queue = [
+        QueuedPower(
+            power_id=12,
+            bird_id=bird_id,
+            spot_row=spot.row,
+            spot_col=spot.col,
+            player_index=player_index,
+            power_data=power_data,
+        )
+    ]
+    state.action_data.current_power_index = 0
 
 
 def find_birds_with_power_12():
@@ -67,17 +93,9 @@ def test_power_12_forest_basic():
     state.players[0].bird_hand.append(forest_bird)
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 12,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_12_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     initial_cubes = state.players[0].action_cubes
 
@@ -213,17 +231,9 @@ def test_power_12_habitat_filtering():
         state.players[0].bird_hand.append(bird_d)
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 12,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_12_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -293,17 +303,9 @@ def test_power_12_this_variant():
     state.players[0].bird_hand.append(grassland_bird)
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 12,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_12_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -349,17 +351,9 @@ def test_power_12_no_valid_birds():
     state.players[0].bird_hand = grassland_birds
 
     # Setup power activation
-    state.action_data = {
-        "powers_queue": [
-            {
-                "bird_id": bird_id,
-                "power_id": 12,
-                "power_data": power_data,
-                "spot": activating_spot,
-            }
-        ],
-        "current_power_index": 0,
-    }
+    setup_power_12_execution(
+        state, state.current_player_index, bird_id, activating_spot, power_data
+    )
 
     # Verify cannot activate
     actions = get_actions(state)
@@ -369,7 +363,7 @@ def test_power_12_no_valid_birds():
 
 def test_power_12_validation():
     """Test can_execute_power validator for Power 12."""
-    from game.powers import can_execute_power
+    from game.powers_validators import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0
