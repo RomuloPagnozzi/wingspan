@@ -735,7 +735,7 @@ def test_power_10_mixed_capacity_birds():
 
 def test_power_10_validation():
     """Test Power 10 validation works correctly for all variants."""
-    from game.powers_validators import can_execute_power
+    from game.power_validators import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

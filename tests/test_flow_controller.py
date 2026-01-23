@@ -6,10 +6,10 @@ sys.path.append(".")
 
 import json
 from game.data import initiate_state, GamePhase, ActionData, QueuedPower
-from game.engine import (
-    _finish_main_action,
+from game.engine import transition_state
+from game.turn_lifecycle import (
+    finish_main_action,
     _check_powers_done,
-    transition_state,
 )
 from game.actions import get_actions
 
@@ -45,7 +45,7 @@ def test_finish_main_action_no_powers():
     state.current_player_index = first_player_idx
     state.players[first_player_idx].action_cubes = 5
 
-    state = _finish_main_action(state, "brown", habitat="forest")
+    state = finish_main_action(state, "brown", habitat="forest")
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.current_player_index == (first_player_idx + 1) % 2
@@ -62,7 +62,7 @@ def test_finish_main_action_no_powers_explicit():
     state.current_player_index = 0
     state.players[0].action_cubes = 5
 
-    state = _finish_main_action(state, "white")
+    state = finish_main_action(state, "white")
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].action_cubes == 4

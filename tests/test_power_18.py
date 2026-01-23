@@ -19,7 +19,7 @@ from game.data import (
 from game.engine import transition_state
 from game.actions import get_actions
 from game.utils import get_triggered_pink_powers
-from game.powers_validators import can_execute_power
+from game.power_validators import can_execute_power
 from game.power_handlers import _power_18_activate
 
 

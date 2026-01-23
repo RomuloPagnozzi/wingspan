@@ -9,17 +9,24 @@ from .utils import (
     get_collect_food_actions,
 )
 
-POWER_CHOICE_GENERATORS: Dict[Tuple[int, str], Callable] = {}
+_POWER_CHOICE_GENERATORS: Dict[Tuple[int, str], Callable] = {}
 
 
 def power_choices(power_id: int, phase: str):
     """Decorator to register a power choice generator."""
 
     def decorator(func):
-        POWER_CHOICE_GENERATORS[(power_id, phase)] = func
+        _POWER_CHOICE_GENERATORS[(power_id, phase)] = func
         return func
 
     return decorator
+
+
+def get_power_choice_generator(
+    power_id: int, phase: str
+) -> Callable[[GameState, PowerExecution], List[str]] | None:
+    """Get the choice generator for a specific power and phase."""
+    return _POWER_CHOICE_GENERATORS.get((power_id, phase))
 
 
 @power_choices(2, "choices")

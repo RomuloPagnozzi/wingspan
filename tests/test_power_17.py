@@ -7,7 +7,7 @@ sys.path.append(".")
 from game.data import initiate_state, GamePhase, ActionData, QueuedPower
 from game.engine import transition_state
 from game.actions import get_actions
-from game.powers_validators import can_execute_power
+from game.power_validators import can_execute_power
 
 
 def setup_power_17_execution(state, player_index, bird_id, spot, power_data=None):

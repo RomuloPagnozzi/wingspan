@@ -363,7 +363,7 @@ def test_power_12_no_valid_birds():
 
 def test_power_12_validation():
     """Test can_execute_power validator for Power 12."""
-    from game.powers_validators import can_execute_power
+    from game.power_validators import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

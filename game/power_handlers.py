@@ -28,25 +28,25 @@ from .utils import (
     get_triggered_pink_powers,
     ensure_bird_deck,
 )
-from .powers_validators import can_execute_power
+from .power_validators import can_execute_power
 
 PowerHandler = Callable[[GameState, List[PowerExecution], str], GameState]
-POWER_HANDLERS: Dict[Tuple[int, str | None], PowerHandler] = {}
+_POWER_HANDLERS: Dict[Tuple[int, str | None], PowerHandler] = {}
 
 
 def power_handler(power_id: int, phase: str | None = None):
     """Decorator to register a power handler."""
 
     def decorator(func: PowerHandler) -> PowerHandler:
-        POWER_HANDLERS[(power_id, phase)] = func
+        _POWER_HANDLERS[(power_id, phase)] = func
         return func
 
     return decorator
 
 
-def get_handler(power_id: int, phase: str | None) -> PowerHandler | None:
+def get_power_handler(power_id: int, phase: str | None) -> PowerHandler | None:
     """Get the handler for a specific power and phase."""
-    return POWER_HANDLERS.get((power_id, phase))
+    return _POWER_HANDLERS.get((power_id, phase))
 
 
 # =============================================================================

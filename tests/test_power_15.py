@@ -14,7 +14,7 @@ from game.data import (
     QueuedPower,
 )
 from game.engine import transition_state
-from game.powers_validators import can_execute_power
+from game.power_validators import can_execute_power
 
 
 def setup_power_15_execution(state, player_index, bird_id, spot, power_data=None):

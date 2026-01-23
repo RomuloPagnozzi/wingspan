@@ -6,6 +6,8 @@ sys.path.append(".")
 from game.data import (
     initiate_state,
     ScoringMode,
+)
+from game.scoring import (
     evaluate_goal,
     _calculate_blue_score,
     _calculate_green_scores,
@@ -236,10 +238,12 @@ class TestIntegration:
 
     def test_default_scoring_mode_is_green(self):
         state = initiate_state(2)
+        assert state.round_goal_config
         assert state.round_goal_config.scoring_mode == ScoringMode.GREEN
 
     def test_update_round_goal_scores_blue(self):
         state = initiate_state(2, ScoringMode.BLUE)
+        assert state.round_goal_config
         state.round_goal_config.selected_goals[0] = "total_birds"
 
         state.players[0].board[0][0].bird = state.bird_deck.pop()
@@ -253,6 +257,7 @@ class TestIntegration:
 
     def test_update_round_goal_scores_green(self):
         state = initiate_state(2, ScoringMode.GREEN)
+        assert state.round_goal_config
         state.round_goal_config.selected_goals[0] = "total_birds"
 
         state.players[0].board[0][0].bird = state.bird_deck.pop()
@@ -267,6 +272,7 @@ class TestIntegration:
     def test_update_round_goal_scores_later_round(self):
         state = initiate_state(2, ScoringMode.GREEN)
         state.round = 3
+        assert state.round_goal_config
         state.round_goal_config.selected_goals[2] = "birds_in_forest"
 
         state.players[0].board[0][0].bird = state.bird_deck.pop()
@@ -300,5 +306,6 @@ class TestIntegration:
             "sets_of_eggs",
         }
         state = initiate_state(2)
+        assert state.round_goal_config
         for goal in state.round_goal_config.selected_goals:
             assert goal in valid_goals

@@ -427,7 +427,7 @@ def test_power_13_feeder_empties_during_power():
 
 def test_power_13_validation():
     """Test Power 13 validation always returns True (no preconditions)."""
-    from game.powers_validators import can_execute_power
+    from game.power_validators import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

@@ -8,14 +8,14 @@ from .utils import (
 )
 
 
-POWER_VALIDATORS: Dict[int, Callable[[GameState, Dict], bool]] = {}
+_POWER_VALIDATORS: Dict[int, Callable[[GameState, Dict], bool]] = {}
 
 
 def power_validator(power_id: int):
     """Decorator to register a power validator."""
 
     def decorator(func):
-        POWER_VALIDATORS[power_id] = func
+        _POWER_VALIDATORS[power_id] = func
         return func
 
     return decorator
@@ -28,7 +28,7 @@ def can_execute_power(state: GameState, power_entry: Dict) -> bool:
         return False
 
     power_type = power_data["data"]["id"]
-    validator = POWER_VALIDATORS.get(power_type)
+    validator = _POWER_VALIDATORS.get(power_type)
 
     if not validator:
         return True

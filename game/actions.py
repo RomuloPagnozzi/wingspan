@@ -12,8 +12,8 @@ from .utils import (
     get_available_bird_cards,
     get_collect_food_actions,
 )
-from .powers_validators import can_execute_power
-from .power_choices import POWER_CHOICE_GENERATORS
+from .power_validators import can_execute_power
+from .power_choices import get_power_choice_generator
 import json
 
 
@@ -287,7 +287,7 @@ def _get_activate_powers_actions(state: GameState) -> List[str]:
             f"Power handler must set a phase before requesting user choices."
         )
 
-    choice_generator = POWER_CHOICE_GENERATORS.get((current.power_id, current.phase))
+    choice_generator = get_power_choice_generator(current.power_id, current.phase)
 
     if choice_generator:
         return choice_generator(state, current)

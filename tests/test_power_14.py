@@ -14,7 +14,7 @@ from game.data import (
 )
 from game.engine import transition_state
 from game.actions import get_actions
-from game.powers_validators import can_execute_power
+from game.power_validators import can_execute_power
 
 
 def get_all_birds(state):
