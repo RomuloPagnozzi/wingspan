@@ -1,5 +1,3 @@
-"""Turn lifecycle management: power execution, turn finalization, and end-of-turn effects."""
-
 from .data import (
     GameState,
     GamePhase,
@@ -20,11 +18,6 @@ from .utils import (
     get_first_player_index,
 )
 from .power_handlers import get_power_handler
-
-
-# =============================================================================
-# Flow control helpers
-# =============================================================================
 
 
 def finish_main_action(
@@ -75,11 +68,6 @@ def finish_main_action(
     return _finalize_turn(state)
 
 
-# =============================================================================
-# Power execution (stack-based approach)
-# =============================================================================
-
-
 def activate_powers(state: GameState, action: str) -> GameState:
     """Handle power activation using stack-based execution.
 
@@ -90,7 +78,6 @@ def activate_powers(state: GameState, action: str) -> GameState:
     """
     stack = state.action_data.execution_stack
 
-    # Path 1 & 2: Stack is empty - deciding on a queued power
     if not stack:
         if action == "skip_power":
             state.action_data.current_power_index += 1
@@ -180,11 +167,6 @@ def _check_powers_done(state: GameState) -> GameState:
     state.current_player_index = next_power.player_index
 
     return state
-
-
-# =============================================================================
-# Turn finalization
-# =============================================================================
 
 
 def _finalize_turn(state: GameState) -> GameState:

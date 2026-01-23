@@ -1,5 +1,3 @@
-"""Scoring logic for Wingspan game."""
-
 from typing import Dict
 from .data import Player, Bonus, GameState, ScoringMode
 
@@ -141,11 +139,9 @@ def _count_sets_of_eggs(player: Player) -> int:
     return min(eggs_per_habitat)
 
 
-HABITAT_ROWS = {"forest": 0, "grassland": 1, "wetland": 2}
-
-
 def evaluate_goal(state: GameState, player: Player, goal_name: str) -> int:
     """Evaluate how many items a player has matching the goal criteria."""
+    habitat_rows = {"forest": 0, "grassland": 1, "wetland": 2}
     match goal_name:
         case "eggs_in_bowl":
             return _count_eggs_on_nest_type(player, "bowl")
@@ -164,17 +160,17 @@ def evaluate_goal(state: GameState, player: Player, goal_name: str) -> int:
         case "platform_birds_with_egg":
             return _count_birds_with_eggs_on_nest_type(player, "platform")
         case "eggs_in_forest":
-            return _count_eggs_in_habitat(player, HABITAT_ROWS["forest"])
+            return _count_eggs_in_habitat(player, habitat_rows["forest"])
         case "eggs_in_grassland":
-            return _count_eggs_in_habitat(player, HABITAT_ROWS["grassland"])
+            return _count_eggs_in_habitat(player, habitat_rows["grassland"])
         case "eggs_in_wetland":
-            return _count_eggs_in_habitat(player, HABITAT_ROWS["wetland"])
+            return _count_eggs_in_habitat(player, habitat_rows["wetland"])
         case "birds_in_forest":
-            return _count_birds_in_habitat(player, HABITAT_ROWS["forest"])
+            return _count_birds_in_habitat(player, habitat_rows["forest"])
         case "birds_in_grassland":
-            return _count_birds_in_habitat(player, HABITAT_ROWS["grassland"])
+            return _count_birds_in_habitat(player, habitat_rows["grassland"])
         case "birds_in_wetland":
-            return _count_birds_in_habitat(player, HABITAT_ROWS["wetland"])
+            return _count_birds_in_habitat(player, habitat_rows["wetland"])
         case "total_birds":
             return _count_total_birds(player)
         case "sets_of_eggs":

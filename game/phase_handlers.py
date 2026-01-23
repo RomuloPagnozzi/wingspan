@@ -29,10 +29,6 @@ from .effects import (
 from .turn_lifecycle import finish_main_action, activate_powers, handle_end_turn
 
 
-# =============================================================================
-# Handler registry
-# =============================================================================
-
 PhaseHandler = Callable[[GameState, str], GameState]
 _PHASE_HANDLERS: Dict[GamePhase, PhaseHandler] = {}
 
@@ -54,9 +50,6 @@ def get_phase_handler(phase: GamePhase) -> PhaseHandler | None:
 
 _PHASE_HANDLERS[GamePhase.ACTIVATE_POWERS] = activate_powers
 _PHASE_HANDLERS[GamePhase.END_TURN] = handle_end_turn
-# =============================================================================
-# Game setup handlers
-# =============================================================================
 
 
 @phase_handler(GamePhase.GAME_SETUP)
@@ -120,11 +113,6 @@ def _discard_food(state: GameState, action: str) -> GameState:
     state.game_phase = GamePhase.GAME_SETUP
     state.current_player_index = get_current_player_index(state)
     return state
-
-
-# =============================================================================
-# Main turn routing
-# =============================================================================
 
 
 @phase_handler(GamePhase.MAIN_TURN)
@@ -196,11 +184,6 @@ def _route_main_turn(state: GameState, action: str) -> GameState:
             raise ValueError(f"Invalid action: {action}")
 
 
-# =============================================================================
-# Core action handlers
-# =============================================================================
-
-
 @phase_handler(GamePhase.COLLECT_FOOD)
 def _collect_food(state: GameState, action: str) -> GameState:
     """Handle dice selection."""
@@ -262,11 +245,6 @@ def _draw_cards(state: GameState, action: str) -> GameState:
     return finish_main_action(state, "brown", habitat="wetland")
 
 
-# =============================================================================
-# Extra resource action routing
-# =============================================================================
-
-
 @phase_handler(GamePhase.EXTRA_FOOD_ACTION)
 def _route_extra_food_action(state: GameState, action: str) -> GameState:
     """Handle player's choice about trading bird for extra food"""
@@ -316,11 +294,6 @@ def _route_extra_card_action(state: GameState, action: str) -> GameState:
             return state
         case _:
             raise ValueError(f"Unknown extra card action: {action}")
-
-
-# =============================================================================
-# Discard for resource handlers
-# =============================================================================
 
 
 @phase_handler(GamePhase.SELECT_BIRD_TO_DISCARD)
@@ -398,11 +371,6 @@ def _discard_egg_for_card(state: GameState, action: str) -> GameState:
     raise ValueError(f"Unknown egg discard action: {action}")
 
 
-# =============================================================================
-# Play bird handler
-# =============================================================================
-
-
 @phase_handler(GamePhase.PLAY_BIRD)
 def _play_bird(state: GameState, action: str) -> GameState:
     """Handle playing a specific bird on a specific spot."""
@@ -419,7 +387,6 @@ def _play_bird(state: GameState, action: str) -> GameState:
 
     target_spot = current_player.board[row][col]
 
-    # Check egg cost
     if target_spot.egg_cost and not (
         state.action_data.pending_cost
         and state.action_data.pending_cost.cost_type == "egg_paid"
@@ -439,17 +406,14 @@ def _play_bird(state: GameState, action: str) -> GameState:
     if not bird_to_play:
         raise ValueError(f"Bird {bird_id} not in hand")
 
-    # Check food cost
     if bird_to_play.cost and not (
         state.action_data.pending_cost
         and state.action_data.pending_cost.cost_type == "food_paid"
     ):
-        # Check if we've already paid eggs but not food
         if (
             state.action_data.pending_cost
             and state.action_data.pending_cost.cost_type in ["egg", "egg_paid"]
         ):
-            # Eggs were paid (or being paid), now check food
             pass
         else:
             state.action_data.pending_cost = CostPayment(
@@ -463,10 +427,8 @@ def _play_bird(state: GameState, action: str) -> GameState:
 
     state = place_bird_effect(state, bird_id, row, col)
 
-    # Check if this was triggered by Power 12
     execution = state.action_data.get_current_execution()
     if execution and execution.power_id == 12:
-        # Pop Power 12 from stack
         state.action_data.execution_stack.pop()
         state.game_phase = GamePhase.ACTIVATE_POWERS
         return finish_main_action(
@@ -486,11 +448,6 @@ def _play_bird(state: GameState, action: str) -> GameState:
         pink_trigger=PinkTrigger.BIRD_PLAYED,
         pink_context={"habitat": target_spot.habitat},
     )
-
-
-# =============================================================================
-# Cost payment handlers
-# =============================================================================
 
 
 @phase_handler(GamePhase.PAY_EGG_COST)

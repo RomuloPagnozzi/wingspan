@@ -1,11 +1,11 @@
-from game.data import initiate_state, GamePhase
+from game.data import initiate_state
 from game.actions import get_actions
 from game.engine import transition_state
 import random
 import pandas as pd
 import json
 
-ITERATIONS = 1000
+ITERATIONS = 100
 
 
 def play_game(players: int, game_num: int = 0) -> dict:

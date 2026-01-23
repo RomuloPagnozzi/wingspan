@@ -11,7 +11,6 @@ def transition_state(state: GameState, action: str) -> GameState:
         raise NotImplementedError(f"No handler for: {new_state.game_phase}")
     new_state = handler(new_state, action)
 
-    # Process pending callbacks (from cost payment handlers)
     while new_state.action_data.pending_callback:
         callback_phase, callback_action = new_state.action_data.pending_callback
         new_state.action_data.pending_callback = None
