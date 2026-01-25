@@ -28,7 +28,6 @@ from .effects import (
 )
 from .turn_lifecycle import finish_main_action, activate_powers, handle_end_turn
 
-
 PhaseHandler = Callable[[GameState, str], GameState]
 _PHASE_HANDLERS: Dict[GamePhase, PhaseHandler] = {}
 
@@ -101,10 +100,8 @@ def _discard_food(state: GameState, action: str) -> GameState:
     current_player = state.players[state.current_player_index]
     for food_type, amount in discard.items():
         if current_player.food.get(food_type, 0) < amount:
-            raise ValueError(
-                f"""Not enough {food_type} to discard {amount}
-                (there's {current_player.food.get(food_type, 0)})"""
-            )
+            raise ValueError(f"""Not enough {food_type} to discard {amount}
+                (there's {current_player.food.get(food_type, 0)})""")
 
     state = pay_food_effect(state, discard)
 

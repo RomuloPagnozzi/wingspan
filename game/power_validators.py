@@ -7,7 +7,6 @@ from .utils import (
     get_available_bird_cards,
 )
 
-
 _POWER_VALIDATORS: Dict[int, Callable[[GameState, Dict], bool]] = {}
 
 

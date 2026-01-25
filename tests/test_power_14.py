@@ -100,8 +100,9 @@ def test_power_14_brown_repeat_simple_power():
     # Select Power 3 bird - power executes immediately
     state = transition_state(state, f"select_bird_{power_3_bird.id}")
 
-    # Verify Power 3 was executed (bird should have cached food)
-    assert power_3_bird.stashed_food == 1
+    # Verify Power 3 was executed (get bird from returned state after deepcopy)
+    updated_power_3_bird = state.players[0].board[0][1].bird
+    assert updated_power_3_bird.stashed_food == 1
 
     # Verify cleanup - stack should be empty, turn should be done
     assert len(state.action_data.execution_stack) == 0

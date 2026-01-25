@@ -107,8 +107,9 @@ def test_power_10_this_true():
     # Execute activation (should auto-complete)
     state = transition_state(state, "activate_power")
 
-    # Verify egg was added to activating bird
-    assert power_10_bird.eggs == initial_eggs + 1, "Bird should have one more egg"
+    # Verify egg was added to activating bird (get from returned state after deepcopy)
+    updated_bird = state.players[0].board[0][0].bird
+    assert updated_bird.eggs == initial_eggs + 1, "Bird should have one more egg"
 
     # Verify no sub-phase was created (auto-completed)
     assert len(state.action_data.execution_stack) == 0

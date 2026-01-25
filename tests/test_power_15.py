@@ -97,7 +97,9 @@ def test_power_15_caches_food_on_match():
     with patch("game.power_handlers.random.choice", return_value=[food_type]):
         state = transition_state(state, "activate_power")
 
-    assert power_15_bird.stashed_food == 1
+    # Get bird from returned state after deepcopy
+    updated_bird = state.players[0].board[0][0].bird
+    assert updated_bird.stashed_food == 1
 
 
 def test_power_15_no_cache_on_no_match():

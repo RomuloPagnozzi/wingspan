@@ -288,9 +288,10 @@ def test_power_8_birdfeeder_die_selection_then_cache():
     # Choose to cache the food
     state = transition_state(state, "cache_food")
 
-    # Verify food moved from supply to bird.stashed_food
+    # Verify food moved from supply to bird.stashed_food (get from returned state after deepcopy)
     assert state.players[0].food.get("seed", 0) == initial_food.get("seed", 0)
-    assert power_8_bird.stashed_food == initial_stashed + 1
+    updated_bird = state.players[0].board[0][0].bird
+    assert updated_bird.stashed_food == initial_stashed + 1
 
     # Verify cleanup and completion
     assert state.game_phase == GamePhase.MAIN_TURN

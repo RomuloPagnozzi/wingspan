@@ -547,10 +547,10 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
     # Choose to gain 1 fish
     state = transition_state(state, f'gain_{json.dumps({"fish": 1})}')
 
-    # Verify results
+    # Verify results (get birds from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert bird2.eggs == 0, "Egg was discarded from bird2"
-    assert bird1.eggs == 2, "Activating bird unchanged"
+    assert state.players[0].board[0][1].bird.eggs == 0, "Egg was discarded from bird2"
+    assert state.players[0].board[0][0].bird.eggs == 2, "Activating bird unchanged"
     assert state.players[0].food == {"seed": 1, "fish": 1}, "Gained 1 fish"
 
     # Test 2: Discard egg, gain 2 wild foods
@@ -609,9 +609,9 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
     # Choose 2 seeds
     state = transition_state(state, f'gain_{json.dumps({"seed": 2})}')
 
-    # Verify results
+    # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert bird2.eggs == 1, "Egg was discarded from bird2"
+    assert state.players[0].board[0][1].bird.eggs == 1, "Egg was discarded from bird2"
     assert state.players[0].food == {"seed": 2}, "Gained 2 seeds"
 
 
@@ -661,9 +661,9 @@ def test_power_4_discard_egg_draw_cards_end_to_end():
     # Discard egg (can discard from activating bird since gain != "wild")
     state = transition_state(state, f"discard_egg_from_{bird1.id}")
 
-    # Verify results
+    # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert bird1.eggs == 0, "Egg was discarded"
+    assert state.players[0].board[0][0].bird.eggs == 0, "Egg was discarded"
     assert len(state.players[0].bird_hand) == initial_hand_size + 2, "Drew 2 cards"
     assert len(state.bird_deck) == initial_deck_size - 2, "2 cards removed from deck"
 
@@ -720,10 +720,10 @@ def test_power_4_discard_food_tuck_cards_end_to_end():
     # Discard fish
     state = transition_state(state, "discard_food_fish")
 
-    # Verify results
+    # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].food == {"fish": 1, "seed": 1}, "1 fish discarded"
-    assert bird1.tucked_cards == 3, "Tucked 2 cards (1→3)"
+    assert state.players[0].board[0][0].bird.tucked_cards == 3, "Tucked 2 cards (1→3)"
     assert len(state.bird_deck) == initial_deck_size - 2, "2 cards removed from deck"
 
 

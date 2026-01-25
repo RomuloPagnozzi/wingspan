@@ -16,7 +16,6 @@ from .power_validators import can_execute_power
 from .power_choices import get_power_choice_generator
 import json
 
-
 _ACTION_GENERATORS: Dict[GamePhase, Callable] = {}
 
 

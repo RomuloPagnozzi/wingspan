@@ -88,7 +88,9 @@ def test_power_11_tuck_card():
 
     state = transition_state(state, "activate_power")
 
-    assert power_11_bird.tucked_cards == initial_tucked + 1
+    # Get bird from returned state after deepcopy
+    updated_bird = state.players[0].board[0][0].bird
+    assert updated_bird.tucked_cards == initial_tucked + 1
     assert len(state.bird_deck) == 0
     assert state.game_phase == GamePhase.MAIN_TURN
 
@@ -177,14 +179,18 @@ def test_power_11_multiple_activations():
 
     # First activation - draws large_bird (popped from end of list)
     state = transition_state(state, "activate_power")
-    assert power_11_bird.tucked_cards == initial_tucked  # No tuck (wingspan >= 75)
+    # Get bird from returned state after deepcopy
+    updated_bird = state.players[0].board[0][0].bird
+    assert updated_bird.tucked_cards == initial_tucked  # No tuck (wingspan >= 75)
     assert len(state.discarded_birds) == 1
     assert state.discarded_birds[0] == large_bird
     assert state.game_phase == GamePhase.ACTIVATE_POWERS  # Still processing queue
 
     # Second activation - draws small_bird
     state = transition_state(state, "activate_power")
-    assert power_11_bird.tucked_cards == initial_tucked + 1  # Tucked (wingspan < 75)
+    # Get bird from returned state after deepcopy
+    updated_bird = state.players[0].board[0][0].bird
+    assert updated_bird.tucked_cards == initial_tucked + 1  # Tucked (wingspan < 75)
     assert len(state.discarded_birds) == 1  # Still only large_bird discarded
     assert state.game_phase == GamePhase.MAIN_TURN  # Queue complete
 
