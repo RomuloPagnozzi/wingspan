@@ -170,7 +170,20 @@ class Bird:
     tucked_cards: int = field(default=0, init=False)
 
     def __deepcopy__(self, memo):
-        return self
+        new_bird = object.__new__(Bird)
+        memo[id(self)] = new_bird
+        new_bird.id = self.id
+        new_bird.name = self.name
+        new_bird.habitats = self.habitats
+        new_bird.cost = self.cost
+        new_bird.points = self.points
+        new_bird.nest = self.nest
+        new_bird.egg_limit = self.egg_limit
+        new_bird.wingspan = self.wingspan
+        new_bird.eggs = self.eggs
+        new_bird.stashed_food = self.stashed_food
+        new_bird.tucked_cards = self.tucked_cards
+        return new_bird
 
     def __str__(self) -> str:
         cost_str = " or ".join(
