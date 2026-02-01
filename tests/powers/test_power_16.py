@@ -1,33 +1,10 @@
 """Tests for Power 16: Trade 1 food for any other type from supply."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import initiate_state, GamePhase, ActionData, QueuedPower
+from game.core import initiate_state, GamePhase
 from game.engine import transition_state
 from game.actions import get_actions
-from game.power_validators import can_execute_power
-
-
-def setup_power_16_execution(state, player_index, bird_id, spot, power_data=None):
-    """Set up Power 16 execution with new ActionData structure."""
-    if power_data is None:
-        power_data = {"data": {"id": 16}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=16,
-            bird_id=bird_id,
-            spot_row=(
-                spot.row if spot else 0
-            ),  # All powers have spots (bird locations); None is just a testing convenience
-            spot_col=spot.col if spot else 0,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from game.power import can_execute_power
+from conftest import setup_power_execution
 
 
 def create_power_16_data():
@@ -49,7 +26,7 @@ def setup_power_16_state(state, food_dict):
 
     power_data = create_power_16_data()
 
-    setup_power_16_execution(state, state.current_player_index, 1, None, power_data)
+    setup_power_execution(state, 16, 1, None, state.current_player_index, power_data)
 
     return state
 

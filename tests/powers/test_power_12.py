@@ -1,43 +1,20 @@
 """Comprehensive end-to-end tests for Power 12: Play additional bird in habitat."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import (
+from game.core import (
     initiate_state,
     GamePhase,
-    load_deck,
     get_bird_power,
-    get_bird,
-    ActionData,
-    QueuedPower,
+    BIRD_REGISTRY,
+    init_registries,
 )
 from game.engine import transition_state
 from game.actions import get_actions
-
-
-def setup_power_12_execution(state, player_index, bird_id, spot, power_data=None):
-    """Set up Power 12 execution with new ActionData structure."""
-    if power_data is None:
-        power_data = {"data": {"id": 12}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=12,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from conftest import place_bird_on_board, setup_power_execution
 
 
 def find_birds_with_power_12():
     """Find all birds with Power 12 grouped by habitat variant."""
-    birds = load_deck("birds")
+    init_registries()
     variants = {
         "forest": [],
         "grassland": [],
@@ -45,16 +22,38 @@ def find_birds_with_power_12():
         "this": [],
     }
 
-    for bird in birds:
-        power_data = get_bird_power(bird.id)
+    for bird_id in BIRD_REGISTRY:
+        power_data = get_bird_power(bird_id)
         if power_data and power_data.get("data") and power_data["data"].get("id") == 12:
             details = power_data["data"].get("details", {})
             habitat = details.get("habitat", "")
 
             if habitat in variants:
-                variants[habitat].append((bird.id, power_data))
+                variants[habitat].append((bird_id, power_data))
 
     return variants
+
+
+def find_bird_id_by_habitats(
+    habitats_include: list[str] | None = None,
+    habitats_exclude: list[str] | None = None,
+    habitats_exact: list[str] | None = None,
+) -> int:
+    """Find a bird ID matching habitat criteria."""
+    init_registries()
+    for bird_id, card in BIRD_REGISTRY.items():
+        if habitats_exact is not None and set(card.habitats) != set(habitats_exact):
+            continue
+        if habitats_include is not None:
+            if not all(h in card.habitats for h in habitats_include):
+                continue
+        if habitats_exclude is not None:
+            if any(h in card.habitats for h in habitats_exclude):
+                continue
+        return bird_id
+    raise ValueError(
+        f"No bird found with habitats_include={habitats_include}, habitats_exclude={habitats_exclude}, habitats_exact={habitats_exact}"
+    )
 
 
 def test_power_12_forest_basic():
@@ -76,44 +75,28 @@ def test_power_12_forest_basic():
     assert len(variants["forest"]) > 0, "Should find bird with power 12 (forest)"
 
     bird_id, power_data = variants["forest"][0]
-    power_12_bird = get_bird(bird_id)
-    assert power_12_bird
 
     # Place power 12 bird on board with eggs
-    state.players[0].board[0][0].bird = power_12_bird
-    power_12_bird.eggs = 5  # Give it eggs to pay for next bird placement
-    if power_12_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_12_bird)
-
+    place_bird_on_board(state, 0, 0, 0, bird_id, eggs=5)
     activating_spot = state.players[0].board[0][0]
 
-    # Find a bird that can be played in forest
-    birds = load_deck("birds")
-    forest_bird = [b for b in birds if "forest" in b.habitats][0]
-    state.players[0].bird_hand.append(forest_bird)
+    # Find a bird that can be played in forest and add to hand
+    forest_bird_id = find_bird_id_by_habitats(habitats_include=["forest"])
+    state.players[0].bird_hand.append(forest_bird_id)
 
     # Setup power activation
-    setup_power_12_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 12, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     initial_cubes = state.players[0].action_cubes
 
     # Verify can activate
     actions = get_actions(state)
-    if "activate_power" not in actions:
-        print(f"Available actions: {actions}")
-        print(f"Power 12 bird: {power_12_bird}")
-        print(f"Forest bird: {forest_bird}")
-        print(f"Player hand: {[b.id for b in state.players[0].bird_hand]}")
-        print(f"Player food: {state.players[0].food}")
     assert "activate_power" in actions, "Should be able to activate power"
 
     # Execute activation - should transition to PLAY_BIRD phase
     state = transition_state(state, "activate_power")
-    if state.game_phase != GamePhase.PLAY_BIRD:
-        print(f"Got phase: {state.game_phase}, expected PLAY_BIRD")
-        print(f"action_data: {state.action_data}")
     assert (
         state.game_phase == GamePhase.PLAY_BIRD
     ), "Should transition to PLAY_BIRD phase"
@@ -154,10 +137,6 @@ def test_power_12_forest_basic():
     # Verify bird is on board at correct position
     placed_bird = state.players[0].board[int(row)][int(col)].bird
     assert placed_bird is not None, "Bird should be placed on board"
-    if placed_bird.id != placed_bird_id:
-        print(f"Expected bird ID: {placed_bird_id}")
-        print(f"Actual bird ID: {placed_bird.id}")
-        print(f"Actual bird: {placed_bird}")
     assert placed_bird.id == placed_bird_id, "Correct bird should be placed"
     assert int(row) == 0, "Bird should be in forest row"
 
@@ -192,47 +171,43 @@ def test_power_12_habitat_filtering():
     assert len(variants["forest"]) > 0, "Should find bird with power 12 (forest)"
 
     bird_id, power_data = variants["forest"][0]
-    power_12_bird = get_bird(bird_id)
 
     # Place power 12 bird on board with eggs
-    state.players[0].board[0][0].bird = power_12_bird
-    power_12_bird.eggs = 5  # Give it eggs to pay for next bird placement
-    if power_12_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_12_bird)
-
+    place_bird_on_board(state, 0, 0, 0, bird_id, eggs=5)
     activating_spot = state.players[0].board[0][0]
 
-    # Add specific test birds to hand
-    all_birds = load_deck("birds")
-
     # Find birds with different habitat combinations
-    forest_only = [b for b in all_birds if b.habitats == ["forest"]]
-    grassland_only = [b for b in all_birds if b.habitats == ["grassland"]]
-    forest_wetland = [b for b in all_birds if set(b.habitats) == {"forest", "wetland"}]
-    grassland_wetland = [
-        b for b in all_birds if set(b.habitats) == {"grassland", "wetland"}
-    ]
+    init_registries()
+    bird_a_id = None  # Forest only
+    bird_b_id = None  # Grassland only
+    bird_c_id = None  # Forest+wetland
+    bird_d_id = None  # Grassland+wetland
 
-    # Clear hand and add test birds
+    for bid, card in BIRD_REGISTRY.items():
+        if bird_a_id is None and list(card.habitats) == ["forest"]:
+            bird_a_id = bid
+        elif bird_b_id is None and list(card.habitats) == ["grassland"]:
+            bird_b_id = bid
+        elif bird_c_id is None and set(card.habitats) == {"forest", "wetland"}:
+            bird_c_id = bid
+        elif bird_d_id is None and set(card.habitats) == {"grassland", "wetland"}:
+            bird_d_id = bid
+
+    # Clear hand and add test birds (as IDs)
     state.players[0].bird_hand = []
 
-    bird_a = forest_only[0] if forest_only else None
-    bird_b = grassland_only[0] if grassland_only else None
-    bird_c = forest_wetland[0] if forest_wetland else None
-    bird_d = grassland_wetland[0] if grassland_wetland else None
-
-    if bird_a:
-        state.players[0].bird_hand.append(bird_a)
-    if bird_b:
-        state.players[0].bird_hand.append(bird_b)
-    if bird_c:
-        state.players[0].bird_hand.append(bird_c)
-    if bird_d:
-        state.players[0].bird_hand.append(bird_d)
+    if bird_a_id:
+        state.players[0].bird_hand.append(bird_a_id)
+    if bird_b_id:
+        state.players[0].bird_hand.append(bird_b_id)
+    if bird_c_id:
+        state.players[0].bird_hand.append(bird_c_id)
+    if bird_d_id:
+        state.players[0].bird_hand.append(bird_d_id)
 
     # Setup power activation
-    setup_power_12_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 12, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Activate power
@@ -253,17 +228,17 @@ def test_power_12_habitat_filtering():
         assert row == "0", f"All actions should be for forest row, got {row}"
 
     # Verify only forest-compatible birds appear
-    if bird_a:
-        assert bird_a.id in bird_ids_in_actions, "Forest-only bird should appear"
-    if bird_b:
+    if bird_a_id:
+        assert bird_a_id in bird_ids_in_actions, "Forest-only bird should appear"
+    if bird_b_id:
         assert (
-            bird_b.id not in bird_ids_in_actions
+            bird_b_id not in bird_ids_in_actions
         ), "Grassland-only bird should NOT appear"
-    if bird_c:
-        assert bird_c.id in bird_ids_in_actions, "Forest+wetland bird should appear"
-    if bird_d:
+    if bird_c_id:
+        assert bird_c_id in bird_ids_in_actions, "Forest+wetland bird should appear"
+    if bird_d_id:
         assert (
-            bird_d.id not in bird_ids_in_actions
+            bird_d_id not in bird_ids_in_actions
         ), "Grassland+wetland bird should NOT appear"
 
 
@@ -286,25 +261,18 @@ def test_power_12_this_variant():
     assert len(variants["this"]) > 0, "Should find bird with power 12 (this)"
 
     bird_id, power_data = variants["this"][0]
-    power_12_bird = get_bird(bird_id)
-    assert power_12_bird
 
     # Place power 12 bird in grassland row (row 1) with eggs
-    state.players[0].board[1][0].bird = power_12_bird
-    power_12_bird.eggs = 5  # Give it eggs to pay for next bird placement
-    if power_12_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_12_bird)
-
+    place_bird_on_board(state, 0, 1, 0, bird_id, eggs=5)
     activating_spot = state.players[0].board[1][0]
 
     # Find a bird that can be played in grassland
-    birds = load_deck("birds")
-    grassland_bird = [b for b in birds if "grassland" in b.habitats][0]
-    state.players[0].bird_hand.append(grassland_bird)
+    grassland_bird_id = find_bird_id_by_habitats(habitats_include=["grassland"])
+    state.players[0].bird_hand.append(grassland_bird_id)
 
     # Setup power activation
-    setup_power_12_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 12, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Activate power
@@ -333,26 +301,25 @@ def test_power_12_no_valid_birds():
     assert len(variants["forest"]) > 0, "Should find bird with power 12 (forest)"
 
     bird_id, power_data = variants["forest"][0]
-    power_12_bird = get_bird(bird_id)
 
     # Place power 12 bird on board with eggs
-    state.players[0].board[0][0].bird = power_12_bird
-    power_12_bird.eggs = 5  # Give it eggs to pay for next bird placement
-    if power_12_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_12_bird)
-
+    place_bird_on_board(state, 0, 0, 0, bird_id, eggs=5)
     activating_spot = state.players[0].board[0][0]
 
-    # Remove all birds from hand OR add only non-forest birds
-    all_birds = load_deck("birds")
-    grassland_birds = [
-        b for b in all_birds if "grassland" in b.habitats and "forest" not in b.habitats
-    ][:2]
-    state.players[0].bird_hand = grassland_birds
+    # Add only non-forest birds to hand (grassland only, not forest)
+    init_registries()
+    grassland_bird_ids = []
+    for bid, card in BIRD_REGISTRY.items():
+        if "grassland" in card.habitats and "forest" not in card.habitats:
+            grassland_bird_ids.append(bid)
+            if len(grassland_bird_ids) >= 2:
+                break
+
+    state.players[0].bird_hand = grassland_bird_ids
 
     # Setup power activation
-    setup_power_12_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 12, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Verify cannot activate
@@ -363,7 +330,7 @@ def test_power_12_no_valid_birds():
 
 def test_power_12_validation():
     """Test can_execute_power validator for Power 12."""
-    from game.power_validators import can_execute_power
+    from game.power import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0
@@ -381,17 +348,14 @@ def test_power_12_validation():
 
     if variants["forest"]:
         bird_id, power_data = variants["forest"][0]
-        power_12_bird = get_bird(bird_id)
 
         # Place bird on board with eggs
-        state.players[0].board[0][0].bird = power_12_bird
-        power_12_bird.eggs = 5  # Give it eggs to pay for next bird placement
+        place_bird_on_board(state, 0, 0, 0, bird_id, eggs=5)
         activating_spot = state.players[0].board[0][0]
 
         # Add forest-compatible bird to hand
-        all_birds = load_deck("birds")
-        forest_bird = [b for b in all_birds if "forest" in b.habitats][0]
-        state.players[0].bird_hand.append(forest_bird)
+        forest_bird_id = find_bird_id_by_habitats(habitats_include=["forest"])
+        state.players[0].bird_hand.append(forest_bird_id)
 
         power_entry = {
             "power_data": power_data,
@@ -403,9 +367,12 @@ def test_power_12_validation():
             state, power_entry
         ), "Should validate when forest-compatible bird is available"
 
-        # Remove forest birds from hand
+        # Remove forest birds from hand by filtering to non-forest birds
+        init_registries()
         state.players[0].bird_hand = [
-            b for b in state.players[0].bird_hand if "forest" not in b.habitats
+            bid
+            for bid in state.players[0].bird_hand
+            if "forest" not in BIRD_REGISTRY[bid].habitats
         ]
 
         # Should not validate when no forest birds

@@ -14,3 +14,7 @@ dependencies = [
     "pytest>=9.0.2",
     "textual>=7.5.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

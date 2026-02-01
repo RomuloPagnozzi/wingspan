@@ -1,39 +1,23 @@
 """Tests for Power 21: Pink power triggered when opponent's predator succeeds."""
 
-import sys
-
-sys.path.append(".")
-
-import pytest
-from game.data import (
+from game.core import (
     GameState,
     GamePhase,
     Player,
-    Bird,
     Spot,
     PinkTrigger,
-    ActionData,
-    QueuedPower,
+    BIRD_REGISTRY,
 )
 from game.engine import transition_state
 from game.actions import get_actions
 from game.utils import get_triggered_pink_powers
-from game.power_validators import can_execute_power
+from game.power import can_execute_power
+from conftest import place_bird_on_board, setup_power_execution
 
 
-def create_test_bird(bird_id: int, habitats: list, nest: str = "bowl") -> Bird:
-    """Create a test bird with minimal required attributes."""
-    bird = Bird(
-        id=bird_id,
-        name=f"Test Bird {bird_id}",
-        habitats=habitats,
-        cost=[],
-        points=1,
-        nest=nest,
-        egg_limit=2,
-        wingspan=50,
-    )
-    return bird
+def get_any_bird_id() -> int:
+    """Get any valid bird ID from the registry."""
+    return next(iter(BIRD_REGISTRY.keys()))
 
 
 def create_power_21_entry(player_index: int, bird_id: int, spot: Spot) -> dict:
@@ -50,26 +34,6 @@ def create_power_21_entry(player_index: int, bird_id: int, spot: Spot) -> dict:
     }
 
 
-def setup_power_21_execution(state, player_index, bird_id, spot):
-    """Set up Power 21 execution with new ActionData structure."""
-    power_data = {
-        "color": "pink",
-        "data": {"id": 21, "details": {"resource": "die"}},
-    }
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=21,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
-
-
 class TestPower21Execution:
     """Tests for Power 21 executor."""
 
@@ -79,11 +43,11 @@ class TestPower21Execution:
         state.players = [Player(1), Player(2)]
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
-        setup_power_21_execution(state, 1, 100, spot)
+        setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
         state = transition_state(state, "activate_power")
@@ -98,8 +62,8 @@ class TestPower21Execution:
         state.players = [Player(1), Player(2)]
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         # Set up feeder with specific dice
@@ -109,7 +73,7 @@ class TestPower21Execution:
             2: {"rodent", "fruit"},
         }
 
-        setup_power_21_execution(state, 1, 100, spot)
+        setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
         # Activate to enter select_die phase
@@ -131,8 +95,8 @@ class TestPower21Execution:
         state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         state.feeder = {
@@ -142,7 +106,7 @@ class TestPower21Execution:
 
         initial_invertebrate = state.players[1].food.get("invertebrate", 0)
 
-        setup_power_21_execution(state, 1, 100, spot)
+        setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
         # Activate then select die
@@ -158,8 +122,8 @@ class TestPower21Execution:
         state.players = [Player(1), Player(2)]
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         # All dice show same food type
@@ -171,7 +135,7 @@ class TestPower21Execution:
             4: {"fish"},
         }
 
-        setup_power_21_execution(state, 1, 100, spot)
+        setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
         # Activate to enter select_die phase
@@ -186,8 +150,8 @@ class TestPower21Execution:
         state.players = [Player(1), Player(2)]
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         # All dice show same food type
@@ -199,7 +163,7 @@ class TestPower21Execution:
             4: {"fish"},
         }
 
-        setup_power_21_execution(state, 1, 100, spot)
+        setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
         # Activate to enter select_die phase
@@ -220,8 +184,8 @@ class TestPower21TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -240,15 +204,15 @@ class TestPower21TriggerMatching:
 
         assert len(triggered) == 1
         assert triggered[0]["player_index"] == 1
-        assert triggered[0]["bird_id"] == 100
+        assert triggered[0]["bird_id"] == bird_id
 
     def test_power_21_no_trigger_on_lay_eggs(self):
         """Power 21 does NOT trigger on lay eggs action."""
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -272,8 +236,8 @@ class TestPower21TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -297,8 +261,8 @@ class TestPower21TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -322,8 +286,8 @@ class TestPower21TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[0].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 0, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -347,9 +311,9 @@ class TestPower21TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
-        state.players[1].used_pink_powers.add(100)
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
+        state.players[1].used_pink_powers.add(bird_id)
 
         from unittest.mock import patch
 
@@ -377,11 +341,11 @@ class TestPower21Validation:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
-        power_entry = create_power_21_entry(1, 100, spot)
+        power_entry = create_power_21_entry(1, bird_id, spot)
 
         can_execute = can_execute_power(state, power_entry)
 
@@ -394,13 +358,13 @@ class TestPower21Validation:
         state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         initial_food = dict(state.players[1].food)
 
-        setup_power_21_execution(state, 1, 100, spot)
+        setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
         actions = get_actions(state)
@@ -419,16 +383,18 @@ class TestPower21MultiPlayer:
         state = GameState()
         state.players = [Player(1), Player(2), Player(3)]
 
-        bird1 = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird1
+        # Get two different bird IDs
+        all_bird_ids = list(BIRD_REGISTRY.keys())
+        bird_id_1 = all_bird_ids[0]
+        bird_id_2 = all_bird_ids[1]
 
-        bird2 = create_test_bird(101, ["forest"])
-        state.players[2].board[0][0].bird = bird2
+        place_bird_on_board(state, 1, 0, 0, bird_id_1)
+        place_bird_on_board(state, 2, 0, 0, bird_id_2)
 
         from unittest.mock import patch
 
         def mock_get_power(bird_id):
-            if bird_id in [100, 101]:
+            if bird_id in [bird_id_1, bird_id_2]:
                 return {
                     "color": "pink",
                     "data": {"id": 21, "details": {"resource": "die"}},

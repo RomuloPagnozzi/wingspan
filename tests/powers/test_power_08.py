@@ -1,37 +1,14 @@
 """Comprehensive end-to-end tests for Power 8: Gain food with optional caching."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import (
+from game.core import (
     initiate_state,
     GamePhase,
     load_deck,
     get_bird_power,
-    ActionData,
-    QueuedPower,
 )
 from game.engine import transition_state
 from game.actions import get_actions
-
-
-def setup_power_8_execution(state, player_index, bird_id, spot, power_data=None):
-    """Set up Power 8 execution with new ActionData structure."""
-    if power_data is None:
-        power_data = {"data": {"id": 8}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=8,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from conftest import place_bird_on_board, setup_power_execution
 
 
 def find_bird_with_power_8(source, food_types, quantity, can_cache):
@@ -63,19 +40,14 @@ def test_power_8_supply_single_food_no_cache():
     )
     assert bird_id is not None, "Should find bird with supply/fruit/qty=1/no cache"
 
-    # Get bird and place on board
-    from game.data import get_bird
-
-    power_8_bird = get_bird(bird_id)
-    state.players[0].board[0][0].bird = power_8_bird
-    if power_8_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_8_bird)
+    # Place bird on board using helper
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_8_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 8, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial state
@@ -112,19 +84,14 @@ def test_power_8_supply_multiple_quantity():
     )
     assert bird_id is not None, "Should find bird with supply/seed/qty=3/no cache"
 
-    # Get bird and place on board
-    from game.data import get_bird
-
-    power_8_bird = get_bird(bird_id)
-    state.players[0].board[0][0].bird = power_8_bird
-    if power_8_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_8_bird)
+    # Place bird on board using helper
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_8_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 8, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial state
@@ -170,19 +137,14 @@ def test_power_8_birdfeeder_all_dice():
     )
     assert bird_id is not None, "Should find bird with birdfeeder/fish/qty=all/no cache"
 
-    # Get bird and place on board
-    from game.data import get_bird
-
-    power_8_bird = get_bird(bird_id)
-    state.players[0].board[0][0].bird = power_8_bird
-    if power_8_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_8_bird)
+    # Place bird on board using helper
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_8_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 8, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial state
@@ -230,24 +192,20 @@ def test_power_8_birdfeeder_die_selection_then_cache():
     )
     assert bird_id is not None, "Should find bird with birdfeeder/seed/qty=1/cache"
 
-    # Get bird and place on board
-    from game.data import get_bird
-
-    power_8_bird = get_bird(bird_id)
-    state.players[0].board[0][0].bird = power_8_bird
-    if power_8_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_8_bird)
+    # Place bird on board using helper
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_8_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 8, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial state
     initial_food = dict(state.players[0].food)
-    initial_stashed = power_8_bird.stashed_food
+    assert state.players[0].board[0][0].bird
+    initial_stashed = state.players[0].board[0][0].bird.state.stashed_food
 
     # Verify can activate
     actions = get_actions(state)
@@ -288,10 +246,11 @@ def test_power_8_birdfeeder_die_selection_then_cache():
     # Choose to cache the food
     state = transition_state(state, "cache_food")
 
-    # Verify food moved from supply to bird.stashed_food (get from returned state after deepcopy)
+    # Verify food moved from supply to bird.state.stashed_food
     assert state.players[0].food.get("seed", 0) == initial_food.get("seed", 0)
     updated_bird = state.players[0].board[0][0].bird
-    assert updated_bird.stashed_food == initial_stashed + 1
+    assert updated_bird
+    assert updated_bird.state.stashed_food == initial_stashed + 1
 
     # Verify cleanup and completion
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -324,19 +283,14 @@ def test_power_8_food_type_then_die_selection():
         bird_id is not None
     ), "Should find bird with birdfeeder/[invertebrate,fruit]/qty=1/no cache"
 
-    # Get bird and place on board
-    from game.data import get_bird
-
-    power_8_bird = get_bird(bird_id)
-    state.players[0].board[0][0].bird = power_8_bird
-    if power_8_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_8_bird)
+    # Place bird on board using helper
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_8_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 8, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial state
@@ -410,19 +364,14 @@ def test_power_8_wild_dice_display_format():
         bird_id is not None
     ), "Should find bird with birdfeeder/invertebrate/qty=1/no cache"
 
-    # Get bird and place on board
-    from game.data import get_bird
-
-    power_8_bird = get_bird(bird_id)
-    state.players[0].board[0][0].bird = power_8_bird
-    if power_8_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_8_bird)
+    # Place bird on board using helper
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_8_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 8, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial state

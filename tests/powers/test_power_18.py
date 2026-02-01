@@ -1,41 +1,34 @@
 """Tests for Power 18: Pink power triggered when opponent plays bird in habitat."""
 
-import sys
-
-sys.path.append(".")
-
-import pytest
-from game.data import (
+from game.core import (
     GameState,
     GamePhase,
     Player,
-    Bird,
     Spot,
     PinkTrigger,
-    ActionData,
-    QueuedPower,
-    PowerExecution,
+    BIRD_REGISTRY,
 )
 from game.engine import transition_state
 from game.actions import get_actions
 from game.utils import get_triggered_pink_powers
-from game.power_validators import can_execute_power
-from game.power_handlers import _power_18_activate
+from game.power import can_execute_power
+from conftest import (
+    place_bird_on_board,
+    setup_power_execution,
+)
 
 
-def create_test_bird(bird_id: int, habitats: list, nest: str = "bowl") -> Bird:
-    """Create a test bird with minimal required attributes."""
-    bird = Bird(
-        id=bird_id,
-        name=f"Test Bird {bird_id}",
-        habitats=habitats,
-        cost=[],
-        points=1,
-        nest=nest,
-        egg_limit=2,
-        wingspan=50,
-    )
-    return bird
+def get_any_bird_id() -> int:
+    """Get any valid bird ID from the registry."""
+    return next(iter(BIRD_REGISTRY.keys()))
+
+
+def create_power_18_data(habitat: str, resource: str) -> dict:
+    """Create power_data dict for Power 18."""
+    return {
+        "color": "pink",
+        "data": {"id": 18, "details": {"habitat": habitat, "resource": resource}},
+    }
 
 
 def create_power_18_entry(
@@ -46,32 +39,9 @@ def create_power_18_entry(
         "player_index": player_index,
         "bird_id": bird_id,
         "power_id": 18,
-        "power_data": {
-            "color": "pink",
-            "data": {"id": 18, "details": {"habitat": habitat, "resource": resource}},
-        },
+        "power_data": create_power_18_data(habitat, resource),
         "spot": spot,
     }
-
-
-def setup_power_18_execution(state, player_index, bird_id, spot, habitat, resource):
-    """Set up Power 18 execution with new ActionData structure."""
-    power_data = {
-        "color": "pink",
-        "data": {"id": 18, "details": {"habitat": habitat, "resource": resource}},
-    }
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=18,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
 
 
 class TestPower18ForestInvertebrate:
@@ -84,13 +54,15 @@ class TestPower18ForestInvertebrate:
         state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         initial_invertebrate = state.players[1].food.get("invertebrate", 0)
 
-        setup_power_18_execution(state, 1, 100, spot, "forest", "invertebrate")
+        setup_power_execution(
+            state, 18, bird_id, spot, 1, create_power_18_data("forest", "invertebrate")
+        )
         state.current_player_index = 1
 
         # Activate the power
@@ -109,13 +81,15 @@ class TestPower18WetlandFish:
         state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(101, ["wetland"])
-        state.players[1].board[2][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 2, 0, bird_id)
         spot = state.players[1].board[2][0]
 
         initial_fish = state.players[1].food.get("fish", 0)
 
-        setup_power_18_execution(state, 1, 101, spot, "wetland", "fish")
+        setup_power_execution(
+            state, 18, bird_id, spot, 1, create_power_18_data("wetland", "fish")
+        )
         state.current_player_index = 1
 
         state = transition_state(state, "activate_power")
@@ -132,15 +106,17 @@ class TestPower18GrasslandCard:
         state.players = [Player(1), Player(2)]
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(102, ["grassland"])
-        state.players[1].board[1][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 1, 0, bird_id)
         spot = state.players[1].board[1][0]
 
-        card1 = create_test_bird(201, ["forest"])
-        card2 = create_test_bird(202, ["wetland"])
-        state.players[1].bird_hand = [card1, card2]
+        # bird_hand contains IDs
+        all_bird_ids = list(BIRD_REGISTRY.keys())
+        state.players[1].bird_hand = [all_bird_ids[1], all_bird_ids[2]]
 
-        setup_power_18_execution(state, 1, 102, spot, "grassland", "card")
+        setup_power_execution(
+            state, 18, bird_id, spot, 1, create_power_18_data("grassland", "card")
+        )
         state.current_player_index = 1
 
         state = transition_state(state, "activate_power")
@@ -155,16 +131,20 @@ class TestPower18GrasslandCard:
         state.players = [Player(1), Player(2)]
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(102, ["grassland"])
-        state.players[1].board[1][0].bird = bird
+        # Use real bird IDs from registry
+        all_bird_ids = list(BIRD_REGISTRY.keys())
+        bird_id = all_bird_ids[0]
+        hand_ids = all_bird_ids[1:4]  # Get 3 different IDs for hand
+
+        place_bird_on_board(state, 1, 1, 0, bird_id)
         spot = state.players[1].board[1][0]
 
-        card1 = create_test_bird(201, ["forest"])
-        card2 = create_test_bird(202, ["wetland"])
-        card3 = create_test_bird(203, ["grassland"])
-        state.players[1].bird_hand = [card1, card2, card3]
+        # bird_hand now contains IDs
+        state.players[1].bird_hand = hand_ids
 
-        setup_power_18_execution(state, 1, 102, spot, "grassland", "card")
+        setup_power_execution(
+            state, 18, bird_id, spot, 1, create_power_18_data("grassland", "card")
+        )
         state.current_player_index = 1
 
         # Activate to enter select_card phase
@@ -172,9 +152,9 @@ class TestPower18GrasslandCard:
 
         actions = get_actions(state)
 
-        assert "tuck_card_201" in actions
-        assert "tuck_card_202" in actions
-        assert "tuck_card_203" in actions
+        assert f"tuck_card_{hand_ids[0]}" in actions
+        assert f"tuck_card_{hand_ids[1]}" in actions
+        assert f"tuck_card_{hand_ids[2]}" in actions
         assert len(actions) == 3
 
     def test_power_18_tuck_card_removes_from_hand(self):
@@ -184,25 +164,33 @@ class TestPower18GrasslandCard:
         state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(102, ["grassland"])
-        state.players[1].board[1][0].bird = bird
+        # Use real bird IDs from registry
+        all_bird_ids = list(BIRD_REGISTRY.keys())
+        bird_id = all_bird_ids[0]
+        hand_id_1 = all_bird_ids[1]
+        hand_id_2 = all_bird_ids[2]
+
+        place_bird_on_board(state, 1, 1, 0, bird_id)
         spot = state.players[1].board[1][0]
 
-        card1 = create_test_bird(201, ["forest"])
-        card2 = create_test_bird(202, ["wetland"])
-        state.players[1].bird_hand = [card1, card2]
+        # bird_hand now contains IDs
+        state.players[1].bird_hand = [hand_id_1, hand_id_2]
 
-        setup_power_18_execution(state, 1, 102, spot, "grassland", "card")
+        setup_power_execution(
+            state, 18, bird_id, spot, 1, create_power_18_data("grassland", "card")
+        )
         state.current_player_index = 1
-
+        assert spot.bird
         initial_tucked = spot.bird.tucked_cards
 
-        # Activate then tuck
+        # Activate then tuck the first card
         state = transition_state(state, "activate_power")
-        state = transition_state(state, "tuck_card_201")
+        state = transition_state(state, f"tuck_card_{hand_id_1}")
 
         assert len(state.players[1].bird_hand) == 1
-        assert state.players[1].bird_hand[0].id == 202
+        # bird_hand contains IDs directly now
+        assert state.players[1].bird_hand[0] == hand_id_2
+        assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.tucked_cards == initial_tucked + 1
 
 
@@ -214,8 +202,8 @@ class TestPower18TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
 
         # Manually set up power data for forest variant
         from unittest.mock import patch
@@ -243,8 +231,8 @@ class TestPower18TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -266,15 +254,15 @@ class TestPower18TriggerMatching:
 
         assert len(triggered) == 1
         assert triggered[0]["player_index"] == 1
-        assert triggered[0]["bird_id"] == 100
+        assert triggered[0]["bird_id"] == bird_id
 
     def test_power_18_own_action_no_trigger(self):
         """Power 18 does NOT trigger on player's own bird-playing action."""
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[0].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 0, 0, 0, bird_id)
 
         from unittest.mock import patch
 
@@ -301,9 +289,9 @@ class TestPower18TriggerMatching:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
-        state.players[1].used_pink_powers.add(100)
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
+        state.players[1].used_pink_powers.add(bird_id)
 
         from unittest.mock import patch
 
@@ -336,13 +324,15 @@ class TestPower18SkipAndValidation:
         state.players[0].first_player = True
         state.game_phase = GamePhase.ACTIVATE_POWERS
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
         initial_food = dict(state.players[1].food)
 
-        setup_power_18_execution(state, 1, 100, spot, "forest", "invertebrate")
+        setup_power_execution(
+            state, 18, bird_id, spot, 1, create_power_18_data("forest", "invertebrate")
+        )
         state.current_player_index = 1
 
         actions = get_actions(state)
@@ -357,13 +347,13 @@ class TestPower18SkipAndValidation:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(102, ["grassland"])
-        state.players[1].board[1][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 1, 0, bird_id)
         spot = state.players[1].board[1][0]
 
         state.players[1].bird_hand = []
 
-        power_entry = create_power_18_entry(1, 102, spot, "grassland", "card")
+        power_entry = create_power_18_entry(1, bird_id, spot, "grassland", "card")
 
         can_execute = can_execute_power(state, power_entry)
 
@@ -374,14 +364,15 @@ class TestPower18SkipAndValidation:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(102, ["grassland"])
-        state.players[1].board[1][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 1, 0, bird_id)
         spot = state.players[1].board[1][0]
 
-        card = create_test_bird(201, ["forest"])
-        state.players[1].bird_hand = [card]
+        # bird_hand now contains IDs
+        all_bird_ids = list(BIRD_REGISTRY.keys())
+        state.players[1].bird_hand = [all_bird_ids[1]]
 
-        power_entry = create_power_18_entry(1, 102, spot, "grassland", "card")
+        power_entry = create_power_18_entry(1, bird_id, spot, "grassland", "card")
 
         can_execute = can_execute_power(state, power_entry)
 
@@ -392,11 +383,11 @@ class TestPower18SkipAndValidation:
         state = GameState()
         state.players = [Player(1), Player(2)]
 
-        bird = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird
+        bird_id = get_any_bird_id()
+        place_bird_on_board(state, 1, 0, 0, bird_id)
         spot = state.players[1].board[0][0]
 
-        power_entry = create_power_18_entry(1, 100, spot, "forest", "invertebrate")
+        power_entry = create_power_18_entry(1, bird_id, spot, "forest", "invertebrate")
 
         can_execute = can_execute_power(state, power_entry)
 
@@ -411,16 +402,17 @@ class TestPower18MultiPlayer:
         state = GameState()
         state.players = [Player(1), Player(2), Player(3)]
 
-        bird1 = create_test_bird(100, ["forest"])
-        state.players[1].board[0][0].bird = bird1
+        all_bird_ids = list(BIRD_REGISTRY.keys())
+        bird_id_1 = all_bird_ids[0]
+        bird_id_2 = all_bird_ids[1]
 
-        bird2 = create_test_bird(101, ["forest"])
-        state.players[2].board[0][0].bird = bird2
+        place_bird_on_board(state, 1, 0, 0, bird_id_1)
+        place_bird_on_board(state, 2, 0, 0, bird_id_2)
 
         from unittest.mock import patch
 
         def mock_get_power(bird_id):
-            if bird_id in [100, 101]:
+            if bird_id in [bird_id_1, bird_id_2]:
                 return {
                     "color": "pink",
                     "data": {

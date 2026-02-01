@@ -1,29 +1,9 @@
 """Comprehensive end-to-end test for Power 7: Each player gains 1 die from birdfeeder, starting with player of your choice."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import initiate_state, GamePhase, get_bird, ActionData, QueuedPower
+from game.core import initiate_state, GamePhase
 from game.engine import transition_state
 from game.actions import get_actions
-
-
-def setup_power_7_execution(state, player_index, bird_id, spot):
-    """Set up Power 7 execution with new ActionData structure."""
-    power_data = {"data": {"id": 7}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=7,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from conftest import place_bird_on_board, setup_power_execution
 
 
 def test_power_7_full_game_scenario_with_3_players():
@@ -44,14 +24,11 @@ def test_power_7_full_game_scenario_with_3_players():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
 
-    # Get bird with Power 7
-    power_7_bird = get_bird(13)
-    assert power_7_bird is not None, "Bird ID 13 should exist"
+    # Bird ID 13 has Power 7
+    bird_id = 13
 
     # Place bird on board for player 0
-    state.players[0].board[0][0].bird = power_7_bird
-    if power_7_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_7_bird)
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     # Setup initial feeder state with known dice
     state.feeder = {
@@ -69,7 +46,7 @@ def test_power_7_full_game_scenario_with_3_players():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
+    setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Get available actions - should be able to activate or skip
     actions = get_actions(state)
@@ -203,14 +180,11 @@ def test_power_7_activator_chooses_self():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 2
 
-    # Get bird with Power 7
-    power_7_bird = get_bird(136)  # Using bird ID 136
-    assert power_7_bird is not None, "Bird ID 136 should exist"
+    # Bird ID 136 has Power 7
+    bird_id = 136
 
     # Place bird on board for player 2
-    state.players[2].board[0][0].bird = power_7_bird
-    if power_7_bird in state.players[2].bird_hand:
-        state.players[2].bird_hand.remove(power_7_bird)
+    place_bird_on_board(state, 2, 0, 0, bird_id)
 
     # Setup feeder
     state.feeder = {
@@ -225,7 +199,7 @@ def test_power_7_activator_chooses_self():
 
     # Setup power activation
     activating_spot = state.players[2].board[0][0]
-    setup_power_7_execution(state, 2, power_7_bird.id, activating_spot)
+    setup_power_execution(state, 7, bird_id, activating_spot, 2)
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -271,12 +245,9 @@ def test_power_7_feeder_empties_mid_power():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
 
-    # Get bird with Power 7
-    power_7_bird = get_bird(13)
-    assert power_7_bird
-    state.players[0].board[0][0].bird = power_7_bird
-    if power_7_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_7_bird)
+    # Bird ID 13 has Power 7
+    bird_id = 13
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     # Setup feeder with only 2 dice (will empty after 2 selections)
     state.feeder = {
@@ -286,7 +257,7 @@ def test_power_7_feeder_empties_mid_power():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
+    setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Activate and choose starting player
     state = transition_state(state, "activate_power")
@@ -321,12 +292,9 @@ def test_power_7_with_2_players():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
 
-    # Get bird with Power 7
-    power_7_bird = get_bird(13)
-    assert power_7_bird
-    state.players[0].board[0][0].bird = power_7_bird
-    if power_7_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_7_bird)
+    # Bird ID 13 has Power 7
+    bird_id = 13
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     # Setup feeder
     state.feeder = {
@@ -341,7 +309,7 @@ def test_power_7_with_2_players():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
+    setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -376,12 +344,9 @@ def test_power_7_with_5_players():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 3
 
-    # Get bird with Power 7
-    power_7_bird = get_bird(136)
-    assert power_7_bird
-    state.players[3].board[0][0].bird = power_7_bird
-    if power_7_bird in state.players[3].bird_hand:
-        state.players[3].bird_hand.remove(power_7_bird)
+    # Bird ID 136 has Power 7
+    bird_id = 136
+    place_bird_on_board(state, 3, 0, 0, bird_id)
 
     # Setup feeder
     state.feeder = {
@@ -396,7 +361,7 @@ def test_power_7_with_5_players():
 
     # Setup power activation
     activating_spot = state.players[3].board[0][0]
-    setup_power_7_execution(state, 3, power_7_bird.id, activating_spot)
+    setup_power_execution(state, 7, bird_id, activating_spot, 3)
 
     # Activate power
     state = transition_state(state, "activate_power")
@@ -438,12 +403,9 @@ def test_power_7_all_dice_same_face():
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
 
-    # Get bird with Power 7
-    power_7_bird = get_bird(13)
-    assert power_7_bird
-    state.players[0].board[0][0].bird = power_7_bird
-    if power_7_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_7_bird)
+    # Bird ID 13 has Power 7
+    bird_id = 13
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     # Setup feeder with all dice showing the same face
     state.feeder = {
@@ -456,7 +418,7 @@ def test_power_7_all_dice_same_face():
 
     # Setup power activation
     activating_spot = state.players[0].board[0][0]
-    setup_power_7_execution(state, 0, power_7_bird.id, activating_spot)
+    setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Activate and choose starting player
     state = transition_state(state, "activate_power")

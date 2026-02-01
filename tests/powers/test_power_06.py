@@ -1,29 +1,9 @@
 """Comprehensive end-to-end test for Power 6: Draw N+1 cards, all players select clockwise."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import initiate_state, GamePhase, get_bird, ActionData, QueuedPower
+from game.core import initiate_state, GamePhase, get_bird_card
 from game.engine import transition_state
 from game.actions import get_actions
-
-
-def setup_power_6_execution(state, player_index, bird_id, spot):
-    """Set up Power 6 execution with new ActionData structure."""
-    power_data = {"data": {"id": 6}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=6,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from conftest import place_bird_on_board, setup_power_execution
 
 
 def test_power_6_full_game_scenario_with_3_players():
@@ -50,12 +30,13 @@ def test_power_6_full_game_scenario_with_3_players():
     player0.food = {"invertebrate": 3, "seed": 2}
 
     # Get the American Oystercatcher (Power 6 bird)
-    power_6_bird = get_bird(8)
-    assert power_6_bird is not None, "Bird ID 8 should exist"
-    assert power_6_bird.name == "American Oystercatcher"
+    power_6_bird_id = 8
+    bird_card = get_bird_card(power_6_bird_id)
+    assert bird_card is not None, "Bird ID 8 should exist"
+    assert bird_card.name == "American Oystercatcher"
 
-    # Add bird to player's hand
-    player0.bird_hand.append(power_6_bird)
+    # Add bird to player's hand (as ID)
+    player0.bird_hand.append(power_6_bird_id)
 
     initial_deck_size = len(state.bird_deck)
 
@@ -65,7 +46,7 @@ def test_power_6_full_game_scenario_with_3_players():
 
     # Check available actions - should be able to play the bird in wetland habitat
     actions = get_actions(state)
-    play_action = f"play_bird_{power_6_bird.id}_at_2_0"  # Wetland row, first spot
+    play_action = f"play_bird_{power_6_bird_id}_at_2_0"  # Wetland row, first spot
     assert play_action in actions, f"Should be able to play bird. Actions: {actions}"
 
     # Play the bird in wetland (row 2, col 0)
@@ -88,7 +69,7 @@ def test_power_6_full_game_scenario_with_3_players():
 
     # Verify the bird is on the board
     assert state.players[0].board[2][0].bird is not None
-    assert state.players[0].board[2][0].bird.id == power_6_bird.id
+    assert state.players[0].board[2][0].bird.id == power_6_bird_id
 
     # Note: Action cube not yet consumed - will be consumed after power activates
     assert player0.action_cubes == 5
@@ -118,8 +99,9 @@ def test_power_6_full_game_scenario_with_3_players():
     assert current_exec.phase == "select_card"
 
     # Verify 4 cards were drawn (3 players + 1)
-    available_cards = current_exec.context.get("available_cards", [])
-    assert len(available_cards) == 4, f"Should draw 4 cards for 3 players"
+    # available_cards now contains bird IDs, not Bird objects
+    available_card_ids = current_exec.context.get("available_cards", [])
+    assert len(available_card_ids) == 4, f"Should draw 4 cards for 3 players"
     assert len(state.bird_deck) == initial_deck_size - 4, "4 cards removed from deck"
 
     # Verify player order: [0, 1, 2, 0]
@@ -141,14 +123,14 @@ def test_power_6_full_game_scenario_with_3_players():
     assert all(action.startswith("select_card_") for action in actions)
 
     # Store card IDs for verification
-    card_ids = [card.id for card in available_cards]
+    card_ids = list(available_card_ids)
 
     # Player 0 selects first card
-    selected_card_0_first = available_cards[0]
-    state = transition_state(state, f"select_card_{selected_card_0_first.id}")
+    selected_card_0_first_id = available_card_ids[0]
+    state = transition_state(state, f"select_card_{selected_card_0_first_id}")
 
     # Verify Player 0 received the card - query actual hand size
-    assert selected_card_0_first in state.players[0].bird_hand
+    assert selected_card_0_first_id in state.players[0].bird_hand
     assert len(state.players[0].bird_hand) == hand_size_p0_before_power + 1
 
     # Should advance to Player 1
@@ -158,50 +140,50 @@ def test_power_6_full_game_scenario_with_3_players():
     assert current_exec.phase == "select_card"
 
     # Verify 3 cards remain
-    remaining_cards = current_exec.context.get("available_cards", [])
-    assert len(remaining_cards) == 3
-    assert selected_card_0_first not in remaining_cards
+    remaining_card_ids = current_exec.context.get("available_cards", [])
+    assert len(remaining_card_ids) == 3
+    assert selected_card_0_first_id not in remaining_card_ids
 
     # Player 1 selects a card
     actions = get_actions(state)
     assert len(actions) == 3
-    selected_card_1 = remaining_cards[0]
-    state = transition_state(state, f"select_card_{selected_card_1.id}")
+    selected_card_1_id = remaining_card_ids[0]
+    state = transition_state(state, f"select_card_{selected_card_1_id}")
 
     # Verify Player 1 received the card - query actual state
-    assert selected_card_1 in state.players[1].bird_hand
+    assert selected_card_1_id in state.players[1].bird_hand
     assert len(state.players[1].bird_hand) == hand_size_p1_before_power + 1
 
     # Should advance to Player 2
     assert state.current_player_index == 2
     current_exec = state.action_data.execution_stack[-1]
-    remaining_cards = current_exec.context.get("available_cards", [])
-    assert len(remaining_cards) == 2
+    remaining_card_ids = current_exec.context.get("available_cards", [])
+    assert len(remaining_card_ids) == 2
 
     # Player 2 selects a card
     actions = get_actions(state)
     assert len(actions) == 2
-    selected_card_2 = remaining_cards[0]
-    state = transition_state(state, f"select_card_{selected_card_2.id}")
+    selected_card_2_id = remaining_card_ids[0]
+    state = transition_state(state, f"select_card_{selected_card_2_id}")
 
     # Verify Player 2 received the card - query actual state
-    assert selected_card_2 in state.players[2].bird_hand
+    assert selected_card_2_id in state.players[2].bird_hand
     assert len(state.players[2].bird_hand) == hand_size_p2_before_power + 1
 
     # Should cycle back to Player 0 for second selection
     assert state.current_player_index == 0
     current_exec = state.action_data.execution_stack[-1]
-    remaining_cards = current_exec.context.get("available_cards", [])
-    assert len(remaining_cards) == 1
+    remaining_card_ids = current_exec.context.get("available_cards", [])
+    assert len(remaining_card_ids) == 1
 
     # Player 0 selects the last card
     actions = get_actions(state)
     assert len(actions) == 1
-    selected_card_0_second = remaining_cards[0]
-    state = transition_state(state, f"select_card_{selected_card_0_second.id}")
+    selected_card_0_second_id = remaining_card_ids[0]
+    state = transition_state(state, f"select_card_{selected_card_0_second_id}")
 
     # Verify Player 0 received the second card - query actual state
-    assert selected_card_0_second in state.players[0].bird_hand
+    assert selected_card_0_second_id in state.players[0].bird_hand
     assert (
         len(state.players[0].bird_hand) == hand_size_p0_before_power + 2
     ), "Activator should have gained 2 cards total from power"
@@ -230,25 +212,18 @@ def test_power_6_full_game_scenario_with_3_players():
         final_hand_size_p2 == hand_size_p2_before_power + 1
     ), "P2 gained 1 card from power"
 
-    # Verify all 4 drawn cards are distributed
-    player_0_cards = set(c.id for c in state.players[0].bird_hand)
-    player_1_cards = set(c.id for c in state.players[1].bird_hand)
-    player_2_cards = set(c.id for c in state.players[2].bird_hand)
+    # Verify all 4 drawn cards are distributed (bird_hand contains IDs)
+    player_0_cards = set(state.players[0].bird_hand)
+    player_1_cards = set(state.players[1].bird_hand)
+    player_2_cards = set(state.players[2].bird_hand)
 
-    assert selected_card_0_first.id in player_0_cards
-    assert selected_card_0_second.id in player_0_cards
-    assert selected_card_1.id in player_1_cards
-    assert selected_card_2.id in player_2_cards
+    assert selected_card_0_first_id in player_0_cards
+    assert selected_card_0_second_id in player_0_cards
+    assert selected_card_1_id in player_1_cards
+    assert selected_card_2_id in player_2_cards
 
     # Verify deck size
     assert len(state.bird_deck) == initial_deck_size - 4
-
-    print("✓ Power 6 end-to-end test passed!")
-    print(f"  - Drew 4 cards for 3 players")
-    print(f"  - Player 0 (activator) received 2 cards")
-    print(f"  - Players 1 and 2 each received 1 card")
-    print(f"  - Selection order was correct: 0 -> 1 -> 2 -> 0")
-    print(f"  - Game transitioned back to MAIN_TURN correctly")
 
 
 def test_power_6_with_2_players():
@@ -258,36 +233,34 @@ def test_power_6_with_2_players():
     state.current_player_index = 0
 
     # Place bird with power 6 on board
-    power_6_bird = get_bird(8)
-    state.players[0].board[2][0].bird = power_6_bird
-    state.players[0].bird_hand.remove(state.players[0].bird_hand[0])
+    power_6_bird_id = 8
+    place_bird_on_board(state, 0, 2, 0, power_6_bird_id)
 
     initial_hand_sizes = [len(p.bird_hand) for p in state.players]
     initial_deck_size = len(state.bird_deck)
 
     # Setup power activation
     activating_spot = state.players[0].board[2][0]
-    setup_power_6_execution(state, 0, power_6_bird.id, activating_spot)
+    setup_power_execution(state, 6, power_6_bird_id, activating_spot, 0)
 
     # Activate power
     state = transition_state(state, "activate_power")
 
     # Should draw 3 cards (2 players + 1)
     current_exec = state.action_data.execution_stack[-1]
-    available_cards = current_exec.context.get("available_cards", [])
-    assert len(available_cards) == 3
+    available_card_ids = current_exec.context.get("available_cards", [])
+    assert len(available_card_ids) == 3
 
     # Player order should be [0, 1, 0]
     awaiting_players = current_exec.context.get("awaiting_players", [])
     assert awaiting_players == [0, 1, 0]
 
-    # All players select cards
+    # All players select cards (available_cards contains IDs now)
     for i in range(3):
-        current_player = state.current_player_index
         current_exec = state.action_data.execution_stack[-1]
         available = current_exec.context["available_cards"]
-        selected_card = available[0]
-        state = transition_state(state, f"select_card_{selected_card.id}")
+        selected_card_id = available[0]
+        state = transition_state(state, f"select_card_{selected_card_id}")
 
     # Verify final distribution
     assert len(state.players[0].bird_hand) == initial_hand_sizes[0] + 2
@@ -303,24 +276,23 @@ def test_power_6_with_5_players():
     state.current_player_index = 2  # Player 2 activates
 
     # Place bird with power 6
-    power_6_bird = get_bird(8)
-    state.players[2].board[2][0].bird = power_6_bird
-    state.players[2].bird_hand.remove(state.players[2].bird_hand[0])
+    power_6_bird_id = 8
+    place_bird_on_board(state, 2, 2, 0, power_6_bird_id)
 
     initial_hand_sizes = [len(p.bird_hand) for p in state.players]
     initial_deck_size = len(state.bird_deck)
 
     # Setup power activation
     activating_spot = state.players[2].board[2][0]
-    setup_power_6_execution(state, 2, power_6_bird.id, activating_spot)
+    setup_power_execution(state, 6, power_6_bird_id, activating_spot, 2)
 
     # Activate power
     state = transition_state(state, "activate_power")
 
     # Should draw 6 cards (5 players + 1)
     current_exec = state.action_data.execution_stack[-1]
-    available_cards = current_exec.context.get("available_cards", [])
-    assert len(available_cards) == 6
+    available_card_ids = current_exec.context.get("available_cards", [])
+    assert len(available_card_ids) == 6
 
     # Player order should be [2, 3, 4, 0, 1, 2] (clockwise from activator)
     awaiting_players = current_exec.context.get("awaiting_players", [])
@@ -329,14 +301,14 @@ def test_power_6_with_5_players():
     # Track selections
     selections_by_player = {i: [] for i in range(5)}
 
-    # All players select cards
+    # All players select cards (available_cards contains IDs now)
     for i in range(6):
         current_player = state.current_player_index
         current_exec = state.action_data.execution_stack[-1]
         available = current_exec.context["available_cards"]
-        selected_card = available[0]
-        selections_by_player[current_player].append(selected_card)
-        state = transition_state(state, f"select_card_{selected_card.id}")
+        selected_card_id = available[0]
+        selections_by_player[current_player].append(selected_card_id)
+        state = transition_state(state, f"select_card_{selected_card_id}")
 
     # Verify final distribution
     assert (

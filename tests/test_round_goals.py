@@ -1,11 +1,9 @@
 """Test round goal scoring functionality."""
 
-import sys
-
-sys.path.append(".")
-from game.data import (
+from game.core import (
     initiate_state,
     ScoringMode,
+    get_bird_card,
 )
 from game.scoring import (
     evaluate_goal,
@@ -13,6 +11,7 @@ from game.scoring import (
     _calculate_green_scores,
     update_round_goal_scores,
 )
+from conftest import get_registry_bird_ids_by_nest, create_placed_bird
 
 GREEN_SCORING_TABLE = {
     1: [4, 1, 0, 0],
@@ -22,11 +21,12 @@ GREEN_SCORING_TABLE = {
 }
 
 
-def _find_bird_with_nest(state, nest_type):
-    """Find a bird in the deck with the specified nest type."""
-    for bird in state.bird_deck:
-        if bird.nest == nest_type:
-            return bird
+def _find_bird_id_with_nest(state, nest_type):
+    """Find a bird ID in the deck with the specified nest type."""
+    for bird_id in state.bird_deck:
+        card = get_bird_card(bird_id)
+        if card and card.nest == nest_type:
+            return bird_id
     return None
 
 
@@ -36,104 +36,95 @@ class TestGoalEvaluation:
     def test_count_eggs_in_bowl(self):
         state = initiate_state(2)
         player = state.players[0]
-        bird = _find_bird_with_nest(state, "bowl")
-        assert bird is not None
-        player.board[0][0].bird = bird
-        bird.eggs = 3
+        bird_id = _find_bird_id_with_nest(state, "bowl")
+        assert bird_id is not None
+        player.board[0][0].bird = create_placed_bird(bird_id, eggs=3)
 
         assert evaluate_goal(state, player, "eggs_in_bowl") == 3
 
     def test_count_eggs_in_cavity(self):
         state = initiate_state(2)
         player = state.players[0]
-        bird = _find_bird_with_nest(state, "cavity")
-        assert bird is not None
-        player.board[0][0].bird = bird
-        bird.eggs = 2
+        bird_id = _find_bird_id_with_nest(state, "cavity")
+        assert bird_id is not None
+        player.board[0][0].bird = create_placed_bird(bird_id, eggs=2)
 
         assert evaluate_goal(state, player, "eggs_in_cavity") == 2
 
     def test_count_bowl_birds_with_egg(self):
         state = initiate_state(2)
         player = state.players[0]
-        bowl_birds = [b for b in state.bird_deck if b.nest == "bowl"][:2]
-        assert len(bowl_birds) >= 2
-        player.board[0][0].bird = bowl_birds[0]
-        player.board[0][1].bird = bowl_birds[1]
-        bowl_birds[0].eggs = 2
-        bowl_birds[1].eggs = 0
+        # Find bowl birds from registry
+        bowl_bird_ids = get_registry_bird_ids_by_nest("bowl")
+        assert len(bowl_bird_ids) >= 2
+        player.board[0][0].bird = create_placed_bird(bowl_bird_ids[0], eggs=2)
+        player.board[0][1].bird = create_placed_bird(bowl_bird_ids[1], eggs=0)
 
         assert evaluate_goal(state, player, "bowl_birds_with_egg") == 1
 
     def test_count_birds_in_forest(self):
         state = initiate_state(2)
         player = state.players[0]
-        player.board[0][0].bird = state.bird_deck.pop()
-        player.board[0][1].bird = state.bird_deck.pop()
+        # bird_deck contains IDs
+        player.board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        player.board[0][1].bird = create_placed_bird(state.bird_deck.pop())
 
         assert evaluate_goal(state, player, "birds_in_forest") == 2
 
     def test_count_birds_in_grassland(self):
         state = initiate_state(2)
         player = state.players[0]
-        player.board[1][0].bird = state.bird_deck.pop()
+        player.board[1][0].bird = create_placed_bird(state.bird_deck.pop())
 
         assert evaluate_goal(state, player, "birds_in_grassland") == 1
 
     def test_count_birds_in_wetland(self):
         state = initiate_state(2)
         player = state.players[0]
-        player.board[2][0].bird = state.bird_deck.pop()
-        player.board[2][1].bird = state.bird_deck.pop()
-        player.board[2][2].bird = state.bird_deck.pop()
+        player.board[2][0].bird = create_placed_bird(state.bird_deck.pop())
+        player.board[2][1].bird = create_placed_bird(state.bird_deck.pop())
+        player.board[2][2].bird = create_placed_bird(state.bird_deck.pop())
 
         assert evaluate_goal(state, player, "birds_in_wetland") == 3
 
     def test_count_eggs_in_forest(self):
         state = initiate_state(2)
         player = state.players[0]
-        bird1 = state.bird_deck.pop()
-        bird2 = state.bird_deck.pop()
-        player.board[0][0].bird = bird1
-        player.board[0][1].bird = bird2
-        bird1.eggs = 2
-        bird2.eggs = 3
+        bird_id1 = state.bird_deck.pop()
+        bird_id2 = state.bird_deck.pop()
+        player.board[0][0].bird = create_placed_bird(bird_id1, eggs=2)
+        player.board[0][1].bird = create_placed_bird(bird_id2, eggs=3)
 
         assert evaluate_goal(state, player, "eggs_in_forest") == 5
 
     def test_count_total_birds(self):
         state = initiate_state(2)
         player = state.players[0]
-        player.board[0][0].bird = state.bird_deck.pop()
-        player.board[1][0].bird = state.bird_deck.pop()
-        player.board[2][0].bird = state.bird_deck.pop()
+        player.board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        player.board[1][0].bird = create_placed_bird(state.bird_deck.pop())
+        player.board[2][0].bird = create_placed_bird(state.bird_deck.pop())
 
         assert evaluate_goal(state, player, "total_birds") == 3
 
     def test_count_sets_of_eggs(self):
         state = initiate_state(2)
         player = state.players[0]
-        bird_forest = state.bird_deck.pop()
-        bird_grassland = state.bird_deck.pop()
-        bird_wetland = state.bird_deck.pop()
-        player.board[0][0].bird = bird_forest
-        player.board[1][0].bird = bird_grassland
-        player.board[2][0].bird = bird_wetland
-        bird_forest.eggs = 3
-        bird_grassland.eggs = 2
-        bird_wetland.eggs = 4
+        bird_id_forest = state.bird_deck.pop()
+        bird_id_grassland = state.bird_deck.pop()
+        bird_id_wetland = state.bird_deck.pop()
+        player.board[0][0].bird = create_placed_bird(bird_id_forest, eggs=3)
+        player.board[1][0].bird = create_placed_bird(bird_id_grassland, eggs=2)
+        player.board[2][0].bird = create_placed_bird(bird_id_wetland, eggs=4)
 
         assert evaluate_goal(state, player, "sets_of_eggs") == 2
 
     def test_count_sets_of_eggs_zero_in_one_habitat(self):
         state = initiate_state(2)
         player = state.players[0]
-        bird_forest = state.bird_deck.pop()
-        bird_grassland = state.bird_deck.pop()
-        player.board[0][0].bird = bird_forest
-        player.board[1][0].bird = bird_grassland
-        bird_forest.eggs = 5
-        bird_grassland.eggs = 3
+        bird_id_forest = state.bird_deck.pop()
+        bird_id_grassland = state.bird_deck.pop()
+        player.board[0][0].bird = create_placed_bird(bird_id_forest, eggs=5)
+        player.board[1][0].bird = create_placed_bird(bird_id_grassland, eggs=3)
 
         assert evaluate_goal(state, player, "sets_of_eggs") == 0
 
@@ -145,15 +136,15 @@ class TestBlueScoring:
         state = initiate_state(2)
         player = state.players[0]
         for i in range(5):
-            player.board[0][i].bird = state.bird_deck.pop()
+            player.board[0][i].bird = create_placed_bird(state.bird_deck.pop())
 
         assert _calculate_blue_score(state, player, "birds_in_forest") == 5
 
     def test_blue_score_partial(self):
         state = initiate_state(2)
         player = state.players[0]
-        player.board[0][0].bird = state.bird_deck.pop()
-        player.board[0][1].bird = state.bird_deck.pop()
+        player.board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        player.board[0][1].bird = create_placed_bird(state.bird_deck.pop())
 
         assert _calculate_blue_score(state, player, "birds_in_forest") == 2
 
@@ -169,14 +160,14 @@ class TestGreenScoring:
 
     def test_green_no_ties(self):
         state = initiate_state(3, ScoringMode.GREEN)
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[0].board[0][1].bird = state.bird_deck.pop()
-        state.players[0].board[0][2].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[0].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[0].board[0][2].bird = create_placed_bird(state.bird_deck.pop())
 
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
-        state.players[1].board[0][1].bird = state.bird_deck.pop()
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
 
-        state.players[2].board[0][0].bird = state.bird_deck.pop()
+        state.players[2].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
 
         scores = _calculate_green_scores(state, "birds_in_forest", round_num=1)
 
@@ -186,13 +177,13 @@ class TestGreenScoring:
 
     def test_green_tie_for_first(self):
         state = initiate_state(3, ScoringMode.GREEN)
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[0].board[0][1].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[0].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
 
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
-        state.players[1].board[0][1].bird = state.bird_deck.pop()
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
 
-        state.players[2].board[0][0].bird = state.bird_deck.pop()
+        state.players[2].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
 
         scores = _calculate_green_scores(state, "birds_in_forest", round_num=2)
 
@@ -202,9 +193,9 @@ class TestGreenScoring:
 
     def test_green_three_way_tie(self):
         state = initiate_state(3, ScoringMode.GREEN)
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
-        state.players[2].board[0][0].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[2].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
 
         scores = _calculate_green_scores(state, "birds_in_forest", round_num=3)
 
@@ -214,9 +205,9 @@ class TestGreenScoring:
 
     def test_green_different_rounds_different_scores(self):
         state = initiate_state(2, ScoringMode.GREEN)
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[0].board[0][1].bird = state.bird_deck.pop()
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[0].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
 
         scores_r1 = _calculate_green_scores(state, "birds_in_forest", round_num=1)
         scores_r4 = _calculate_green_scores(state, "birds_in_forest", round_num=4)
@@ -246,9 +237,9 @@ class TestIntegration:
         assert state.round_goal_config
         state.round_goal_config.selected_goals[0] = "total_birds"
 
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[0].board[0][1].bird = state.bird_deck.pop()
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[0].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
 
         update_round_goal_scores(state)
 
@@ -260,9 +251,9 @@ class TestIntegration:
         assert state.round_goal_config
         state.round_goal_config.selected_goals[0] = "total_birds"
 
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[0].board[0][1].bird = state.bird_deck.pop()
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[0].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
 
         update_round_goal_scores(state)
 
@@ -275,9 +266,9 @@ class TestIntegration:
         assert state.round_goal_config
         state.round_goal_config.selected_goals[2] = "birds_in_forest"
 
-        state.players[0].board[0][0].bird = state.bird_deck.pop()
-        state.players[1].board[0][0].bird = state.bird_deck.pop()
-        state.players[1].board[0][1].bird = state.bird_deck.pop()
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+        state.players[1].board[0][1].bird = create_placed_bird(state.bird_deck.pop())
 
         update_round_goal_scores(state)
 

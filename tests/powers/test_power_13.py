@@ -1,37 +1,17 @@
 """Tests for Power ID 13: Give resources to players with fewest birds in habitat."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import (
+from game.core import (
     initiate_state,
-    get_bird,
     get_bird_power,
     GamePhase,
-    ActionData,
-    QueuedPower,
 )
 from game.actions import get_actions
 from game.engine import transition_state
-
-
-def setup_power_13_execution(state, player_index, bird_id, spot, power_data=None):
-    """Set up Power 13 execution with new ActionData structure."""
-    if power_data is None:
-        power_data = {"data": {"id": 13}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=13,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from conftest import (
+    place_bird_on_board,
+    get_registry_bird_ids_by_habitat,
+    setup_power_execution,
+)
 
 
 def test_power_13_card_single_player():
@@ -43,18 +23,14 @@ def test_power_13_card_single_player():
     # Use Bird 3 (American Coot): Wetland habitat, Card reward
     bird_id = 3
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
     # Place activating bird on Player 0's board
-    state.players[0].board[0][0].bird = power_bird
-    if power_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_bird)
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     # Give Player 1 some wetland birds (wetland = row 2)
-    wetland_birds = [b for b in state.bird_deck if "wetland" in b.habitats][:2]
-    state.players[1].board[2][0].bird = wetland_birds[0]
-    state.players[1].board[2][1].bird = wetland_birds[1]
+    wetland_bird_ids = get_registry_bird_ids_by_habitat("wetland")[:2]
+    place_bird_on_board(state, 1, 2, 0, wetland_bird_ids[0])
+    place_bird_on_board(state, 1, 2, 1, wetland_bird_ids[1])
 
     # Player 0 has 0 wetland birds, Player 1 has 2
     # Player 0 should receive 1 card
@@ -64,8 +40,8 @@ def test_power_13_card_single_player():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_13_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Execute activation (should complete immediately for card variant)
@@ -94,13 +70,9 @@ def test_power_13_card_multiple_tied():
     # Use Bird 60 (Common Merganser): Wetland habitat, Card reward
     bird_id = 60
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
     # Place activating bird on Player 0's board
-    state.players[0].board[0][0].bird = power_bird
-    if power_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_bird)
+    place_bird_on_board(state, 0, 0, 0, bird_id)
 
     # All players have 0 wetland birds (all tied for fewest)
     # All should receive 1 card
@@ -114,8 +86,8 @@ def test_power_13_card_multiple_tied():
     activating_spot = state.players[0].board[0][0]
 
     # Setup power activation
-    setup_power_13_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Execute activation
@@ -150,24 +122,15 @@ def test_power_13_die_single_player():
     # Use Bird 88 (Hooded Merganser): Forest habitat, Die reward
     bird_id = 88
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
-    # Place activating bird on Player 0's board
-    state.players[0].board[0][0].bird = power_bird
-    if power_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_bird)
+    # Place activating bird in grassland to make P0 have 0 forest birds
+    place_bird_on_board(state, 0, 1, 0, bird_id)
 
     # Give Player 1 some forest birds (forest = row 0)
-    forest_birds = [b for b in state.bird_deck if "forest" in b.habitats][:3]
-    state.players[1].board[0][0].bird = forest_birds[0]
-    state.players[1].board[0][1].bird = forest_birds[1]
-    state.players[1].board[0][2].bird = forest_birds[2]
-
-    # Player 0 has 1 forest bird (the activating bird), Player 1 has 3
-    # Actually, let's place the activating bird in grassland to make P0 have 0 forest
-    state.players[0].board[0][0].bird = None
-    state.players[0].board[1][0].bird = power_bird  # Place in grassland
+    forest_bird_ids = get_registry_bird_ids_by_habitat("forest")[:3]
+    place_bird_on_board(state, 1, 0, 0, forest_bird_ids[0])
+    place_bird_on_board(state, 1, 0, 1, forest_bird_ids[1])
+    place_bird_on_board(state, 1, 0, 2, forest_bird_ids[2])
 
     # Set up known feeder
     state.feeder = {
@@ -183,8 +146,8 @@ def test_power_13_die_single_player():
     activating_spot = state.players[0].board[1][0]
 
     # Setup power activation
-    setup_power_13_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Execute activation (should enter sub_phase for die selection)
@@ -228,13 +191,9 @@ def test_power_13_die_multiple_players():
     # Use Bird 88 (Hooded Merganser): Forest habitat, Die reward
     bird_id = 88
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
     # Place activating bird on Player 1's board (in grassland to not count as forest)
-    state.players[1].board[1][0].bird = power_bird
-    if power_bird in state.players[1].bird_hand:
-        state.players[1].bird_hand.remove(power_bird)
+    place_bird_on_board(state, 1, 1, 0, bird_id)
 
     # All players have 0 forest birds (all tied for fewest)
     # Set up known feeder
@@ -255,8 +214,8 @@ def test_power_13_die_multiple_players():
     activating_spot = state.players[1].board[1][0]
 
     # Setup power activation
-    setup_power_13_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Execute activation
@@ -312,18 +271,14 @@ def test_power_13_reroll_all_dice():
     # Use Bird 88 (Hooded Merganser): Forest habitat, Die reward
     bird_id = 88
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
     # Place activating bird on Player 0's board (in grassland)
-    state.players[0].board[1][0].bird = power_bird
-    if power_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_bird)
+    place_bird_on_board(state, 0, 1, 0, bird_id)
 
     # Give Player 1 some forest birds
-    forest_birds = [b for b in state.bird_deck if "forest" in b.habitats][:2]
-    state.players[1].board[0][0].bird = forest_birds[0]
-    state.players[1].board[0][1].bird = forest_birds[1]
+    forest_bird_ids = get_registry_bird_ids_by_habitat("forest")[:2]
+    place_bird_on_board(state, 1, 0, 0, forest_bird_ids[0])
+    place_bird_on_board(state, 1, 0, 1, forest_bird_ids[1])
 
     # Set up feeder with all same face
     state.feeder = {0: ["fish"], 1: ["fish"], 2: ["fish"], 3: ["fish"], 4: ["fish"]}
@@ -331,8 +286,8 @@ def test_power_13_reroll_all_dice():
     activating_spot = state.players[0].board[1][0]
 
     # Setup power activation
-    setup_power_13_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Execute activation
@@ -375,13 +330,9 @@ def test_power_13_feeder_empties_during_power():
     # Use Bird 88 (Hooded Merganser): Forest habitat, Die reward
     bird_id = 88
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
     # Place activating bird on Player 0's board (in grassland)
-    state.players[0].board[1][0].bird = power_bird
-    if power_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_bird)
+    place_bird_on_board(state, 0, 1, 0, bird_id)
 
     # All players have 0 forest birds
     # Set up feeder with 5 different dice
@@ -396,8 +347,8 @@ def test_power_13_feeder_empties_during_power():
     activating_spot = state.players[0].board[1][0]
 
     # Setup power activation
-    setup_power_13_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Execute activation
@@ -427,7 +378,7 @@ def test_power_13_feeder_empties_during_power():
 
 def test_power_13_validation():
     """Test Power 13 validation always returns True (no preconditions)."""
-    from game.power_validators import can_execute_power
+    from game.power import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0
@@ -435,11 +386,9 @@ def test_power_13_validation():
     # Use Bird 88 (Hooded Merganser): Forest habitat, Die reward
     bird_id = 88
     power_data = get_bird_power(bird_id)
-    power_bird = get_bird(bird_id)
-    assert power_bird
 
-    # Test with empty board
-    state.players[0].board[1][0].bird = power_bird
+    # Test with empty board - place the power bird
+    place_bird_on_board(state, 0, 1, 0, bird_id)
     spot = state.players[0].board[1][0]
 
     power_entry = {"power_data": power_data, "spot": spot}
@@ -449,15 +398,15 @@ def test_power_13_validation():
     ), "Power 13 should always validate (empty board)"
 
     # Test with partial board
-    forest_birds = [b for b in state.bird_deck if "forest" in b.habitats][:3]
-    state.players[0].board[0][0].bird = forest_birds[0]
-    state.players[0].board[0][1].bird = forest_birds[1]
+    forest_bird_ids = get_registry_bird_ids_by_habitat("forest")[:3]
+    place_bird_on_board(state, 0, 0, 0, forest_bird_ids[0])
+    place_bird_on_board(state, 0, 0, 1, forest_bird_ids[1])
     assert can_execute_power(
         state, power_entry
     ), "Power 13 should always validate (partial board)"
 
     # Test with different player having more birds
-    state.players[1].board[0][0].bird = forest_birds[2]
+    place_bird_on_board(state, 1, 0, 0, forest_bird_ids[2])
     assert can_execute_power(
         state, power_entry
     ), "Power 13 should always validate (different distribution)"

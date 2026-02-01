@@ -1,48 +1,26 @@
 """Comprehensive end-to-end tests for Power 9: Move bird to another habitat."""
 
-import sys
-
-sys.path.append(".")
-
-from game.data import (
+from game.core import (
     initiate_state,
     GamePhase,
-    load_deck,
     get_bird_power,
-    get_bird,
-    ActionData,
-    QueuedPower,
+    get_bird_card,
+    BIRD_REGISTRY,
+    init_registries,
 )
 from game.engine import transition_state
 from game.actions import get_actions
-
-
-def setup_power_9_execution(state, player_index, bird_id, spot, power_data=None):
-    """Set up Power 9 execution with new ActionData structure."""
-    if power_data is None:
-        power_data = {"data": {"id": 9}}
-    state.action_data = ActionData()
-    state.action_data.powers_queue = [
-        QueuedPower(
-            power_id=9,
-            bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
-            player_index=player_index,
-            power_data=power_data,
-        )
-    ]
-    state.action_data.current_power_index = 0
+from conftest import place_bird_on_board, setup_power_execution
 
 
 def find_bird_with_power_9(min_habitats=2):
     """Find a bird ID with Power 9 and at least min_habitats."""
-    birds = load_deck("birds")
-    for bird in birds:
-        power_data = get_bird_power(bird.id)
+    init_registries()
+    for bird_id, card in BIRD_REGISTRY.items():
+        power_data = get_bird_power(bird_id)
         if power_data and power_data.get("data") and power_data["data"].get("id") == 9:
-            if len(bird.habitats) >= min_habitats:
-                return bird.id, power_data
+            if len(card.habitats) >= min_habitats:
+                return bird_id, power_data
     return None, None
 
 
@@ -56,25 +34,22 @@ def test_power_9_bird_solo_in_row():
     bird_id, power_data = find_bird_with_power_9(min_habitats=2)
     assert bird_id is not None, "Should find bird with power 9 and 2+ habitats"
 
-    # Get bird and place on board
-    power_9_bird = get_bird(bird_id)
-    assert power_9_bird
-    assert len(power_9_bird.habitats) >= 2, "Bird should have at least 2 habitats"
+    # Get bird card to check habitats
+    bird_card = get_bird_card(bird_id)
+    assert bird_card
+    assert len(bird_card.habitats) >= 2, "Bird should have at least 2 habitats"
 
     # Place bird in first habitat (forest row, col 0)
-    current_habitat = power_9_bird.habitats[0]
+    current_habitat = bird_card.habitats[0]
     habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
     current_row = habitat_map[current_habitat]
 
-    state.players[0].board[current_row][0].bird = power_9_bird
-    if power_9_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_9_bird)
-
+    place_bird_on_board(state, 0, current_row, 0, bird_id)
     activating_spot = state.players[0].board[current_row][0]
 
     # Setup power activation
-    setup_power_9_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 9, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Record initial position
@@ -105,9 +80,11 @@ def test_power_9_bird_solo_in_row():
         # Execute habitat selection
         state = transition_state(state, selected_action)
 
-        # Verify bird moved to target habitat
+        # Verify bird moved to target habitat (compare by ID)
         target_row = habitat_map[target_habitat]
-        assert state.players[0].board[target_row][0].bird == power_9_bird
+        bird = state.players[0].board[target_row][0].bird
+        assert bird is not None
+        assert bird.id == bird_id
     else:
         # Auto-completed - find where bird moved
         bird_found = False
@@ -142,29 +119,27 @@ def test_power_9_full_row_bird_last():
     bird_id, power_data = find_bird_with_power_9(min_habitats=2)
     assert bird_id is not None
 
-    power_9_bird = get_bird(bird_id)
+    bird_card = get_bird_card(bird_id)
+    assert bird_card
 
-    # Place power 9 bird in rightmost position (col 2) of forest row
-    assert power_9_bird
-    current_habitat = power_9_bird.habitats[0]
+    # Place power 9 bird in rightmost position (col 2) of its first habitat row
+    current_habitat = bird_card.habitats[0]
     habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
     current_row = habitat_map[current_habitat]
 
-    state.players[0].board[current_row][2].bird = power_9_bird
-    if power_9_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_9_bird)
+    place_bird_on_board(state, 0, current_row, 2, bird_id)
 
     # Place two other birds to the left (col 0 and col 1)
-    other_bird_1 = state.players[0].bird_hand[0]
-    other_bird_2 = state.players[0].bird_hand[1]
-    state.players[0].board[current_row][0].bird = other_bird_1
-    state.players[0].board[current_row][1].bird = other_bird_2
+    other_bird_id_1 = state.players[0].bird_hand[0]
+    other_bird_id_2 = state.players[0].bird_hand[1]
+    place_bird_on_board(state, 0, current_row, 0, other_bird_id_1)
+    place_bird_on_board(state, 0, current_row, 1, other_bird_id_2)
 
     activating_spot = state.players[0].board[current_row][2]
 
     # Setup power activation
-    setup_power_9_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 9, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Verify can activate (bird is rightmost)
@@ -190,20 +165,23 @@ def test_power_9_full_row_bird_last():
         target_habitat = selected_action.split("_")[2]
         state = transition_state(state, selected_action)
 
-        # Verify bird moved to leftmost spot (col 0) in target habitat
+        # Verify bird moved to leftmost spot (col 0) in target habitat (compare by ID)
         target_row = habitat_map[target_habitat]
-        assert state.players[0].board[target_row][0].bird == power_9_bird
+        bird = state.players[0].board[target_row][0].bird
+        assert bird is not None
+        assert bird.id == bird_id
 
     # Verify old spot is empty
     assert state.players[0].board[current_row][2].bird is None
 
-    # Verify other birds in original row unchanged
-    assert state.players[0].board[current_row][0].bird == other_bird_1
-    assert state.players[0].board[current_row][1].bird == other_bird_2
+    # Verify other birds in original row unchanged (compare by ID)
+    bird_0 = state.players[0].board[current_row][0].bird
+    bird_1 = state.players[0].board[current_row][1].bird
+    assert bird_0 is not None and bird_0.id == other_bird_id_1
+    assert bird_1 is not None and bird_1.id == other_bird_id_2
 
     # Verify cleanup
     assert state.game_phase == GamePhase.MAIN_TURN
-    assert len(state.action_data.execution_stack) == 0
     assert len(state.action_data.execution_stack) == 0
 
 
@@ -217,27 +195,25 @@ def test_power_9_bird_not_rightmost():
     bird_id, power_data = find_bird_with_power_9(min_habitats=2)
     assert bird_id is not None
 
-    power_9_bird = get_bird(bird_id)
+    bird_card = get_bird_card(bird_id)
+    assert bird_card
 
     # Place power 9 bird at col 0 (NOT rightmost)
-    assert power_9_bird
-    current_habitat = power_9_bird.habitats[0]
+    current_habitat = bird_card.habitats[0]
     habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
     current_row = habitat_map[current_habitat]
 
-    state.players[0].board[current_row][0].bird = power_9_bird
-    if power_9_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_9_bird)
+    place_bird_on_board(state, 0, current_row, 0, bird_id)
 
     # Place another bird to the right (col 1) to make power 9 bird NOT rightmost
-    other_bird = state.players[0].bird_hand[0]
-    state.players[0].board[current_row][1].bird = other_bird
+    other_bird_id = state.players[0].bird_hand[0]
+    place_bird_on_board(state, 0, current_row, 1, other_bird_id)
 
     activating_spot = state.players[0].board[current_row][0]
 
     # Setup power activation
-    setup_power_9_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 9, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Verify cannot activate (bird is not rightmost)
@@ -248,9 +224,11 @@ def test_power_9_bird_not_rightmost():
     if "skip_power" in actions:
         state = transition_state(state, "skip_power")
 
-    # Verify bird position unchanged
-    assert state.players[0].board[current_row][0].bird == power_9_bird
-    assert state.players[0].board[current_row][1].bird == other_bird
+    # Verify bird position unchanged (compare by ID)
+    bird_0 = state.players[0].board[current_row][0].bird
+    bird_1 = state.players[0].board[current_row][1].bird
+    assert bird_0 is not None and bird_0.id == bird_id
+    assert bird_1 is not None and bird_1.id == other_bird_id
 
 
 def test_power_9_all_other_rows_full():
@@ -263,37 +241,30 @@ def test_power_9_all_other_rows_full():
     bird_id, power_data = find_bird_with_power_9(min_habitats=3)
     assert bird_id is not None
 
-    power_9_bird = get_bird(bird_id)
-    assert power_9_bird
-    assert (
-        len(power_9_bird.habitats) == 3
-    ), "Bird should have all 3 habitats for this test"
+    bird_card = get_bird_card(bird_id)
+    assert bird_card
+    assert len(bird_card.habitats) == 3, "Bird should have all 3 habitats for this test"
 
     # Place power 9 bird in wetland row, rightmost position (col 0, solo)
-    habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
     current_row = 2  # wetland
 
-    state.players[0].board[current_row][0].bird = power_9_bird
-    if power_9_bird in state.players[0].bird_hand:
-        state.players[0].bird_hand.remove(power_9_bird)
+    place_bird_on_board(state, 0, current_row, 0, bird_id)
 
-    # Fill all 5 spots in forest row (row 0) - use dummy birds from deck
-    from game.data import load_deck
-
-    deck_birds = load_deck("birds")
-
+    # Fill all 5 spots in forest row (row 0) - use bird IDs from deck
     for col in range(5):
-        state.players[0].board[0][col].bird = deck_birds[col]
+        filler_bird_id = state.bird_deck[col]
+        place_bird_on_board(state, 0, 0, col, filler_bird_id)
 
     # Fill all 5 spots in grassland row (row 1)
     for col in range(5):
-        state.players[0].board[1][col].bird = deck_birds[col + 5]
+        filler_bird_id = state.bird_deck[col + 5]
+        place_bird_on_board(state, 0, 1, col, filler_bird_id)
 
     activating_spot = state.players[0].board[current_row][0]
 
     # Setup power activation
-    setup_power_9_execution(
-        state, state.current_player_index, bird_id, activating_spot, power_data
+    setup_power_execution(
+        state, 9, bird_id, activating_spot, state.current_player_index, power_data
     )
 
     # Verify cannot activate (no valid target habitats with empty spots)
@@ -304,5 +275,7 @@ def test_power_9_all_other_rows_full():
     if "skip_power" in actions:
         state = transition_state(state, "skip_power")
 
-    # Verify bird remains in original position
-    assert state.players[0].board[current_row][0].bird == power_9_bird
+    # Verify bird remains in original position (compare by ID)
+    bird = state.players[0].board[current_row][0].bird
+    assert bird is not None
+    assert bird.id == bird_id
