@@ -1,11 +1,13 @@
 import json
 from typing import Callable, Dict
-from .data import (
+
+from .core import (
     GameState,
     GamePhase,
     PinkTrigger,
     CostPayment,
     roll_feeder,
+    get_bird_card,
 )
 from .utils import (
     find_leftmost_empty_spot,
@@ -26,7 +28,7 @@ from .effects import (
     parse_pay_food_action,
     discard_bird_from_hand_effect,
 )
-from .turn_lifecycle import finish_main_action, activate_powers, handle_end_turn
+from .engine import finish_main_action, activate_powers, handle_end_turn
 
 PhaseHandler = Callable[[GameState, str], GameState]
 _PHASE_HANDLERS: Dict[GamePhase, PhaseHandler] = {}
@@ -73,12 +75,14 @@ def _select_initial_cards(state: GameState, action: str) -> GameState:
 
     current_player = state.players[state.current_player_index]
     current_player.bird_hand = [
-        bird for bird in current_player.bird_hand if bird.id in selection["kept_birds"]
+        bird_id
+        for bird_id in current_player.bird_hand
+        if bird_id in selection["kept_birds"]
     ]
     current_player.bonus_hand = [
-        bonus
-        for bonus in current_player.bonus_hand
-        if bonus.id == selection["kept_bonus"]
+        bonus_id
+        for bonus_id in current_player.bonus_hand
+        if bonus_id == selection["kept_bonus"]
     ]
 
     bird_amount = len(selection["kept_birds"])
@@ -397,13 +401,16 @@ def _play_bird(state: GameState, action: str) -> GameState:
         state.game_phase = GamePhase.PAY_EGG_COST
         return state
 
-    bird_to_play = next(
-        (bird for bird in current_player.bird_hand if bird.id == bird_id), None
-    )
-    if not bird_to_play:
+    if bird_id not in current_player.bird_hand:
         raise ValueError(f"Bird {bird_id} not in hand")
 
-    if bird_to_play.cost and not (
+    bird_card = get_bird_card(bird_id)
+    if bird_card is None:
+        raise ValueError(f"Bird card {bird_id} not found in registry")
+
+    bird_cost = [dict(option) for option in bird_card.cost] if bird_card.cost else []
+
+    if bird_cost and not (
         state.action_data.pending_cost
         and state.action_data.pending_cost.cost_type == "food_paid"
     ):
@@ -415,7 +422,7 @@ def _play_bird(state: GameState, action: str) -> GameState:
         else:
             state.action_data.pending_cost = CostPayment(
                 cost_type="food",
-                amount=bird_to_play.cost,
+                amount=bird_cost,
                 callback_phase=state.game_phase,
                 callback_action=action,
             )

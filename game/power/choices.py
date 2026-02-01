@@ -1,8 +1,8 @@
 from typing import List, Callable, Dict, Tuple
 import json
 
-from .data import GameState, PowerExecution
-from .utils import (
+from ..core import GameState, PowerExecution
+from ..utils import (
     get_egg_distribution_combinations,
     get_food_gain_combinations,
     get_valid_birds_for_eggs,
@@ -78,15 +78,15 @@ def _get_power_5_bonus_choices(
     state: GameState, execution: PowerExecution
 ) -> List[str]:
     """Get choices for power 5 bonus card selection."""
-    drawn_cards = execution.context.get("bonus_options", [])
-    return [f"power_5_bonus_{card.id}" for card in drawn_cards]
+    drawn_card_ids = execution.context.get("bonus_options", [])
+    return [f"power_5_bonus_{card_id}" for card_id in drawn_card_ids]
 
 
 @power_choices(6, "select_card")
 def _get_power_6_card_choices(state: GameState, execution: PowerExecution) -> List[str]:
     """Generate card selection choices for power 6."""
-    available_cards = execution.context.get("available_cards", [])
-    return [f"select_card_{card.id}" for card in available_cards]
+    available_card_ids = execution.context.get("available_cards", [])
+    return [f"select_card_{card_id}" for card_id in available_card_ids]
 
 
 @power_choices(7, "choose_starting_player")
@@ -195,7 +195,7 @@ def _get_power_17_card_choices(
 ) -> List[str]:
     """Generate card selection for Power 17."""
     current_player = state.players[state.current_player_index]
-    return [f"tuck_card_{card.id}" for card in current_player.bird_hand]
+    return [f"tuck_card_{card_id}" for card_id in current_player.bird_hand]
 
 
 @power_choices(17, "select_food")
@@ -213,7 +213,7 @@ def _get_power_18_card_choices(
 ) -> List[str]:
     """Generate card selection for Power 18."""
     player = state.players[execution.player_index]
-    return [f"tuck_card_{card.id}" for card in player.bird_hand]
+    return [f"tuck_card_{card_id}" for card_id in player.bird_hand]
 
 
 @power_choices(20, "select_bird")

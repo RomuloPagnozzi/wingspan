@@ -2,7 +2,7 @@ from typing import List, Dict, Callable, Tuple
 import json
 import random
 
-from .data import (
+from ..core import (
     GameState,
     PowerExecution,
     PinkTrigger,
@@ -10,9 +10,10 @@ from .data import (
     QueuedPower,
     GamePhase,
     get_bird_power,
+    get_bird_card,
     roll_feeder,
 )
-from .effects import (
+from ..effects import (
     draw_cards_effect,
     lay_eggs_effect,
     select_die_effect,
@@ -22,13 +23,13 @@ from .effects import (
     tuck_cards_effect,
     parse_select_die_action,
 )
-from .utils import (
+from ..utils import (
     get_valid_birds_for_eggs,
     find_leftmost_empty_spot,
     get_triggered_pink_powers,
     ensure_bird_deck,
 )
-from .power_validators import can_execute_power
+from .validators import can_execute_power
 
 PowerHandler = Callable[[GameState, List[PowerExecution], str], GameState]
 _POWER_HANDLERS: Dict[Tuple[int, str | None], PowerHandler] = {}
@@ -258,8 +259,9 @@ def _power_5_activate(
         stack.pop()
         return state
 
-    drawn_cards = [state.bonus_deck.pop() for _ in range(amount)]
-    current.context["bonus_options"] = drawn_cards
+    # bonus_deck now contains IDs
+    drawn_card_ids = [state.bonus_deck.pop() for _ in range(amount)]
+    current.context["bonus_options"] = drawn_card_ids
     current.phase = "select_bonus"
     return state
 
@@ -271,17 +273,17 @@ def _power_5_select_bonus(
     """Handle bonus card selection."""
     current = stack[-1]
     bonus_id = int(action.split("_")[-1])
-    drawn_cards = current.context["bonus_options"]
+    drawn_card_ids = current.context["bonus_options"]
 
-    selected_card = next((card for card in drawn_cards if card.id == bonus_id), None)
-    if not selected_card:
+    # bonus_options now contains IDs
+    if bonus_id not in drawn_card_ids:
         raise ValueError("Invalid bonus selection")
 
-    state.players[state.current_player_index].bonus_hand.append(selected_card)
+    state.players[state.current_player_index].bonus_hand.append(bonus_id)
 
-    for card in drawn_cards:
-        if card.id != bonus_id:
-            state.discarded_bonuses.append(card)
+    for card_id in drawn_card_ids:
+        if card_id != bonus_id:
+            state.discarded_bonuses.append(card_id)
 
     stack.pop()
     return state
@@ -308,7 +310,7 @@ def _power_6_activate(
         stack.pop()
         return state
 
-    drawn_cards = [state.bird_deck.pop() for _ in range(actual_draw)]
+    drawn_card_ids = [state.bird_deck.pop() for _ in range(actual_draw)]
 
     player_order = [activator]
     for i in range(1, num_players):
@@ -323,7 +325,7 @@ def _power_6_activate(
     current.phase = "select_card"
     current.context["activator"] = activator
     current.context["awaiting_players"] = player_order.copy()
-    current.context["available_cards"] = drawn_cards
+    current.context["available_cards"] = drawn_card_ids
     state.current_player_index = player_order[0]
 
     return state
@@ -336,14 +338,13 @@ def _power_6_select_card(
     """Handle player's card selection."""
     current = stack[-1]
     card_id = int(action.split("_")[-1])
-    available_cards = current.context["available_cards"]
+    available_card_ids = current.context["available_cards"]
 
-    selected_card = next((c for c in available_cards if c.id == card_id), None)
-    if not selected_card:
+    if card_id not in available_card_ids:
         raise ValueError(f"Card {card_id} not in available cards")
 
-    state.players[state.current_player_index].bird_hand.append(selected_card)
-    available_cards.remove(selected_card)
+    state.players[state.current_player_index].bird_hand.append(card_id)
+    available_card_ids.remove(card_id)
 
     awaiting = current.context["awaiting_players"]
     awaiting.remove(state.current_player_index)
@@ -757,9 +758,10 @@ def _power_11_activate(
     assert activating_bird
 
     ensure_bird_deck(state, 1)
-    drawn_bird = state.bird_deck.pop()
+    drawn_bird_id = state.bird_deck.pop()
+    drawn_bird_card = get_bird_card(drawn_bird_id)
 
-    if drawn_bird.wingspan < wingspan_threshold:
+    if drawn_bird_card and drawn_bird_card.wingspan < wingspan_threshold:
         activating_bird.tucked_cards += 1
 
         pink_powers = get_triggered_pink_powers(
@@ -782,7 +784,7 @@ def _power_11_activate(
                 )
                 queue.insert(insert_index + i, queued)
     else:
-        state.discarded_birds.append(drawn_bird)
+        state.discarded_birds.append(drawn_bird_id)
 
     stack.pop()
     return state
@@ -1101,11 +1103,10 @@ def _power_17_select_card(
     bonus_types = current.context["types"]
     spot = current.get_spot(state)
 
-    card_to_tuck = next((c for c in player.bird_hand if c.id == card_id), None)
-    if not card_to_tuck:
+    if card_id not in player.bird_hand:
         raise ValueError(f"Card {card_id} not in hand")
 
-    player.bird_hand.remove(card_to_tuck)
+    player.bird_hand.remove(card_id)
     assert spot.bird
     spot.bird.tucked_cards += 1
 
@@ -1174,11 +1175,10 @@ def _power_18_select_card(
     player = state.players[current.player_index]
     spot = current.get_spot(state)
 
-    card_to_tuck = next((c for c in player.bird_hand if c.id == card_id), None)
-    if not card_to_tuck:
+    if card_id not in player.bird_hand:
         raise ValueError(f"Card {card_id} not in hand")
 
-    player.bird_hand.remove(card_to_tuck)
+    player.bird_hand.remove(card_id)
     assert spot.bird
     spot.bird.tucked_cards += 1
 

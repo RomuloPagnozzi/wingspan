@@ -1,5 +1,4 @@
 from typing import List, Dict, Tuple, Generator
-from .data import Spot, Player, Bird, GameState, get_bird_power, PinkTrigger
 from itertools import (
     combinations_with_replacement,
     product,
@@ -8,6 +7,16 @@ from itertools import (
     islice,
 )
 import random
+
+from .core import (
+    Spot,
+    Player,
+    PlacedBird,
+    GameState,
+    get_bird_power,
+    PinkTrigger,
+    get_bird_card,
+)
 
 
 def reshuffle_discard_into_deck(state: GameState) -> None:
@@ -79,8 +88,8 @@ def can_play_a_bird(player: Player) -> bool:
 
 def generate_playable_bird_spots(
     player: Player,
-) -> Generator[Tuple[Bird, Spot], None, None]:
-    """Generator that yields all valid (bird, spot) combinations."""
+) -> Generator[Tuple[int, Spot], None, None]:
+    """Generator that yields all valid (bird_id, spot) combinations."""
     if not player.bird_hand:
         return
 
@@ -103,13 +112,16 @@ def generate_playable_bird_spots(
     if not available_spots:
         return
 
-    for bird in player.bird_hand:
-        if not can_afford_bird(bird.cost, player.food):
+    for bird_id in player.bird_hand:
+        bird_card = get_bird_card(bird_id)
+        if bird_card is None:
+            continue
+        if not can_afford_bird_cost(bird_card.cost, player.food):
             continue
 
         for spot in available_spots:
-            if spot.habitat in bird.habitats:
-                yield (bird, spot)
+            if spot.habitat in bird_card.habitats:
+                yield (bird_id, spot)
 
 
 def get_egg_payment_combinations(
@@ -214,6 +226,14 @@ def can_afford_bird(
         return True
     except StopIteration:
         return False
+
+
+def can_afford_bird_cost(
+    frozen_cost: tuple[tuple[tuple[str, int], ...], ...], resources: Dict[str, int]
+) -> bool:
+    """Check if we can afford a bird using its frozen cost format (from BirdCard)."""
+    cost_options = [dict(option) for option in frozen_cost]
+    return can_afford_bird(cost_options, resources)
 
 
 def generate_food_payments(
@@ -446,7 +466,7 @@ def get_food_discard_combinations(
     return combinations_list
 
 
-def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[Bird]:
+def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[PlacedBird]:
     """Get all birds on player's board that match nest type and have egg capacity."""
     valid_birds = []
 

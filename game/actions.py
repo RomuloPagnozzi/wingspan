@@ -1,5 +1,7 @@
 from typing import List, Callable, Dict
-from .data import GameState, GamePhase
+import json
+
+from .core import GameState, GamePhase
 from .utils import (
     can_play_a_bird,
     generate_playable_bird_spots,
@@ -12,9 +14,7 @@ from .utils import (
     get_available_bird_cards,
     get_collect_food_actions,
 )
-from .power_validators import can_execute_power
-from .power_choices import get_power_choice_generator
-import json
+from .power import can_execute_power, get_power_choice_generator
 
 _ACTION_GENERATORS: Dict[GamePhase, Callable] = {}
 
@@ -69,8 +69,8 @@ def _get_select_initial_cards_actions(state: GameState) -> List[str]:
     """Return all valid bird and bonus card combinations for setup."""
     current_player = state.players[state.current_player_index]
     combinations = get_initial_card_combinations(
-        [bird.id for bird in current_player.bird_hand],
-        [bonus.id for bonus in current_player.bonus_hand],
+        list(current_player.bird_hand),
+        list(current_player.bonus_hand),
     )
     return [json.dumps(comb) for comb in combinations]
 
@@ -126,7 +126,7 @@ def _get_end_turn_actions(state: GameState) -> List[str]:
     if execution and execution.phase == "end_turn_discard":
         player_index = execution.player_index
         player = state.players[player_index]
-        return [f"discard_card_{card.id}" for card in player.bird_hand]
+        return [f"discard_card_{bird_id}" for bird_id in player.bird_hand]
 
     return []
 
@@ -156,7 +156,7 @@ def _get_draw_cards_actions(state: GameState) -> List[str]:
     if not cards_needed:
         raise ValueError(f"No cards needed found.")
 
-    available_tray_bird_ids = [bird.id for bird in state.bird_tray]
+    available_tray_bird_ids = list(state.bird_tray)
     deck_available = get_available_bird_cards(state)
     combinations = get_card_draw_combinations(
         cards_needed, available_tray_bird_ids, max_deck_cards=deck_available
@@ -168,7 +168,7 @@ def _get_draw_cards_actions(state: GameState) -> List[str]:
 def _get_bird_discard_actions(state: GameState) -> List[str]:
     """Return birds that can be discarded for extra food."""
     current_player = state.players[state.current_player_index]
-    return [f"discard_bird_{bird.id}" for bird in current_player.bird_hand]
+    return [f"discard_bird_{bird_id}" for bird_id in current_player.bird_hand]
 
 
 @action_generator(GamePhase.SELECT_FOOD_TO_DISCARD)
@@ -203,12 +203,12 @@ def _get_play_bird_actions(state: GameState) -> List[str]:
         target_habitat = execution.context.get("target_habitat")
 
     actions = []
-    for bird, spot in generate_playable_bird_spots(current_player):
+    for bird_id, spot in generate_playable_bird_spots(current_player):
         if target_habitat:
             if spot.habitat == target_habitat:
-                actions.append(f"play_bird_{bird.id}_at_{spot.row}_{spot.col}")
+                actions.append(f"play_bird_{bird_id}_at_{spot.row}_{spot.col}")
         else:
-            actions.append(f"play_bird_{bird.id}_at_{spot.row}_{spot.col}")
+            actions.append(f"play_bird_{bird_id}_at_{spot.row}_{spot.col}")
 
     return actions
 

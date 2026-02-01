@@ -1,7 +1,8 @@
-from game.data import initiate_state
+import json
+
+from game.core import initiate_state, get_bird_card, get_bonus_card
 from game.actions import get_actions
 from game.engine import transition_state
-import json
 
 from textual.app import App, ComposeResult
 from textual.widgets import (
@@ -31,9 +32,17 @@ class WingspanApp(App):
         yield Header()
 
         if self.actions and self._is_setup_action(self.actions[0]):
-            birds, bonuses = self._parse_setup_options()
-            yield SelectionList(*[Selection(f"Bird #{b}", b) for b in birds])
-            yield RadioSet(*[f"Bonus #{b}" for b in bonuses])
+            bird_ids, bonus_ids = self._parse_setup_options()
+            yield SelectionList(
+                *[
+                    Selection(card.name, b)
+                    for b in bird_ids
+                    if (card := get_bird_card(b))
+                ]
+            )
+            yield RadioSet(
+                *[card.name for b in bonus_ids if (card := get_bonus_card(b))]
+            )
             yield Button("Confirm Selection", id="confirm")
         else:
             yield ListView(id="actions")
@@ -86,9 +95,10 @@ class WingspanApp(App):
 
         selected_bird_ids = bird_list.selected
         current_player = self.state.players[self.state.current_player_index]
-        hand_order = [bird.id for bird in current_player.bird_hand]
         selected_birds = [
-            bird_id for bird_id in hand_order if bird_id in selected_bird_ids
+            bird_id
+            for bird_id in current_player.bird_hand
+            if bird_id in selected_bird_ids
         ]
 
         selected_bonus_index = radio_set.pressed_index

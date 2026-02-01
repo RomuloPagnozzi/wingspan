@@ -1,6 +1,7 @@
 import json
 from typing import Optional, Dict, List
-from game.data import GameState, roll_feeder
+
+from game.core import GameState, roll_feeder, PlacedBird, BirdState
 from game.utils import ensure_bird_deck
 
 
@@ -16,11 +17,9 @@ def draw_cards_effect(
     ]
 
     for bird_id in tray_bird_ids:
-        for bird in state.bird_tray:
-            if bird.id == bird_id:
-                target_player.bird_hand.append(bird)
-                state.bird_tray.remove(bird)
-                break
+        if bird_id in state.bird_tray:
+            target_player.bird_hand.append(bird_id)
+            state.bird_tray.remove(bird_id)
 
     ensure_bird_deck(state, deck_count)
     actual_deck_draws = min(deck_count, len(state.bird_deck))
@@ -139,13 +138,7 @@ def place_bird_effect(
         player_index if player_index is not None else state.current_player_index
     ]
 
-    bird_to_play = None
-    for bird in target_player.bird_hand:
-        if bird.id == bird_id:
-            bird_to_play = bird
-            break
-
-    if not bird_to_play:
+    if bird_id not in target_player.bird_hand:
         raise ValueError(f"Bird {bird_id} not in hand")
 
     target_spot = target_player.board[row][col]
@@ -153,8 +146,9 @@ def place_bird_effect(
     if target_spot.bird is not None:
         raise ValueError(f"Spot at {row}, {col} is already occupied")
 
-    target_spot.bird = bird_to_play
-    target_player.bird_hand.remove(bird_to_play)
+    placed_bird = PlacedBird(card_id=bird_id, state=BirdState())
+    target_spot.bird = placed_bird
+    target_player.bird_hand.remove(bird_id)
 
     return state
 
@@ -177,7 +171,7 @@ def pay_eggs_effect(
     state: GameState,
     egg_payment: Dict[int, int],
     player_index: Optional[int] = None,
-):
+) -> GameState:
     """Remove eggs from birds to pay a cost."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
@@ -202,7 +196,7 @@ def pay_food_effect(
     state: GameState,
     food_payment: Dict[str, int],
     player_index: Optional[int] = None,
-):
+) -> GameState:
     """Remove food from player's supply to pay a cost."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
@@ -220,22 +214,16 @@ def discard_bird_from_hand_effect(
     state: GameState,
     bird_id: int,
     player_index: Optional[int] = None,
-):
+) -> GameState:
     """Remove bird from hand and add to discard pile."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
 
-    bird_to_discard = None
-    for bird in target_player.bird_hand:
-        if bird.id == bird_id:
-            bird_to_discard = bird
-            break
-
-    if not bird_to_discard:
+    if bird_id not in target_player.bird_hand:
         raise ValueError(f"Bird {bird_id} not in hand")
 
-    target_player.bird_hand.remove(bird_to_discard)
-    state.discarded_birds.append(bird_to_discard)
+    target_player.bird_hand.remove(bird_id)
+    state.discarded_birds.append(bird_id)
 
     return state

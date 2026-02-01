@@ -1,6 +1,7 @@
 from typing import Dict, Callable
-from .data import GameState, get_bird_power
-from .utils import (
+
+from ..core import GameState, get_bird_power
+from ..utils import (
     get_valid_birds_for_eggs,
     find_leftmost_empty_spot,
     generate_playable_bird_spots,

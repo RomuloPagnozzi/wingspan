@@ -1,8 +1,10 @@
 from typing import Dict
-from .data import Player, Bonus, GameState, ScoringMode
+
+from .core import Player, Bonus, GameState, ScoringMode, get_bonus_card
 
 
 def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
+    """Count birds matching bonus card criteria."""
     played_birds = [
         spot.bird for row in player.board for spot in row if spot.bird is not None
     ]
@@ -52,6 +54,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
 
 
 def score_bonus_card(bonus: Bonus, player: Player) -> int:
+    """Calculate score for a bonus card based on matching birds."""
     n_birds = _count_bonus_birds(bonus, player)
     if not n_birds:
         return 0
@@ -77,8 +80,10 @@ def update_player_scores(player: Player) -> None:
     player.score.cached_food = sum(bird.stashed_food for bird in birds_on_board)
     player.score.tucked_cards = sum(bird.tucked_cards for bird in birds_on_board)
 
-    for bonus in player.bonus_hand:
-        player.score.bonus_scores[bonus.id] = score_bonus_card(bonus, player)
+    for bonus_id in player.bonus_hand:
+        bonus = get_bonus_card(bonus_id)
+        if bonus:
+            player.score.bonus_scores[bonus_id] = score_bonus_card(bonus, player)
 
 
 def _count_eggs_on_nest_type(player: Player, nest_type: str) -> int:
