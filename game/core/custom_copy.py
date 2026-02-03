@@ -1,4 +1,5 @@
 import copy
+import random
 
 from .player import Player, ScoreState, BirdState, PlacedBird, Spot
 from .turn_data import QueuedPower, CostPayment, ActionData
@@ -125,4 +126,6 @@ def copy_state(state: GameState) -> GameState:
     new_state.game_phase = state.game_phase
     new_state.action_data = _copy_action_data(state.action_data)
     new_state.round_goal_config = state.round_goal_config
+    new_state.rng = random.Random()
+    new_state.rng.setstate(state.rng.getstate())
     return new_state

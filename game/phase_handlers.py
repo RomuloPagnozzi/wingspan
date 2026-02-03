@@ -215,7 +215,7 @@ def _collect_food(state: GameState, action: str) -> GameState:
         return state
 
     elif action == "reroll_all":
-        state.feeder = roll_feeder()
+        state.feeder = roll_feeder(state.rng)
         return state
 
     raise ValueError(f"No known action{action}")

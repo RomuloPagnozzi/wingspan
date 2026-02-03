@@ -1,6 +1,6 @@
 """Tests for Power 15: Roll dice not in birdfeeder."""
 
-from unittest.mock import patch
+import random
 
 from game.core import (
     initiate_state,
@@ -11,6 +11,15 @@ from game.core import (
 from game.engine import transition_state
 from game.power import can_execute_power
 from conftest import place_bird_on_board, setup_power_execution
+
+DICE_FACES = [
+    ["fish"],
+    ["fruit"],
+    ["rodent"],
+    ["invertebrate"],
+    ["seed"],
+    ["invertebrate", "seed"],
+]
 
 
 def get_all_bird_ids(state):
@@ -33,9 +42,20 @@ def find_power_15_bird_id(state):
     return None, None
 
 
+def find_seed_for_roll(food_type: str, should_match: bool, n_dice: int = 5) -> int:
+    """Find a seed that produces a roll matching (or not matching) the food type."""
+    for seed in range(1000):
+        rng = random.Random(seed)
+        rolls = [rng.choice(DICE_FACES) for _ in range(n_dice)]
+        has_match = any(food_type in face for face in rolls)
+        if has_match == should_match:
+            return seed
+    raise ValueError(f"Could not find seed for {food_type} match={should_match}")
+
+
 def test_power_15_cannot_execute_when_feeder_full():
     """Test Power 15 cannot execute when birdfeeder is full (5 dice)."""
-    state = initiate_state(2)
+    state = initiate_state(2, seed=42)
     power_15_bird_id, power_15_data = find_power_15_bird_id(state)
     assert power_15_bird_id, "Should find Power 15 bird"
 
@@ -61,7 +81,7 @@ def test_power_15_cannot_execute_when_feeder_full():
 
 def test_power_15_caches_food_on_match():
     """Test Power 15 caches food when rolled dice matches food type."""
-    state = initiate_state(2)
+    state = initiate_state(2, seed=42)
     power_15_bird_id, power_15_data = find_power_15_bird_id(state)
     assert power_15_bird_id, "Should find Power 15 bird"
     assert power_15_data
@@ -79,10 +99,12 @@ def test_power_15_caches_food_on_match():
         state, 15, power_15_bird_id, spot, state.current_player_index, power_15_data
     )
 
-    with patch("game.power.handlers.random.choice", return_value=[food_type]):
-        state = transition_state(state, "activate_power")
+    # Set RNG to a seed that produces a matching roll
+    matching_seed = find_seed_for_roll(food_type, should_match=True, n_dice=5)
+    state.rng = random.Random(matching_seed)
 
-    # Get bird from returned state after deepcopy
+    state = transition_state(state, "activate_power")
+
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird
     assert updated_bird.stashed_food == 1
@@ -90,14 +112,11 @@ def test_power_15_caches_food_on_match():
 
 def test_power_15_no_cache_on_no_match():
     """Test Power 15 does not cache food when rolled dice don't match."""
-    state = initiate_state(2)
+    state = initiate_state(2, seed=42)
     power_15_bird_id, power_15_data = find_power_15_bird_id(state)
     assert power_15_bird_id, "Should find Power 15 bird"
     assert power_15_data
     food_type = power_15_data["data"]["details"]["type"]
-    non_matching = [
-        f for f in ["fish", "fruit", "rodent", "seed", "invertebrate"] if f != food_type
-    ][0]
 
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
@@ -111,10 +130,12 @@ def test_power_15_no_cache_on_no_match():
         state, 15, power_15_bird_id, spot, state.current_player_index, power_15_data
     )
 
-    with patch("game.power.handlers.random.choice", return_value=[non_matching]):
-        state = transition_state(state, "activate_power")
+    # Set RNG to a seed that produces NO matching roll
+    non_matching_seed = find_seed_for_roll(food_type, should_match=False, n_dice=5)
+    state.rng = random.Random(non_matching_seed)
 
-    # Get bird from returned state after deepcopy
+    state = transition_state(state, "activate_power")
+
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird
     assert updated_bird.stashed_food == 0

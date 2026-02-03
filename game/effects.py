@@ -113,7 +113,7 @@ def select_die_effect(
     del state.feeder[die_index]
 
     if not state.feeder:
-        state.feeder = roll_feeder()
+        state.feeder = roll_feeder(state.rng)
 
     return state
 

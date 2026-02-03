@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Dict
-import random
 import pickle
 
 if TYPE_CHECKING:
@@ -14,12 +13,9 @@ _REGISTRIES_INITIALIZED = False
 
 
 def load_deck(type: str) -> List:
-    """Load a deck from a pickle file and shuffle it."""
-    deck = []
+    """Load a deck from a pickle file."""
     with open(f"game/assets/{type}.pickle", "rb") as f:
-        deck.extend(pickle.load(f))
-    random.shuffle(deck)
-    return deck
+        return pickle.load(f)
 
 
 def load_powers() -> Dict:

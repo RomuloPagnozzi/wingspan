@@ -6,7 +6,6 @@ from itertools import (
     cycle,
     islice,
 )
-import random
 
 from .core import (
     Spot,
@@ -24,7 +23,7 @@ def reshuffle_discard_into_deck(state: GameState) -> None:
     if state.discarded_birds:
         state.bird_deck.extend(state.discarded_birds)
         state.discarded_birds.clear()
-        random.shuffle(state.bird_deck)
+        state.rng.shuffle(state.bird_deck)
 
 
 def ensure_bird_deck(state: GameState, count: int = 1) -> int:

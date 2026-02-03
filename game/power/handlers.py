@@ -1,6 +1,5 @@
 from typing import List, Dict, Callable, Tuple
 import json
-import random
 
 from ..core import (
     GameState,
@@ -406,7 +405,7 @@ def _power_7_select_die(
     current = stack[-1]
 
     if action == "reroll_all":
-        state.feeder = roll_feeder()
+        state.feeder = roll_feeder(state.rng)
         return state
 
     die_index, food_type = parse_select_die_action(action)
@@ -560,7 +559,7 @@ def _power_8_select_die(
     current = stack[-1]
 
     if action == "reroll_all":
-        state.feeder = roll_feeder()
+        state.feeder = roll_feeder(state.rng)
 
         food_type = current.context.get("food_type")
         if food_type:
@@ -882,7 +881,7 @@ def _power_13_select_die(
     current = stack[-1]
 
     if action == "reroll_all":
-        state.feeder = roll_feeder()
+        state.feeder = roll_feeder(state.rng)
         return state
 
     die_index, food_type = parse_select_die_action(action)
@@ -1029,7 +1028,7 @@ def _power_15_activate(
         ["seed"],
         ["invertebrate", "seed"],
     ]
-    roll = [random.choice(faces) for _ in range(n_dice)]
+    roll = [state.rng.choice(faces) for _ in range(n_dice)]
 
     for face in roll:
         if food_type in face:
@@ -1270,7 +1269,7 @@ def _power_21_select_die(
     current = stack[-1]
 
     if action == "reroll_all":
-        state.feeder = roll_feeder()
+        state.feeder = roll_feeder(state.rng)
         return state
 
     die_index, food_type = parse_select_die_action(action)
