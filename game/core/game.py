@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List, Dict
 import random
 
 from .constants import ScoringMode, GamePhase
@@ -8,19 +7,19 @@ from .turn_data import ActionData
 from .registry import init_registries, BIRD_REGISTRY, BONUS_REGISTRY
 
 
-def _load_bird_ids() -> List[int]:
+def _load_bird_ids() -> list[int]:
     """Load bird deck as list of IDs (initializes registries as side effect)."""
     init_registries()
     return list(BIRD_REGISTRY.keys())
 
 
-def _load_bonus_ids() -> List[int]:
+def _load_bonus_ids() -> list[int]:
     """Load bonus deck as list of IDs (initializes registries as side effect)."""
     init_registries()
     return list(BONUS_REGISTRY.keys())
 
 
-def _build_goal_tiles() -> List[tuple]:
+def _build_goal_tiles() -> list[tuple]:
     """Build the 8 double-sided goal tiles."""
     nests = ["bowl", "cavity", "ground", "platform"]
     habitats = ["forest", "grassland", "wetland"]
@@ -32,13 +31,13 @@ def _build_goal_tiles() -> List[tuple]:
     return tiles
 
 
-def select_round_goals(rng: random.Random) -> List[str]:
+def select_round_goals(rng: random.Random) -> list[str]:
     """Randomly select 4 goals for the game, one per round."""
     selected_tiles = rng.sample(_build_goal_tiles(), 4)
     return [rng.choice(tile) for tile in selected_tiles]
 
 
-def roll_feeder(rng: random.Random) -> Dict[int, List[str]]:
+def roll_feeder(rng: random.Random) -> dict[int, list[str]]:
     """Roll 5 dice for the bird feeder."""
     faces = [
         ["fish"],
@@ -56,20 +55,20 @@ class RoundGoalConfig:
     """Configuration for round goals and scoring mode."""
 
     scoring_mode: ScoringMode
-    selected_goals: List[str]
+    selected_goals: list[str]
 
 
 @dataclass(slots=True)
 class GameState:
     """The complete state of a Wingspan game."""
 
-    players: List[Player] = field(default_factory=list, init=False)
-    bird_deck: List[int] = field(default_factory=_load_bird_ids, init=False)
-    discarded_birds: List[int] = field(default_factory=list, init=False)
-    bonus_deck: List[int] = field(default_factory=_load_bonus_ids, init=False)
-    discarded_bonuses: List[int] = field(default_factory=list, init=False)
-    bird_tray: List[int] = field(default_factory=list, init=False)
-    feeder: Dict = field(default_factory=dict, init=False)
+    players: list[Player] = field(default_factory=list, init=False)
+    bird_deck: list[int] = field(default_factory=_load_bird_ids, init=False)
+    discarded_birds: list[int] = field(default_factory=list, init=False)
+    bonus_deck: list[int] = field(default_factory=_load_bonus_ids, init=False)
+    discarded_bonuses: list[int] = field(default_factory=list, init=False)
+    bird_tray: list[int] = field(default_factory=list, init=False)
+    feeder: dict = field(default_factory=dict, init=False)
     round: int = field(default=1, init=False)
     current_player_index: int = field(default=0, init=False)
     game_phase: GamePhase = field(default=GamePhase.GAME_SETUP, init=False)

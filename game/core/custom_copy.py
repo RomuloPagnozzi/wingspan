@@ -12,10 +12,10 @@ def _copy_bird_state(bs: BirdState) -> BirdState:
 
 
 def _copy_placed_bird(pb: PlacedBird | None) -> PlacedBird | None:
-    """Copy a PlacedBird (card_id + state)."""
+    """Copy a PlacedBird (id + state)."""
     if pb is None:
         return None
-    return PlacedBird(pb.card_id, _copy_bird_state(pb.state))
+    return PlacedBird(pb.id, _copy_bird_state(pb.state))
 
 
 def _copy_spot(spot: Spot) -> Spot:

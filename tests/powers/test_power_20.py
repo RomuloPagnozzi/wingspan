@@ -28,7 +28,7 @@ def find_bird_by_nest(nest_type: str, exclude_ids: set = set()) -> int:
 
 def create_placed_bird(bird_id: int, eggs: int = 0) -> PlacedBird:
     """Create a PlacedBird for placing on board."""
-    return PlacedBird(card_id=bird_id, state=BirdState(eggs=eggs))
+    return PlacedBird(id=bird_id, state=BirdState(eggs=eggs))
 
 
 def create_power_20_data(nest_type: str) -> dict:

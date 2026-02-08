@@ -1,5 +1,3 @@
-from typing import Dict
-
 from .core import Player, Bonus, GameState, ScoringMode, get_bonus_card
 
 
@@ -18,7 +16,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
 
     match bonus.id:
         case 5:
-            return len([bird for bird in played_birds if bird.eggs >= 4])
+            return len([bird for bird in played_birds if bird.state.eggs >= 4])
         case 7:
             forest_birds = len(
                 [
@@ -46,7 +44,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
             )
             return min(forest_birds, grassland_birds, wetland_birds)
         case 17:
-            return len([bird for bird in played_birds if bird.eggs >= 1])
+            return len([bird for bird in played_birds if bird.state.eggs >= 1])
         case 23:
             return len(player.bird_hand)
         case _:
@@ -75,10 +73,10 @@ def update_player_scores(player: Player) -> None:
         spot.bird for row in player.board for spot in row if spot.bird is not None
     ]
 
-    player.score.bird_points = sum(bird.points for bird in birds_on_board)
-    player.score.egg_points = sum(bird.eggs for bird in birds_on_board)
-    player.score.cached_food = sum(bird.stashed_food for bird in birds_on_board)
-    player.score.tucked_cards = sum(bird.tucked_cards for bird in birds_on_board)
+    player.score.bird_points = sum(bird.card.points for bird in birds_on_board)
+    player.score.egg_points = sum(bird.state.eggs for bird in birds_on_board)
+    player.score.cached_food = sum(bird.state.stashed_food for bird in birds_on_board)
+    player.score.tucked_cards = sum(bird.state.tucked_cards for bird in birds_on_board)
 
     for bonus_id in player.bonus_hand:
         bonus = get_bonus_card(bonus_id)
@@ -91,8 +89,8 @@ def _count_eggs_on_nest_type(player: Player, nest_type: str) -> int:
     total = 0
     for row in player.board:
         for spot in row:
-            if spot.bird is not None and spot.bird.nest == nest_type:
-                total += spot.bird.eggs
+            if spot.bird is not None and spot.bird.card.nest == nest_type:
+                total += spot.bird.state.eggs
     return total
 
 
@@ -103,8 +101,8 @@ def _count_birds_with_eggs_on_nest_type(player: Player, nest_type: str) -> int:
         for spot in row:
             if (
                 spot.bird is not None
-                and spot.bird.nest == nest_type
-                and spot.bird.eggs >= 1
+                and spot.bird.card.nest == nest_type
+                and spot.bird.state.eggs >= 1
             ):
                 count += 1
     return count
@@ -115,7 +113,7 @@ def _count_eggs_in_habitat(player: Player, habitat_row: int) -> int:
     total = 0
     for spot in player.board[habitat_row]:
         if spot.bird is not None:
-            total += spot.bird.eggs
+            total += spot.bird.state.eggs
     return total
 
 
@@ -193,7 +191,7 @@ def _calculate_green_scores(
     state: GameState,
     goal_name: str,
     round_num: int,
-) -> Dict[int, int]:
+) -> dict[int, int]:
     """Calculate green (competitive) scoring with tie-breaking."""
     green_scoring_table = {
         1: [4, 1, 0, 0],
@@ -207,7 +205,7 @@ def _calculate_green_scores(
     player_counts.sort(key=lambda x: x[1], reverse=True)
 
     round_scores = green_scoring_table[round_num]
-    scores: Dict[int, int] = {}
+    scores: dict[int, int] = {}
     position = 0
 
     while position < len(player_counts):

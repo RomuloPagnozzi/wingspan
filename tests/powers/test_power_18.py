@@ -181,7 +181,7 @@ class TestPower18GrasslandCard:
         )
         state.current_player_index = 1
         assert spot.bird
-        initial_tucked = spot.bird.tucked_cards
+        initial_tucked = spot.bird.state.tucked_cards
 
         # Activate then tuck the first card
         state = transition_state(state, "activate_power")
@@ -191,7 +191,9 @@ class TestPower18GrasslandCard:
         # bird_hand contains IDs directly now
         assert state.players[1].bird_hand[0] == hand_id_2
         assert state.players[1].board[1][0].bird
-        assert state.players[1].board[1][0].bird.tucked_cards == initial_tucked + 1
+        assert (
+            state.players[1].board[1][0].bird.state.tucked_cards == initial_tucked + 1
+        )
 
 
 class TestPower18TriggerMatching:

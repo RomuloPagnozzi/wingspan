@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Dict
+from typing import TYPE_CHECKING
 import pickle
 
 if TYPE_CHECKING:
     from .constants import BirdCard, Bonus
 
-BIRD_REGISTRY: Dict[int, BirdCard] = {}
-POWER_REGISTRY: Dict[int, Dict] = {}
-BONUS_REGISTRY: Dict[int, Bonus] = {}
+BIRD_REGISTRY: dict[int, BirdCard] = {}
+POWER_REGISTRY: dict[int, dict] = {}
+BONUS_REGISTRY: dict[int, Bonus] = {}
 _REGISTRIES_INITIALIZED = False
 
 
-def load_deck(type: str) -> List:
+def load_deck(type: str) -> list:
     """Load a deck from a pickle file."""
     with open(f"game/assets/{type}.pickle", "rb") as f:
         return pickle.load(f)
 
 
-def load_powers() -> Dict:
+def load_powers() -> dict:
     """Load powers data from powers.pickle"""
     with open("game/assets/powers.pickle", "rb") as f:
         return pickle.load(f)
@@ -56,7 +56,7 @@ def get_bonus_card(bonus_id: int) -> Bonus | None:
     return BONUS_REGISTRY.get(bonus_id)
 
 
-def get_bird_power(bird_id: int) -> Dict:
+def get_bird_power(bird_id: int) -> dict:
     """Get power data for a specific bird ID from registry."""
     init_registries()
     return POWER_REGISTRY.get(bird_id, {})

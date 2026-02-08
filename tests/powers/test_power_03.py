@@ -48,8 +48,12 @@ def test_power_3_caches_seed_on_activating_bird_end_to_end():
     assert state.players[0].board[0][1].bird
     assert state.players[0].board[1][0].bird
     assert state.players[1].board[0][0].bird
-    assert state.players[0].board[0][0].bird.stashed_food == 0, "Bird1 unchanged"
-    assert state.players[0].board[0][1].bird.stashed_food == 3, "Bird2 gained 1 (2->3)"
-    assert state.players[0].board[1][0].bird.stashed_food == 0, "Bird3 unchanged"
-    assert state.players[1].board[0][0].bird.stashed_food == 0, "Other player unchanged"
+    assert state.players[0].board[0][0].bird.state.stashed_food == 0, "Bird1 unchanged"
+    assert (
+        state.players[0].board[0][1].bird.state.stashed_food == 3
+    ), "Bird2 gained 1 (2->3)"
+    assert state.players[0].board[1][0].bird.state.stashed_food == 0, "Bird3 unchanged"
+    assert (
+        state.players[1].board[0][0].bird.state.stashed_food == 0
+    ), "Other player unchanged"
     assert state.game_phase == GamePhase.MAIN_TURN

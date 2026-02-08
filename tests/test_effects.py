@@ -68,11 +68,11 @@ def test_lay_eggs_single_bird():
     state = initiate_state(2)
     # bird_hand contains IDs - place bird to create PlacedBird
     bird_id = state.players[0].bird_hand[0]
-    state.players[0].board[0][0].bird = PlacedBird(card_id=bird_id)
+    state.players[0].board[0][0].bird = PlacedBird(id=bird_id)
 
     lay_eggs_effect(state, {bird_id: 2}, player_index=0)
 
-    assert state.players[0].board[0][0].bird.eggs == 2
+    assert state.players[0].board[0][0].bird.state.eggs == 2
 
 
 def test_lay_eggs_multiple_birds():
@@ -80,13 +80,13 @@ def test_lay_eggs_multiple_birds():
     # bird_hand contains IDs - create PlacedBird for board
     bird_id1 = state.players[0].bird_hand[0]
     bird_id2 = state.players[0].bird_hand[1]
-    state.players[0].board[0][0].bird = PlacedBird(card_id=bird_id1)
-    state.players[0].board[1][1].bird = PlacedBird(card_id=bird_id2)
+    state.players[0].board[0][0].bird = PlacedBird(id=bird_id1)
+    state.players[0].board[1][1].bird = PlacedBird(id=bird_id2)
 
     lay_eggs_effect(state, {bird_id1: 1, bird_id2: 3}, player_index=0)
 
-    assert state.players[0].board[0][0].bird.eggs == 1
-    assert state.players[0].board[1][1].bird.eggs == 3
+    assert state.players[0].board[0][0].bird.state.eggs == 1
+    assert state.players[0].board[1][1].bird.state.eggs == 3
 
 
 def test_parse_draw_cards_action():
@@ -138,13 +138,11 @@ def test_pay_eggs():
     state = initiate_state(2)
     # bird_hand contains IDs - create PlacedBird on board with eggs
     bird_id = state.players[0].bird_hand[0]
-    state.players[0].board[0][0].bird = PlacedBird(
-        card_id=bird_id, state=BirdState(eggs=3)
-    )
+    state.players[0].board[0][0].bird = PlacedBird(id=bird_id, state=BirdState(eggs=3))
 
     pay_eggs_effect(state, {bird_id: 2}, player_index=0)
 
-    assert state.players[0].board[0][0].bird.eggs == 1
+    assert state.players[0].board[0][0].bird.state.eggs == 1
 
 
 def test_pay_food():

@@ -1,4 +1,4 @@
-from typing import Dict, Callable
+from typing import Callable
 
 from ..core import GameState, get_bird_power
 from ..utils import (
@@ -8,7 +8,7 @@ from ..utils import (
     get_available_bird_cards,
 )
 
-_POWER_VALIDATORS: Dict[int, Callable[[GameState, Dict], bool]] = {}
+_POWER_VALIDATORS: dict[int, Callable[[GameState, dict], bool]] = {}
 
 
 def power_validator(power_id: int):
@@ -21,7 +21,7 @@ def power_validator(power_id: int):
     return decorator
 
 
-def can_execute_power(state: GameState, power_entry: Dict) -> bool:
+def can_execute_power(state: GameState, power_entry: dict) -> bool:
     """Check if a power can be executed."""
     power_data = power_entry.get("power_data", power_entry)
     if not power_data.get("data") or "id" not in power_data["data"]:
@@ -37,7 +37,7 @@ def can_execute_power(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(1)
-def _can_execute_power_1(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_1(state: GameState, power_entry: dict) -> bool:
     """Validate power type 1: all players gain resource."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -47,7 +47,7 @@ def _can_execute_power_1(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(2)
-def _can_execute_power_2(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_2(state: GameState, power_entry: dict) -> bool:
     """Validate power type 2: all players lay eggs on nest type."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -62,7 +62,7 @@ def _can_execute_power_2(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(4)
-def _can_execute_power_4(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_4(state: GameState, power_entry: dict) -> bool:
     """Validate power type 4: discard resource to gain resource/cards."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -79,7 +79,7 @@ def _can_execute_power_4(state: GameState, power_entry: Dict) -> bool:
     if discard_type == "egg":
         for row in current_player.board:
             for spot in row:
-                if spot.bird is not None and spot.bird.eggs > 0:
+                if spot.bird is not None and spot.bird.state.eggs > 0:
                     if gain == "wild":
                         activating_bird_id = power_entry.get("bird_id")
                         if spot.bird.id != activating_bird_id:
@@ -92,7 +92,7 @@ def _can_execute_power_4(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(5)
-def _can_execute_power_5(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_5(state: GameState, power_entry: dict) -> bool:
     """Validate power type 5: draw cards or bonus."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -105,13 +105,13 @@ def _can_execute_power_5(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(6)
-def _can_execute_power_6(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_6(state: GameState, power_entry: dict) -> bool:
     """Validate power type 6: draw n+1 cards for all players to select."""
     return get_available_bird_cards(state) >= len(state.players) + 1
 
 
 @power_validator(8)
-def _can_execute_power_8(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_8(state: GameState, power_entry: dict) -> bool:
     """Validate power type 8: gain food."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -130,7 +130,7 @@ def _can_execute_power_8(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(9)
-def _can_execute_power_9(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_9(state: GameState, power_entry: dict) -> bool:
     """Validate power type 9: move bird to another habitat if rightmost."""
     spot = power_entry["spot"]
     bird = spot.bird
@@ -147,7 +147,7 @@ def _can_execute_power_9(state: GameState, power_entry: Dict) -> bool:
     if spot.col != rightmost_spot.col:
         return False
 
-    for habitat in bird.habitats:
+    for habitat in bird.card.habitats:
         if habitat != current_habitat:
             target_row = current_player.board[habitat_map[habitat]]
             if find_leftmost_empty_spot(target_row) is not None:
@@ -157,7 +157,7 @@ def _can_execute_power_9(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(10)
-def _can_execute_power_10(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_10(state: GameState, power_entry: dict) -> bool:
     """Validate power type 10: lay eggs on birds."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -169,13 +169,16 @@ def _can_execute_power_10(state: GameState, power_entry: Dict) -> bool:
     if is_this:
         spot = power_entry.get("spot")
         if spot and spot.bird:
-            return spot.bird.eggs < spot.bird.egg_limit
+            return spot.bird.state.eggs < spot.bird.card.egg_limit
         return False
 
     if nest_type == "any":
         for row in current_player.board:
             for spot in row:
-                if spot.bird is not None and spot.bird.eggs < spot.bird.egg_limit:
+                if (
+                    spot.bird is not None
+                    and spot.bird.state.eggs < spot.bird.card.egg_limit
+                ):
                     return True
         return False
 
@@ -183,13 +186,13 @@ def _can_execute_power_10(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(11)
-def _can_execute_power_11(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_11(state: GameState, power_entry: dict) -> bool:
     """Validate power type 11: predator draws 1 card."""
     return get_available_bird_cards(state) >= 1
 
 
 @power_validator(12)
-def _can_execute_power_12(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_12(state: GameState, power_entry: dict) -> bool:
     """Validate power type 12: play additional bird in habitat."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -213,7 +216,7 @@ def _can_execute_power_12(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(14)
-def _can_execute_power_14(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_14(state: GameState, power_entry: dict) -> bool:
     """Validate power type 14: repeat another bird's power in this habitat."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -260,7 +263,7 @@ def _can_execute_power_14(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(15)
-def _can_execute_power_15(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_15(state: GameState, power_entry: dict) -> bool:
     """Validate power type 15: roll dice not in birdfeeder."""
     if len(state.feeder) != 5:
         return True
@@ -268,14 +271,14 @@ def _can_execute_power_15(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(16)
-def _can_execute_power_16(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_16(state: GameState, power_entry: dict) -> bool:
     """Validate power type 16: trade 1 food for any other type from supply."""
     current_player = state.players[state.current_player_index]
     return bool(current_player.food)
 
 
 @power_validator(17)
-def _can_execute_power_17(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_17(state: GameState, power_entry: dict) -> bool:
     """Validate power type 17: tuck card and get bonus."""
     current_player = state.players[state.current_player_index]
     if not current_player.bird_hand:
@@ -291,7 +294,7 @@ def _can_execute_power_17(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(18)
-def _can_execute_power_18(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_18(state: GameState, power_entry: dict) -> bool:
     """Validate power type 18: gain resource or tuck card when opponent plays in habitat."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
@@ -306,7 +309,7 @@ def _can_execute_power_18(state: GameState, power_entry: Dict) -> bool:
 
 
 @power_validator(20)
-def _can_execute_power_20(state: GameState, power_entry: Dict) -> bool:
+def _can_execute_power_20(state: GameState, power_entry: dict) -> bool:
     """Validate power type 20: lay egg on nest type when opponent lays eggs."""
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})

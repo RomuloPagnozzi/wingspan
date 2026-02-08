@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Dict, Set
 from enum import Enum, unique
 
 
@@ -61,5 +60,5 @@ class Bonus:
     id: int
     name: str
     condition: str
-    score_params: Dict
-    valid_birds_ids: Set[int] = field(repr=False)
+    score_params: dict
+    valid_birds_ids: set[int] = field(repr=False)

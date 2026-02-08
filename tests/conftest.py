@@ -32,7 +32,7 @@ def create_placed_bird(
 ) -> PlacedBird:
     """Create a PlacedBird with specified state."""
     return PlacedBird(
-        card_id=bird_id,
+        id=bird_id,
         state=BirdState(
             eggs=eggs, stashed_food=stashed_food, tucked_cards=tucked_cards
         ),

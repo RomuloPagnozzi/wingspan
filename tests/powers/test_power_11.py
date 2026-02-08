@@ -70,7 +70,7 @@ def test_power_11_tuck_card():
     small_bird_id = find_bird_id_by_wingspan(less_than=75)
     state.bird_deck = [small_bird_id]
 
-    initial_tucked = placed.tucked_cards
+    initial_tucked = placed.state.tucked_cards
 
     setup_power_execution(
         state, 11, bird_id, activating_spot, state.current_player_index, power_data
@@ -81,7 +81,7 @@ def test_power_11_tuck_card():
     # Get bird from returned state after deepcopy
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird is not None
-    assert updated_bird.tucked_cards == initial_tucked + 1
+    assert updated_bird.state.tucked_cards == initial_tucked + 1
     assert len(state.bird_deck) == 0
     assert state.game_phase == GamePhase.MAIN_TURN
 
@@ -102,7 +102,7 @@ def test_power_11_discard_card():
     large_bird_id = find_bird_id_by_wingspan(at_least=75)
     state.bird_deck = [large_bird_id]
 
-    initial_tucked = placed.tucked_cards
+    initial_tucked = placed.state.tucked_cards
 
     setup_power_execution(
         state, 11, bird_id, activating_spot, state.current_player_index, power_data
@@ -113,7 +113,7 @@ def test_power_11_discard_card():
     # Check the board bird after deepcopy
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird is not None
-    assert updated_bird.tucked_cards == initial_tucked
+    assert updated_bird.state.tucked_cards == initial_tucked
     assert len(state.discarded_birds) == 1
     assert state.discarded_birds[0] == large_bird_id
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -161,14 +161,14 @@ def test_power_11_multiple_activations():
     ]
     state.action_data.current_power_index = 0
 
-    initial_tucked = placed.tucked_cards
+    initial_tucked = placed.state.tucked_cards
 
     # First activation - draws large_bird (popped from end of list)
     state = transition_state(state, "activate_power")
     # Get bird from returned state after deepcopy
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird is not None
-    assert updated_bird.tucked_cards == initial_tucked  # No tuck (wingspan >= 75)
+    assert updated_bird.state.tucked_cards == initial_tucked  # No tuck (wingspan >= 75)
     assert len(state.discarded_birds) == 1
     assert state.discarded_birds[0] == large_bird_id
     assert state.game_phase == GamePhase.ACTIVATE_POWERS  # Still processing queue
@@ -178,7 +178,9 @@ def test_power_11_multiple_activations():
     # Get bird from returned state after deepcopy
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird is not None
-    assert updated_bird.tucked_cards == initial_tucked + 1  # Tucked (wingspan < 75)
+    assert (
+        updated_bird.state.tucked_cards == initial_tucked + 1
+    )  # Tucked (wingspan < 75)
     assert len(state.discarded_birds) == 1  # Still only large_bird discarded
     assert state.game_phase == GamePhase.MAIN_TURN  # Queue complete
 

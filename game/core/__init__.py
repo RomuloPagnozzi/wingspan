@@ -1,5 +1,5 @@
 from .constants import PinkTrigger, GamePhase, ScoringMode, BirdCard, Bonus
-from .player import Player, BirdState, PlacedBird, Spot, ScoreState
+from .player import Player, BirdState, PlacedBird, Spot
 from .turn_data import (
     PowerExecution,
     QueuedPower,

@@ -1,10 +1,8 @@
-from typing import List, Dict, Tuple, Generator
+from typing import Generator
 from itertools import (
     combinations_with_replacement,
     product,
     combinations,
-    cycle,
-    islice,
 )
 
 from .core import (
@@ -50,25 +48,22 @@ def refresh_bird_tray(state: GameState) -> None:
 def get_current_player_index(s: GameState) -> int:
     """Returns current player index."""
     players = s.players
-    first_player_index = next(
-        i for i, player in enumerate(players) if player.first_player
-    )
-    all_same_cubes = all(
-        player.action_cubes == players[0].action_cubes for player in players
-    )
+    n = len(players)
+    first = next(i for i, p in enumerate(players) if p.first_player)
 
-    if all_same_cubes:
-        return first_player_index
+    if all(p.action_cubes == players[0].action_cubes for p in players):
+        return first
 
-    first_player_actions = players[first_player_index].action_cubes
-    cycle_iterator = islice(cycle(enumerate(players)), first_player_index, None, 1)
-    index, player = next(islice(cycle_iterator, None, None))
-    while player.action_cubes == first_player_actions:
-        index, player = next(islice(cycle_iterator, None, None))
-    return index
+    first_cubes = players[first].action_cubes
+    for offset in range(1, n):
+        idx = (first + offset) % n
+        if players[idx].action_cubes != first_cubes:
+            return idx
+
+    return first
 
 
-def find_leftmost_empty_spot(board_row: List[Spot]) -> Spot | None:
+def find_leftmost_empty_spot(board_row: list[Spot]) -> Spot | None:
     """Find the leftmost empty spot in a board row."""
     for spot in board_row:
         if spot.bird is None:
@@ -87,12 +82,12 @@ def can_play_a_bird(player: Player) -> bool:
 
 def generate_playable_bird_spots(
     player: Player,
-) -> Generator[Tuple[int, Spot], None, None]:
+) -> Generator[tuple[int, Spot], None, None]:
     """Generator that yields all valid (bird_id, spot) combinations."""
     if not player.bird_hand:
         return
 
-    empty_spots: List[Spot] = []
+    empty_spots: list[Spot] = []
     for row in player.board:
         spot = find_leftmost_empty_spot(row)
         if spot is not None:
@@ -104,7 +99,9 @@ def generate_playable_bird_spots(
     played_birds = [
         spot.bird for row in player.board for spot in row if spot.bird is not None
     ]
-    available_eggs = sum(bird.eggs for bird in played_birds) if played_birds else 0
+    available_eggs = (
+        sum(bird.state.eggs for bird in played_birds) if played_birds else 0
+    )
 
     available_spots = [spot for spot in empty_spots if spot.egg_cost <= available_eggs]
 
@@ -124,8 +121,8 @@ def generate_playable_bird_spots(
 
 
 def get_egg_payment_combinations(
-    birds: Dict[int, int], egg_cost: int
-) -> List[Dict[int, int]]:
+    birds: dict[int, int], egg_cost: int
+) -> list[dict[int, int]]:
     """Generate all valid ways to pay egg cost using available eggs from birds."""
 
     if egg_cost <= 0:
@@ -158,8 +155,8 @@ def get_egg_payment_combinations(
 
 
 def get_egg_distribution_combinations(
-    birds_capacity: Dict[int, int], eggs_to_distribute: int
-) -> List[Dict[int, int]]:
+    birds_capacity: dict[int, int], eggs_to_distribute: int
+) -> list[dict[int, int]]:
     """Generate all valid ways to distribute eggs to birds based on their available capacity."""
 
     if eggs_to_distribute <= 0:
@@ -188,7 +185,7 @@ def get_egg_distribution_combinations(
     bird_ids = list(available_birds.keys())
 
     def find_distributions(
-        remaining_eggs: int, distribution: Dict[int, int], bird_index: int
+        remaining_eggs: int, distribution: dict[int, int], bird_index: int
     ) -> None:
         if bird_index == len(bird_ids):
             if remaining_eggs == 0:
@@ -217,7 +214,7 @@ def get_egg_distribution_combinations(
 
 
 def can_afford_bird(
-    cost_options: List[Dict[str, int]], resources: Dict[str, int]
+    cost_options: list[dict[str, int]], resources: dict[str, int]
 ) -> bool:
     """Check if we can afford a bird using any of its cost options."""
     try:
@@ -228,7 +225,7 @@ def can_afford_bird(
 
 
 def can_afford_bird_cost(
-    frozen_cost: tuple[tuple[tuple[str, int], ...], ...], resources: Dict[str, int]
+    frozen_cost: tuple[tuple[tuple[str, int], ...], ...], resources: dict[str, int]
 ) -> bool:
     """Check if we can afford a bird using its frozen cost format (from BirdCard)."""
     cost_options = [dict(option) for option in frozen_cost]
@@ -236,8 +233,8 @@ def can_afford_bird_cost(
 
 
 def generate_food_payments(
-    cost_options: List[Dict[str, int]], resources: Dict[str, int]
-) -> Generator[Dict[str, int], None, None]:
+    cost_options: list[dict[str, int]], resources: dict[str, int]
+) -> Generator[dict[str, int], None, None]:
     """Generator that yields all valid ways to pay bird food cost with available resources."""
     if not cost_options:
         yield {}
@@ -253,8 +250,8 @@ def generate_food_payments(
 
 
 def _generate_food_payments_for_cost_option(
-    cost: Dict[str, int], resources: Dict[str, int]
-) -> Generator[Dict[str, int], None, None]:
+    cost: dict[str, int], resources: dict[str, int]
+) -> Generator[dict[str, int], None, None]:
     """Generate all valid ways to pay a single food cost option with available resources."""
     remaining_cost = cost.copy()
     remaining_resources = resources.copy()
@@ -290,11 +287,11 @@ def _generate_food_payments_for_cost_option(
 
 
 def _generate_2_to_1_trade_combinations(
-    remaining_cost: Dict[str, int],
-    remaining_resources: Dict[str, int],
-    exact_payment: Dict[str, int],
+    remaining_cost: dict[str, int],
+    remaining_resources: dict[str, int],
+    exact_payment: dict[str, int],
     wild_cost: int,
-) -> Generator[Dict[str, int], None, None]:
+) -> Generator[dict[str, int], None, None]:
     """Generate all valid 2:1 trade combinations for remaining costs."""
 
     total_units_needed = sum(remaining_cost.values())
@@ -340,8 +337,8 @@ def _generate_2_to_1_trade_combinations(
 
 
 def _generate_wild_payments(
-    base_payment: Dict[str, int], remaining: Dict[str, int], wild_count: int
-) -> Generator[Dict[str, int], None, None]:
+    base_payment: dict[str, int], remaining: dict[str, int], wild_count: int
+) -> Generator[dict[str, int], None, None]:
     """Generate all ways to pay wild cost with remaining resources."""
     available_foods = []
     for food_type, amount in remaining.items():
@@ -372,9 +369,9 @@ def _generate_wild_payments(
 
 def get_card_draw_combinations(
     cards_needed: int,
-    available_tray_bird_ids: List[int],
+    available_tray_bird_ids: list[int],
     max_deck_cards: int | None = None,
-) -> List[Dict]:
+) -> list[dict]:
     """Return all valid ways to draw cards from mix of tray and deck. Allows partial draw"""
 
     if cards_needed <= 0:
@@ -387,8 +384,8 @@ def get_card_draw_combinations(
 
     if total_available == 0:
         raise ValueError(
-            f"Cannot draw cards: no cards available (tray empty, deck empty). "
-            f"This should have been prevented by the action gate check."
+            "Cannot draw cards: no cards available (tray empty, deck empty). "
+            "This should have been prevented by the action gate check."
         )
 
     actual_cards_needed = min(cards_needed, total_available)
@@ -414,9 +411,9 @@ def get_card_draw_combinations(
 
 
 def get_initial_card_combinations(
-    bird_ids: List[int],
-    bonus_ids: List[int],
-) -> List[Dict]:
+    bird_ids: list[int],
+    bonus_ids: list[int],
+) -> list[dict]:
     """Return all valid combinations of birds and bonus cards for setup."""
     if len(bonus_ids) != 2 or len(bird_ids) != 5:
         raise ValueError(
@@ -436,9 +433,9 @@ def get_initial_card_combinations(
 
 
 def get_food_discard_combinations(
-    food: Dict[str, int],
+    food: dict[str, int],
     amount_needed: int,
-) -> List[Dict[str, int]]:
+) -> list[dict[str, int]]:
     """Return all valid ways to discard the required amount of food tokens."""
     if amount_needed <= 0:
         raise ValueError("Amount needed must be positive")
@@ -465,7 +462,7 @@ def get_food_discard_combinations(
     return combinations_list
 
 
-def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[PlacedBird]:
+def get_valid_birds_for_eggs(player: Player, nest_type: str) -> list[PlacedBird]:
     """Get all birds on player's board that match nest type and have egg capacity."""
     valid_birds = []
 
@@ -473,8 +470,8 @@ def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[PlacedBird]
         for spot in row:
             if (
                 spot.bird is not None
-                and spot.bird.nest == nest_type
-                and spot.bird.eggs < spot.bird.egg_limit
+                and spot.bird.card.nest == nest_type
+                and spot.bird.state.eggs < spot.bird.card.egg_limit
             ):
                 valid_birds.append(spot.bird)
 
@@ -483,7 +480,7 @@ def get_valid_birds_for_eggs(player: Player, nest_type: str) -> List[PlacedBird]
 
 def get_triggered_powers(
     player: Player, color: str, habitat: str | None = None, spot: Spot | None = None
-) -> List[Dict]:
+) -> list[dict]:
     """Get powers whose trigger conditions are met for a specific color."""
     triggered_powers = []
 
@@ -523,9 +520,9 @@ def get_triggered_powers(
 
 def _pink_power_matches_trigger(
     power_id: int,
-    power_data: Dict,
+    power_data: dict,
     trigger_type: PinkTrigger,
-    context: Dict,
+    context: dict,
 ) -> bool:
     """Check if a pink power's trigger matches the current event context."""
     details = power_data.get("data", {}).get("details", {})
@@ -552,8 +549,8 @@ def get_triggered_pink_powers(
     state: GameState,
     trigger_type: PinkTrigger,
     triggering_player_index: int,
-    context: Dict | None = None,
-) -> List[Dict]:
+    context: dict | None = None,
+) -> list[dict]:
     """Find pink powers triggered by another player's action."""
     triggered = []
     context = context or {}
@@ -594,12 +591,12 @@ def get_triggered_pink_powers(
     return triggered
 
 
-def get_food_gain_combinations(quantity: int) -> List[Dict[str, int]]:
+def get_food_gain_combinations(quantity: int) -> list[dict[str, int]]:
     """Generate all valid ways to gain N food tokens from available food types."""
     food_types = ["invertebrate", "seed", "fish", "fruit", "rodent"]
     combinations = []
 
-    def generate_combinations(remaining: int, combo: Dict[str, int], start_index: int):
+    def generate_combinations(remaining: int, combo: dict[str, int], start_index: int):
         if remaining == 0:
             combinations.append(combo.copy())
             return
@@ -649,7 +646,7 @@ def get_first_player_index(state: GameState) -> int:
     return next(i for i, p in enumerate(state.players) if p.first_player)
 
 
-def get_collect_food_actions(state: GameState) -> List[str]:
+def get_collect_food_actions(state: GameState) -> list[str]:
     """Return possible foods to collect from the bird feeder."""
     actions = []
 

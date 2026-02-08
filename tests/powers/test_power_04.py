@@ -83,8 +83,12 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].board[0][1].bird
     assert state.players[0].board[0][0].bird
-    assert state.players[0].board[0][1].bird.eggs == 0, "Egg was discarded from bird2"
-    assert state.players[0].board[0][0].bird.eggs == 2, "Activating bird unchanged"
+    assert (
+        state.players[0].board[0][1].bird.state.eggs == 0
+    ), "Egg was discarded from bird2"
+    assert (
+        state.players[0].board[0][0].bird.state.eggs == 2
+    ), "Activating bird unchanged"
     assert state.players[0].food == {"seed": 1, "fish": 1}, "Gained 1 fish"
 
 
@@ -143,7 +147,9 @@ def test_power_4_discard_egg_gain_2_wild_food():
     # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].board[0][1].bird
-    assert state.players[0].board[0][1].bird.eggs == 1, "Egg was discarded from bird2"
+    assert (
+        state.players[0].board[0][1].bird.state.eggs == 1
+    ), "Egg was discarded from bird2"
     assert state.players[0].food == {"seed": 2}, "Gained 2 seeds"
 
 
@@ -193,7 +199,7 @@ def test_power_4_discard_egg_draw_cards_end_to_end():
     # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].board[0][0].bird
-    assert state.players[0].board[0][0].bird.eggs == 0, "Egg was discarded"
+    assert state.players[0].board[0][0].bird.state.eggs == 0, "Egg was discarded"
     assert len(state.players[0].bird_hand) == initial_hand_size + 2, "Drew 2 cards"
     assert len(state.bird_deck) == initial_deck_size - 2, "2 cards removed from deck"
 
@@ -252,7 +258,9 @@ def test_power_4_discard_food_tuck_cards_end_to_end():
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.players[0].board[0][0].bird
     assert state.players[0].food == {"fish": 1, "seed": 1}, "1 fish discarded"
-    assert state.players[0].board[0][0].bird.tucked_cards == 3, "Tucked 2 cards (1->3)"
+    assert (
+        state.players[0].board[0][0].bird.state.tucked_cards == 3
+    ), "Tucked 2 cards (1->3)"
     assert len(state.bird_deck) == initial_deck_size - 2, "2 cards removed from deck"
 
 

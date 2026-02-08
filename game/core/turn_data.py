@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Dict, Any
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .player import Spot
@@ -19,7 +19,7 @@ class PowerExecution:
     spot_col: int
     player_index: int
     phase: str | None
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
     def get_spot(self, state: GameState) -> Spot:
         """Resolve spot reference from the state."""
@@ -35,7 +35,7 @@ class QueuedPower:
     spot_row: int
     spot_col: int
     player_index: int
-    power_data: Dict[str, Any]
+    power_data: dict[str, Any]
 
 
 @dataclass(slots=True)
@@ -43,7 +43,7 @@ class CostPayment:
     """Context for paying egg or food cost."""
 
     cost_type: str
-    amount: int | Dict[str, int] | List[Dict[str, int]]
+    amount: int | dict[str, int] | list[dict[str, int]]
     callback_phase: GamePhase
     callback_action: str
 
@@ -63,12 +63,12 @@ class ActionData:
     power execution, and turn management.
     """
 
-    powers_queue: List[QueuedPower] = field(default_factory=list)
+    powers_queue: list[QueuedPower] = field(default_factory=list)
     current_power_index: int = 0
     action_player_index: int | None = None
-    execution_stack: List[PowerExecution] = field(default_factory=list)
+    execution_stack: list[PowerExecution] = field(default_factory=list)
     pending_cost: CostPayment | None = None
-    end_turn_effects: List[EndTurnEffect] = field(default_factory=list)
+    end_turn_effects: list[EndTurnEffect] = field(default_factory=list)
     food_needed: int = 0
     eggs_needed: int = 0
     cards_needed: int = 0

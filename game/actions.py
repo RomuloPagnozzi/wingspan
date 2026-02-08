@@ -1,4 +1,4 @@
-from typing import List, Callable, Dict
+from typing import Callable
 import json
 
 from .core import GameState, GamePhase
@@ -16,7 +16,7 @@ from .utils import (
 )
 from .power import can_execute_power, get_power_choice_generator
 
-_ACTION_GENERATORS: Dict[GamePhase, Callable] = {}
+_ACTION_GENERATORS: dict[GamePhase, Callable] = {}
 
 
 def action_generator(phase: GamePhase):
@@ -45,7 +45,7 @@ _ACTION_GENERATORS[GamePhase.COLLECT_FOOD] = get_collect_food_actions
 _ACTION_GENERATORS[GamePhase.GAME_OVER] = lambda state: []
 
 
-def get_actions(state: GameState) -> List[str]:
+def get_actions(state: GameState) -> list[str]:
     """Return list of available actions for current player."""
     generator = _ACTION_GENERATORS.get(state.game_phase)
     if not generator:
@@ -54,7 +54,7 @@ def get_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.GAME_SETUP)
-def _get_game_setup_actions(state: GameState) -> List[str]:
+def _get_game_setup_actions(state: GameState) -> list[str]:
     """Return setup actions."""
     current_player = state.players[state.current_player_index]
 
@@ -65,7 +65,7 @@ def _get_game_setup_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.SELECT_INITIAL_CARDS)
-def _get_select_initial_cards_actions(state: GameState) -> List[str]:
+def _get_select_initial_cards_actions(state: GameState) -> list[str]:
     """Return all valid bird and bonus card combinations for setup."""
     current_player = state.players[state.current_player_index]
     combinations = get_initial_card_combinations(
@@ -76,11 +76,11 @@ def _get_select_initial_cards_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.DISCARD_FOOD)
-def _get_discard_food_actions(state: GameState) -> List[str]:
+def _get_discard_food_actions(state: GameState) -> list[str]:
     """Return all valid food discard combinations."""
     amount_to_discard = state.action_data.amount_to_discard
     if not amount_to_discard:
-        raise ValueError(f"No food to discard")
+        raise ValueError("No food to discard")
 
     current_player = state.players[state.current_player_index]
     combinations = get_food_discard_combinations(current_player.food, amount_to_discard)
@@ -88,7 +88,7 @@ def _get_discard_food_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.MAIN_TURN)
-def _get_main_turn_actions(state: GameState) -> List[str]:
+def _get_main_turn_actions(state: GameState) -> list[str]:
     """Return the 4 main Wingspan actions available during a player's turn."""
     current_player = state.players[state.current_player_index]
     if not current_player.action_cubes:
@@ -97,7 +97,7 @@ def _get_main_turn_actions(state: GameState) -> List[str]:
     actions = []
 
     available_egg_capacity = any(
-        spot.bird.eggs < spot.bird.egg_limit
+        spot.bird.state.eggs < spot.bird.card.egg_limit
         for row in current_player.board
         for spot in row
         if spot.bird is not None
@@ -119,7 +119,7 @@ def _get_main_turn_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.END_TURN)
-def _get_end_turn_actions(state: GameState) -> List[str]:
+def _get_end_turn_actions(state: GameState) -> list[str]:
     """Get actions for end-of-turn phase."""
     execution = state.action_data.get_current_execution()
 
@@ -132,29 +132,29 @@ def _get_end_turn_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.LAY_EGGS)
-def _get_lay_eggs_actions(state: GameState) -> List[str]:
+def _get_lay_eggs_actions(state: GameState) -> list[str]:
     """Return possible lay egg actions."""
     eggs_needed = state.action_data.eggs_needed
     if not eggs_needed:
-        raise ValueError(f"No eggs needed found.")
+        raise ValueError("No eggs needed found.")
 
     current_player = state.players[state.current_player_index]
     birds_capacity = {
-        spot.bird.id: spot.bird.egg_limit - spot.bird.eggs
+        spot.bird.id: spot.bird.card.egg_limit - spot.bird.state.eggs
         for row in current_player.board
         for spot in row
-        if spot.bird is not None and spot.bird.eggs < spot.bird.egg_limit
+        if spot.bird is not None and spot.bird.state.eggs < spot.bird.card.egg_limit
     }
     combinations = get_egg_distribution_combinations(birds_capacity, eggs_needed)
     return [json.dumps(comb) for comb in combinations]
 
 
 @action_generator(GamePhase.DRAW_CARDS)
-def _get_draw_cards_actions(state: GameState) -> List[str]:
+def _get_draw_cards_actions(state: GameState) -> list[str]:
     """Return possible card draw actions."""
     cards_needed = state.action_data.cards_needed
     if not cards_needed:
-        raise ValueError(f"No cards needed found.")
+        raise ValueError("No cards needed found.")
 
     available_tray_bird_ids = list(state.bird_tray)
     deck_available = get_available_bird_cards(state)
@@ -165,35 +165,35 @@ def _get_draw_cards_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.SELECT_BIRD_TO_DISCARD)
-def _get_bird_discard_actions(state: GameState) -> List[str]:
+def _get_bird_discard_actions(state: GameState) -> list[str]:
     """Return birds that can be discarded for extra food."""
     current_player = state.players[state.current_player_index]
     return [f"discard_bird_{bird_id}" for bird_id in current_player.bird_hand]
 
 
 @action_generator(GamePhase.SELECT_FOOD_TO_DISCARD)
-def _get_food_discard_actions(state: GameState) -> List[str]:
+def _get_food_discard_actions(state: GameState) -> list[str]:
     """Return foods that can be discarded for extra egg."""
     current_player = state.players[state.current_player_index]
     return [f"discard_food_{food}" for food in current_player.food]
 
 
 @action_generator(GamePhase.SELECT_EGG_TO_DISCARD)
-def _get_egg_discard_actions(state: GameState) -> List[str]:
+def _get_egg_discard_actions(state: GameState) -> list[str]:
     """Return eggs that can be discarded for extra card."""
     current_player = state.players[state.current_player_index]
     actions = []
 
     for row in current_player.board:
         for spot in row:
-            if spot.bird is not None and spot.bird.eggs > 0:
+            if spot.bird is not None and spot.bird.state.eggs > 0:
                 actions.append(f"discard_egg_{spot.bird.id}")
 
     return actions
 
 
 @action_generator(GamePhase.PLAY_BIRD)
-def _get_play_bird_actions(state: GameState) -> List[str]:
+def _get_play_bird_actions(state: GameState) -> list[str]:
     """Return birds that can be played with their target spots."""
     current_player = state.players[state.current_player_index]
 
@@ -214,11 +214,11 @@ def _get_play_bird_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.PAY_EGG_COST)
-def _get_pay_egg_cost_actions(state: GameState) -> List[str]:
+def _get_pay_egg_cost_actions(state: GameState) -> list[str]:
     """Return egg payment combinations."""
     pending = state.action_data.pending_cost
     if not pending or pending.cost_type != "egg":
-        raise ValueError(f"No egg cost pending.")
+        raise ValueError("No egg cost pending.")
 
     if not isinstance(pending.amount, int):
         raise ValueError(f"Egg cost must be int, got {type(pending.amount)}")
@@ -227,21 +227,21 @@ def _get_pay_egg_cost_actions(state: GameState) -> List[str]:
 
     current_player = state.players[state.current_player_index]
     birds_with_eggs = {
-        spot.bird.id: spot.bird.eggs
+        spot.bird.id: spot.bird.state.eggs
         for row in current_player.board
         for spot in row
-        if spot.bird is not None and spot.bird.eggs > 0
+        if spot.bird is not None and spot.bird.state.eggs > 0
     }
     combinations = get_egg_payment_combinations(birds_with_eggs, egg_cost)
     return [json.dumps(comb) for comb in combinations]
 
 
 @action_generator(GamePhase.PAY_FOOD_COST)
-def _get_pay_food_cost_actions(state: GameState) -> List[str]:
+def _get_pay_food_cost_actions(state: GameState) -> list[str]:
     """Return food payment combinations."""
     pending = state.action_data.pending_cost
     if not pending or pending.cost_type != "food":
-        raise ValueError(f"No food cost pending.")
+        raise ValueError("No food cost pending.")
 
     if not isinstance(pending.amount, list):
         raise ValueError(f"Food cost must be list, got {type(pending.amount)}")
@@ -254,7 +254,7 @@ def _get_pay_food_cost_actions(state: GameState) -> List[str]:
 
 
 @action_generator(GamePhase.ACTIVATE_POWERS)
-def _get_activate_powers_actions(state: GameState) -> List[str]:
+def _get_activate_powers_actions(state: GameState) -> list[str]:
     """Return power activation options."""
     stack = state.action_data.execution_stack
 
@@ -283,7 +283,7 @@ def _get_activate_powers_actions(state: GameState) -> List[str]:
     if current.phase is None:
         raise ValueError(
             f"Power {current.power_id} execution has no phase set. "
-            f"Power handler must set a phase before requesting user choices."
+            "Power handler must set a phase before requesting user choices."
         )
 
     choice_generator = get_power_choice_generator(current.power_id, current.phase)

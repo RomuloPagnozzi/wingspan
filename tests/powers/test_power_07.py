@@ -168,10 +168,10 @@ def test_power_7_full_game_scenario_with_3_players():
     ), "P2 gained seed"
 
     print("✓ Power 7 end-to-end test passed (3 players)!")
-    print(f"  - Player 0 chose Player 1 to start")
-    print(f"  - Selection order was correct: 1 -> 2 -> 0")
-    print(f"  - Each player gained exactly 1 food from birdfeeder")
-    print(f"  - Game transitioned back to MAIN_TURN correctly")
+    print("  - Player 0 chose Player 1 to start")
+    print("  - Selection order was correct: 1 -> 2 -> 0")
+    print("  - Each player gained exactly 1 food from birdfeeder")
+    print("  - Game transitioned back to MAIN_TURN correctly")
 
 
 def test_power_7_activator_chooses_self():

@@ -93,7 +93,7 @@ def test_power_15_caches_food_on_match():
     spot = state.players[0].board[0][0]
 
     state.feeder = {}
-    placed.stashed_food = 0
+    placed.state.stashed_food = 0
 
     setup_power_execution(
         state, 15, power_15_bird_id, spot, state.current_player_index, power_15_data
@@ -107,7 +107,7 @@ def test_power_15_caches_food_on_match():
 
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird
-    assert updated_bird.stashed_food == 1
+    assert updated_bird.state.stashed_food == 1
 
 
 def test_power_15_no_cache_on_no_match():
@@ -124,7 +124,7 @@ def test_power_15_no_cache_on_no_match():
     spot = state.players[0].board[0][0]
 
     state.feeder = {}
-    placed.stashed_food = 0
+    placed.state.stashed_food = 0
 
     setup_power_execution(
         state, 15, power_15_bird_id, spot, state.current_player_index, power_15_data
@@ -138,7 +138,7 @@ def test_power_15_no_cache_on_no_match():
 
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird
-    assert updated_bird.stashed_food == 0
+    assert updated_bird.state.stashed_food == 0
 
 
 if __name__ == "__main__":

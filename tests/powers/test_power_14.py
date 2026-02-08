@@ -101,7 +101,7 @@ def test_power_14_brown_repeat_simple_power():
     # Verify Power 3 was executed (get bird from returned state after deepcopy)
     updated_power_3_bird = state.players[0].board[0][1].bird
     assert updated_power_3_bird
-    assert updated_power_3_bird.stashed_food == 1
+    assert updated_power_3_bird.state.stashed_food == 1
 
     # Verify cleanup - stack should be empty, turn should be done
     assert len(state.action_data.execution_stack) == 0
@@ -500,7 +500,7 @@ def test_power_14_repeat_power_with_subphase():
     # The action generator now correctly uses the execution stack to find Power 17's choices
     actions = get_actions(state)
     assert len(actions) > 0, (
-        f"Should have tuck_card actions for Power 17, but got empty. "
+        "Should have tuck_card actions for Power 17, but got empty. "
         f"phase={state.action_data.execution_stack[0].phase if state.action_data.execution_stack else 'no stack'}, "
         f"player hand size={len(state.players[0].bird_hand)}"
     )

@@ -247,12 +247,12 @@ def handle_end_turn(state: GameState, action: str) -> GameState:
             )
             return state
 
-        card_id = int(action.split("_")[-1])
+        id = int(action.split("_")[-1])
         player = state.players[current_effect.player_index]
 
-        if card_id in player.bird_hand:
-            player.bird_hand.remove(card_id)
-            state.discarded_birds.append(card_id)
+        if id in player.bird_hand:
+            player.bird_hand.remove(id)
+            state.discarded_birds.append(id)
 
         effects.pop(0)
         state.action_data.execution_stack.pop()

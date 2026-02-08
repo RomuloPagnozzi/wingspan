@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Dict, List
+from typing import Optional
 
 from game.core import GameState, roll_feeder, PlacedBird, BirdState
 from game.utils import ensure_bird_deck
@@ -7,11 +7,11 @@ from game.utils import ensure_bird_deck
 
 def draw_cards_effect(
     state: GameState,
-    tray_bird_ids: List[int],
+    tray_bird_ids: list[int],
     deck_count: int,
     player_index: Optional[int] = None,
-) -> GameState:
-    """Draw cards from tray and/or deck."""
+) -> None:
+    """Draw cards from tray and/or deck. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -26,8 +26,6 @@ def draw_cards_effect(
     for _ in range(actual_deck_draws):
         target_player.bird_hand.append(state.bird_deck.pop())
 
-    return state
-
 
 def parse_draw_cards_action(action: str) -> tuple:
     """Parse draw cards action to effect parameters."""
@@ -35,8 +33,8 @@ def parse_draw_cards_action(action: str) -> tuple:
     return data["tray_birds"], data["deck_cards"]
 
 
-def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> GameState:
-    """Draw cards from deck and tuck them under a specific bird."""
+def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> None:
+    """Draw cards from deck and tuck them under a specific bird. Mutates state in-place."""
     current_player = state.players[state.current_player_index]
 
     for row in current_player.board:
@@ -47,8 +45,8 @@ def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> GameState:
                 for _ in range(actual_tucks):
                     state.bird_deck.pop()
 
-                spot.bird.tucked_cards += actual_tucks
-                return state
+                spot.bird.state.tucked_cards += actual_tucks
+                return
 
     raise ValueError(f"Bird {bird_id} not found on current player's board")
 
@@ -58,8 +56,8 @@ def gain_food_effect(
     food_type: str,
     amount: int = 1,
     player_index: Optional[int] = None,
-) -> GameState:
-    """Add food to player's supply."""
+) -> None:
+    """Add food to player's supply. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -69,15 +67,13 @@ def gain_food_effect(
     else:
         target_player.food[food_type] = amount
 
-    return state
-
 
 def lay_eggs_effect(
     state: GameState,
-    egg_distribution: Dict[int, int],
+    egg_distribution: dict[int, int],
     player_index: Optional[int] = None,
-) -> GameState:
-    """Add eggs to birds."""
+) -> None:
+    """Add eggs to birds. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -86,13 +82,11 @@ def lay_eggs_effect(
         for row in target_player.board:
             for spot in row:
                 if spot.bird is not None and spot.bird.id == bird_id:
-                    spot.bird.eggs += eggs_to_add
+                    spot.bird.state.eggs += eggs_to_add
                     break
 
-    return state
 
-
-def parse_lay_eggs_action(action: str) -> Dict[int, int]:
+def parse_lay_eggs_action(action: str) -> dict[int, int]:
     """Parse lay eggs action to effect parameters."""
     return {int(k): v for k, v in json.loads(action).items()}
 
@@ -102,20 +96,18 @@ def select_die_effect(
     die_index: int,
     food_type: str,
     player_index: Optional[int] = None,
-) -> GameState:
-    """Select die from feeder and gain food."""
+) -> None:
+    """Select die from feeder and gain food. Mutates state in-place."""
     if die_index not in state.feeder:
         raise ValueError(f"Die {die_index} not in feeder")
     if food_type not in state.feeder[die_index]:
         raise ValueError(f"Die {die_index} doesn't have {food_type}")
 
-    state = gain_food_effect(state, food_type, amount=1, player_index=player_index)
+    gain_food_effect(state, food_type, amount=1, player_index=player_index)
     del state.feeder[die_index]
 
     if not state.feeder:
         state.feeder = roll_feeder(state.rng)
-
-    return state
 
 
 def parse_select_die_action(action: str) -> tuple:
@@ -132,8 +124,8 @@ def place_bird_effect(
     row: int,
     col: int,
     player_index: Optional[int] = None,
-) -> GameState:
-    """Place bird from hand onto board spot."""
+) -> None:
+    """Place bird from hand onto board spot. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -146,11 +138,9 @@ def place_bird_effect(
     if target_spot.bird is not None:
         raise ValueError(f"Spot at {row}, {col} is already occupied")
 
-    placed_bird = PlacedBird(card_id=bird_id, state=BirdState())
+    placed_bird = PlacedBird(id=bird_id, state=BirdState())
     target_spot.bird = placed_bird
     target_player.bird_hand.remove(bird_id)
-
-    return state
 
 
 def parse_play_bird_action(action: str) -> tuple:
@@ -162,17 +152,17 @@ def parse_play_bird_action(action: str) -> tuple:
     return bird_id, row, col
 
 
-def parse_pay_eggs_action(action: str) -> Dict[int, int]:
+def parse_pay_eggs_action(action: str) -> dict[int, int]:
     """Parse pay eggs action to effect parameters."""
     return {int(k): v for k, v in json.loads(action).items()}
 
 
 def pay_eggs_effect(
     state: GameState,
-    egg_payment: Dict[int, int],
+    egg_payment: dict[int, int],
     player_index: Optional[int] = None,
-) -> GameState:
-    """Remove eggs from birds to pay a cost."""
+) -> None:
+    """Remove eggs from birds to pay a cost. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -181,23 +171,21 @@ def pay_eggs_effect(
         for row in target_player.board:
             for spot in row:
                 if spot.bird is not None and spot.bird.id == bird_id:
-                    spot.bird.eggs -= eggs_to_remove
+                    spot.bird.state.eggs -= eggs_to_remove
                     break
 
-    return state
 
-
-def parse_pay_food_action(action: str) -> Dict[str, int]:
+def parse_pay_food_action(action: str) -> dict[str, int]:
     """Parse pay food action to effect parameters."""
     return json.loads(action)
 
 
 def pay_food_effect(
     state: GameState,
-    food_payment: Dict[str, int],
+    food_payment: dict[str, int],
     player_index: Optional[int] = None,
-) -> GameState:
-    """Remove food from player's supply to pay a cost."""
+) -> None:
+    """Remove food from player's supply to pay a cost. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -207,15 +195,13 @@ def pay_food_effect(
         if target_player.food[food_type] == 0:
             del target_player.food[food_type]
 
-    return state
-
 
 def discard_bird_from_hand_effect(
     state: GameState,
     bird_id: int,
     player_index: Optional[int] = None,
-) -> GameState:
-    """Remove bird from hand and add to discard pile."""
+) -> None:
+    """Remove bird from hand and add to discard pile. Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -225,5 +211,3 @@ def discard_bird_from_hand_effect(
 
     target_player.bird_hand.remove(bird_id)
     state.discarded_birds.append(bird_id)
-
-    return state

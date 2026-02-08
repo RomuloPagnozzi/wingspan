@@ -128,9 +128,9 @@ def test_power_2_all_players_lay_eggs_end_to_end():
             # Verify all players laid exactly 1 egg
             for i, player in enumerate(state.players):
                 assert player.board[0][0].bird
-                assert player.board[0][0].bird.eggs == 1, (
+                assert player.board[0][0].bird.state.eggs == 1, (
                     f"Player {i} in {num_players}-player game with {nest_type} nest "
-                    f"should have laid exactly 1 egg"
+                    "should have laid exactly 1 egg"
                 )
 
             # Verify we're back to main turn
@@ -185,14 +185,14 @@ def test_power_2_with_mixed_eligibility():
     # Verify only players 0 and 2 laid eggs
     assert state.players[0].board[0][0].bird
     assert state.players[2].board[0][0].bird
-    assert state.players[0].board[0][0].bird.eggs == 1
-    assert state.players[2].board[0][0].bird.eggs == 1
+    assert state.players[0].board[0][0].bird.state.eggs == 1
+    assert state.players[2].board[0][0].bird.state.eggs == 1
 
     # Players 1 and 3 should have no eggs (cavity nests don't match bowl power)
     assert state.players[1].board[0][0].bird
     assert state.players[3].board[0][0].bird
-    assert state.players[1].board[0][0].bird.eggs == 0
-    assert state.players[3].board[0][0].bird.eggs == 0
+    assert state.players[1].board[0][0].bird.state.eggs == 0
+    assert state.players[3].board[0][0].bird.state.eggs == 0
 
     # Verify we're back to main turn
     assert state.game_phase == GamePhase.MAIN_TURN

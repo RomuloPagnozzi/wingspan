@@ -1,4 +1,4 @@
-from typing import List, Dict, Callable, Tuple
+from typing import Callable
 import json
 
 from ..core import (
@@ -30,8 +30,8 @@ from ..utils import (
 )
 from .validators import can_execute_power
 
-PowerHandler = Callable[[GameState, List[PowerExecution], str], GameState]
-_POWER_HANDLERS: Dict[Tuple[int, str | None], PowerHandler] = {}
+PowerHandler = Callable[[GameState, list[PowerExecution], str], GameState]
+_POWER_HANDLERS: dict[tuple[int, str | None], PowerHandler] = {}
 
 
 def power_handler(power_id: int, phase: str | None = None):
@@ -56,7 +56,7 @@ def get_power_handler(power_id: int, phase: str | None) -> PowerHandler | None:
 
 @power_handler(1)
 def _power_1_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """All players gain 1 resource of specified type."""
     current = stack[-1]
@@ -65,12 +65,10 @@ def _power_1_activate(
 
     if resource_type == "card":
         for i in range(len(state.players)):
-            state = draw_cards_effect(
-                state, tray_bird_ids=[], deck_count=1, player_index=i
-            )
+            draw_cards_effect(state, tray_bird_ids=[], deck_count=1, player_index=i)
     else:
         for i in range(len(state.players)):
-            state = gain_food_effect(state, resource_type, amount=1, player_index=i)
+            gain_food_effect(state, resource_type, amount=1, player_index=i)
 
     stack.pop()
     return state
@@ -83,7 +81,7 @@ def _power_1_activate(
 
 @power_handler(2)
 def _power_2_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up multi-player egg laying on nest type."""
     current = stack[-1]
@@ -114,15 +112,13 @@ def _power_2_activate(
 
 @power_handler(2, "choices")
 def _power_2_choices(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle a player's egg distribution choice."""
     current = stack[-1]
     choice_data = action.replace("activate_", "")
     egg_distribution = {int(k): v for k, v in json.loads(choice_data).items()}
-    state = lay_eggs_effect(
-        state, egg_distribution, player_index=state.current_player_index
-    )
+    lay_eggs_effect(state, egg_distribution, player_index=state.current_player_index)
 
     awaiting = current.context["awaiting_players"]
     awaiting.remove(state.current_player_index)
@@ -144,13 +140,13 @@ def _power_2_choices(
 
 @power_handler(3)
 def _power_3_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Cache 1 seed on the activating bird."""
     current = stack[-1]
     spot = current.get_spot(state)
     assert spot.bird
-    spot.bird.stashed_food += 1
+    spot.bird.state.stashed_food += 1
     stack.pop()
     return state
 
@@ -162,7 +158,7 @@ def _power_3_activate(
 
 @power_handler(4)
 def _power_4_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up discard-to-gain power."""
     current = stack[-1]
@@ -180,7 +176,7 @@ def _power_4_activate(
 
 @power_handler(4, "select_discard")
 def _power_4_select_discard(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle discard selection."""
     current = stack[-1]
@@ -191,16 +187,16 @@ def _power_4_select_discard(
 
     if discard_type == "egg":
         bird_id = int(action.split("_")[-1])
-        state = pay_eggs_effect(state, {bird_id: 1})
+        pay_eggs_effect(state, {bird_id: 1})
     else:
         food_type = action.split("_")[-1]
-        state = pay_food_effect(state, {food_type: 1})
+        pay_food_effect(state, {food_type: 1})
 
     if gain_type == "card":
         if action_type == "draw":
-            state = draw_cards_effect(state, tray_bird_ids=[], deck_count=gain_qty)
+            draw_cards_effect(state, tray_bird_ids=[], deck_count=gain_qty)
         elif action_type == "tuck":
-            state = tuck_cards_effect(state, current.bird_id, gain_qty)
+            tuck_cards_effect(state, current.bird_id, gain_qty)
         stack.pop()
         return state
 
@@ -208,21 +204,21 @@ def _power_4_select_discard(
         current.phase = "select_gain"
         return state
 
-    state = gain_food_effect(state, gain_type, amount=gain_qty)
+    gain_food_effect(state, gain_type, amount=gain_qty)
     stack.pop()
     return state
 
 
 @power_handler(4, "select_gain")
 def _power_4_select_gain(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle wild resource gain selection."""
     food_gain_str = action.replace("gain_", "")
     food_distribution = json.loads(food_gain_str)
 
     for food_type, amount in food_distribution.items():
-        state = gain_food_effect(state, food_type, amount=amount)
+        gain_food_effect(state, food_type, amount=amount)
 
     stack.pop()
     return state
@@ -235,7 +231,7 @@ def _power_4_select_gain(
 
 @power_handler(5)
 def _power_5_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Draw bird cards or bonus cards."""
     current = stack[-1]
@@ -246,7 +242,7 @@ def _power_5_activate(
     bonus = details.get("bonus")
 
     if not bonus:
-        state = draw_cards_effect(state, [], amount)
+        draw_cards_effect(state, [], amount)
         if discard:
             state.action_data.end_turn_effects.append(
                 EndTurnEffect(
@@ -259,30 +255,30 @@ def _power_5_activate(
         return state
 
     # bonus_deck now contains IDs
-    drawn_card_ids = [state.bonus_deck.pop() for _ in range(amount)]
-    current.context["bonus_options"] = drawn_card_ids
+    drawn_ids = [state.bonus_deck.pop() for _ in range(amount)]
+    current.context["bonus_options"] = drawn_ids
     current.phase = "select_bonus"
     return state
 
 
 @power_handler(5, "select_bonus")
 def _power_5_select_bonus(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle bonus card selection."""
     current = stack[-1]
     bonus_id = int(action.split("_")[-1])
-    drawn_card_ids = current.context["bonus_options"]
+    drawn_ids = current.context["bonus_options"]
 
     # bonus_options now contains IDs
-    if bonus_id not in drawn_card_ids:
+    if bonus_id not in drawn_ids:
         raise ValueError("Invalid bonus selection")
 
     state.players[state.current_player_index].bonus_hand.append(bonus_id)
 
-    for card_id in drawn_card_ids:
-        if card_id != bonus_id:
-            state.discarded_bonuses.append(card_id)
+    for id in drawn_ids:
+        if id != bonus_id:
+            state.discarded_bonuses.append(id)
 
     stack.pop()
     return state
@@ -295,7 +291,7 @@ def _power_5_select_bonus(
 
 @power_handler(6)
 def _power_6_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Draw cards for all players to select from."""
     current = stack[-1]
@@ -309,7 +305,7 @@ def _power_6_activate(
         stack.pop()
         return state
 
-    drawn_card_ids = [state.bird_deck.pop() for _ in range(actual_draw)]
+    drawn_ids = [state.bird_deck.pop() for _ in range(actual_draw)]
 
     player_order = [activator]
     for i in range(1, num_players):
@@ -324,7 +320,7 @@ def _power_6_activate(
     current.phase = "select_card"
     current.context["activator"] = activator
     current.context["awaiting_players"] = player_order.copy()
-    current.context["available_cards"] = drawn_card_ids
+    current.context["available_cards"] = drawn_ids
     state.current_player_index = player_order[0]
 
     return state
@@ -332,18 +328,18 @@ def _power_6_activate(
 
 @power_handler(6, "select_card")
 def _power_6_select_card(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle player's card selection."""
     current = stack[-1]
-    card_id = int(action.split("_")[-1])
-    available_card_ids = current.context["available_cards"]
+    id = int(action.split("_")[-1])
+    available_ids = current.context["available_cards"]
 
-    if card_id not in available_card_ids:
-        raise ValueError(f"Card {card_id} not in available cards")
+    if id not in available_ids:
+        raise ValueError(f"Card {id} not in available cards")
 
-    state.players[state.current_player_index].bird_hand.append(card_id)
-    available_card_ids.remove(card_id)
+    state.players[state.current_player_index].bird_hand.append(id)
+    available_ids.remove(id)
 
     awaiting = current.context["awaiting_players"]
     awaiting.remove(state.current_player_index)
@@ -365,7 +361,7 @@ def _power_6_select_card(
 
 @power_handler(7)
 def _power_7_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up die selection for all players."""
     current = stack[-1]
@@ -376,7 +372,7 @@ def _power_7_activate(
 
 @power_handler(7, "choose_starting_player")
 def _power_7_choose_starting_player(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle activator's choice of starting player."""
     current = stack[-1]
@@ -399,7 +395,7 @@ def _power_7_choose_starting_player(
 
 @power_handler(7, "select_die")
 def _power_7_select_die(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle player's die selection."""
     current = stack[-1]
@@ -409,7 +405,7 @@ def _power_7_select_die(
         return state
 
     die_index, food_type = parse_select_die_action(action)
-    state = select_die_effect(
+    select_die_effect(
         state, die_index, food_type, player_index=state.current_player_index
     )
 
@@ -433,7 +429,7 @@ def _power_7_select_die(
 
 @power_handler(8)
 def _power_8_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up food gain from birdfeeder or supply."""
     current = stack[-1]
@@ -450,7 +446,7 @@ def _power_8_activate(
     current.context["food_types"] = food_types
 
     if can_cache and quantity != 1:
-        raise ValueError(f"Invalid power 8: can_cache=True requires quantity=1")
+        raise ValueError("Invalid power 8: can_cache=True requires quantity=1")
 
     if not can_cache and len(food_types) == 1 and source == "supply":
         food_type = food_types[0]
@@ -518,7 +514,7 @@ def _power_8_activate(
 
 @power_handler(8, "select_food_type")
 def _power_8_select_food_type(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle food type selection."""
     current = stack[-1]
@@ -553,7 +549,7 @@ def _power_8_select_food_type(
 
 @power_handler(8, "select_die")
 def _power_8_select_die(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle die selection."""
     current = stack[-1]
@@ -571,7 +567,7 @@ def _power_8_select_die(
         return state
 
     die_index, food_type = parse_select_die_action(action)
-    state = select_die_effect(state, die_index, food_type, state.current_player_index)
+    select_die_effect(state, die_index, food_type, state.current_player_index)
 
     if "remaining_quantity" in current.context:
         current.context["remaining_quantity"] -= 1
@@ -588,7 +584,7 @@ def _power_8_select_die(
 
 @power_handler(8, "choose_cache")
 def _power_8_choose_cache(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle cache vs supply decision."""
     current = stack[-1]
@@ -602,7 +598,7 @@ def _power_8_choose_cache(
 
         spot = current.get_spot(state)
         assert spot.bird
-        spot.bird.stashed_food += 1
+        spot.bird.state.stashed_food += 1
 
     stack.pop()
     return state
@@ -615,7 +611,7 @@ def _power_8_choose_cache(
 
 @power_handler(9)
 def _power_9_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up habitat move for rightmost bird."""
     current = stack[-1]
@@ -628,7 +624,7 @@ def _power_9_activate(
     player = state.players[current.player_index]
     valid_habitats = []
 
-    for habitat in bird.habitats:
+    for habitat in bird.card.habitats:
         if habitat != current_habitat:
             target_row = player.board[habitat_map[habitat]]
             if find_leftmost_empty_spot(target_row):
@@ -652,7 +648,7 @@ def _power_9_activate(
 
 @power_handler(9, "select_habitat")
 def _power_9_select_habitat(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle habitat selection."""
     current = stack[-1]
@@ -684,7 +680,7 @@ def _power_9_select_habitat(
 
 @power_handler(10)
 def _power_10_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Lay eggs on specific nest type or this bird."""
     current = stack[-1]
@@ -698,7 +694,7 @@ def _power_10_activate(
     if is_this:
         spot = current.get_spot(state)
         if spot and spot.bird:
-            state = lay_eggs_effect(state, {spot.bird.id: 1})
+            lay_eggs_effect(state, {spot.bird.id: 1})
         stack.pop()
         return state
 
@@ -706,18 +702,21 @@ def _power_10_activate(
         valid_birds = get_valid_birds_for_eggs(player, nest_type)
         if valid_birds:
             egg_distribution = {bird.id: 1 for bird in valid_birds}
-            state = lay_eggs_effect(state, egg_distribution)
+            lay_eggs_effect(state, egg_distribution)
         stack.pop()
         return state
 
     valid_birds = []
     for row in player.board:
         for spot in row:
-            if spot.bird is not None and spot.bird.eggs < spot.bird.egg_limit:
+            if (
+                spot.bird is not None
+                and spot.bird.state.eggs < spot.bird.card.egg_limit
+            ):
                 valid_birds.append(spot.bird)
 
     if len(valid_birds) == 1:
-        state = lay_eggs_effect(state, {valid_birds[0].id: 1})
+        lay_eggs_effect(state, {valid_birds[0].id: 1})
         stack.pop()
         return state
 
@@ -728,11 +727,11 @@ def _power_10_activate(
 
 @power_handler(10, "select_bird")
 def _power_10_select_bird(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle bird selection for egg laying."""
     bird_id = int(action.split("_")[-1])
-    state = lay_eggs_effect(state, {bird_id: 1})
+    lay_eggs_effect(state, {bird_id: 1})
     stack.pop()
     return state
 
@@ -744,7 +743,7 @@ def _power_10_select_bird(
 
 @power_handler(11)
 def _power_11_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Execute predator power."""
     current = stack[-1]
@@ -761,7 +760,7 @@ def _power_11_activate(
     drawn_bird_card = get_bird_card(drawn_bird_id)
 
     if drawn_bird_card and drawn_bird_card.wingspan < wingspan_threshold:
-        activating_bird.tucked_cards += 1
+        activating_bird.state.tucked_cards += 1
 
         pink_powers = get_triggered_pink_powers(
             state,
@@ -796,7 +795,7 @@ def _power_11_activate(
 
 @power_handler(12)
 def _power_12_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up playing additional bird."""
     current = stack[-1]
@@ -820,7 +819,7 @@ def _power_12_activate(
 
 @power_handler(12, "awaiting_bird_play")
 def _power_12_awaiting_bird_play(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Called after bird is played - complete the power."""
     stack.pop()
@@ -834,7 +833,7 @@ def _power_12_awaiting_bird_play(
 
 @power_handler(13)
 def _power_13_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Give resources to players with fewest birds."""
     current = stack[-1]
@@ -860,7 +859,7 @@ def _power_13_activate(
 
     if item == "card":
         for player_idx in players_with_fewest:
-            state = draw_cards_effect(
+            draw_cards_effect(
                 state, tray_bird_ids=[], deck_count=1, player_index=player_idx
             )
         stack.pop()
@@ -875,7 +874,7 @@ def _power_13_activate(
 
 @power_handler(13, "select_die")
 def _power_13_select_die(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle die selection for Power 13."""
     current = stack[-1]
@@ -885,7 +884,7 @@ def _power_13_select_die(
         return state
 
     die_index, food_type = parse_select_die_action(action)
-    state = select_die_effect(
+    select_die_effect(
         state, die_index, food_type, player_index=state.current_player_index
     )
 
@@ -909,7 +908,7 @@ def _power_13_select_die(
 
 @power_handler(14)
 def _power_14_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up bird selection for power repeat."""
     current = stack[-1]
@@ -975,7 +974,7 @@ def _power_14_activate(
 
 @power_handler(14, "select_bird")
 def _power_14_select_bird(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle bird selection - push the repeated power onto the stack."""
     current = stack[-1]
@@ -1012,7 +1011,7 @@ def _power_14_select_bird(
 
 @power_handler(15)
 def _power_15_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Roll dice not in birdfeeder, cache if matching."""
     current = stack[-1]
@@ -1034,7 +1033,7 @@ def _power_15_activate(
         if food_type in face:
             spot = current.get_spot(state)
             assert spot.bird
-            spot.bird.stashed_food += 1
+            spot.bird.state.stashed_food += 1
             break
 
     stack.pop()
@@ -1048,7 +1047,7 @@ def _power_15_activate(
 
 @power_handler(16)
 def _power_16_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up food trade."""
     current = stack[-1]
@@ -1058,15 +1057,15 @@ def _power_16_activate(
 
 @power_handler(16, "select_trade")
 def _power_16_select_trade(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle trade selection."""
     parts = action.split("_")
     from_type = parts[1]
     to_type = parts[3]
 
-    state = pay_food_effect(state, {from_type: 1})
-    state = gain_food_effect(state, to_type, amount=1)
+    pay_food_effect(state, {from_type: 1})
+    gain_food_effect(state, to_type, amount=1)
 
     stack.pop()
     return state
@@ -1079,7 +1078,7 @@ def _power_16_select_trade(
 
 @power_handler(17)
 def _power_17_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up card tuck."""
     current = stack[-1]
@@ -1093,32 +1092,32 @@ def _power_17_activate(
 
 @power_handler(17, "select_card")
 def _power_17_select_card(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle card selection for tucking."""
     current = stack[-1]
-    card_id = int(action.split("_")[-1])
+    id = int(action.split("_")[-1])
     player = state.players[state.current_player_index]
     bonus_types = current.context["types"]
     spot = current.get_spot(state)
 
-    if card_id not in player.bird_hand:
-        raise ValueError(f"Card {card_id} not in hand")
+    if id not in player.bird_hand:
+        raise ValueError(f"Card {id} not in hand")
 
-    player.bird_hand.remove(card_id)
+    player.bird_hand.remove(id)
     assert spot.bird
-    spot.bird.tucked_cards += 1
+    spot.bird.state.tucked_cards += 1
 
     if bonus_types == ["card"]:
-        state = draw_cards_effect(state, tray_bird_ids=[], deck_count=1)
+        draw_cards_effect(state, tray_bird_ids=[], deck_count=1)
         stack.pop()
         return state
     elif bonus_types == ["egg"]:
-        state = lay_eggs_effect(state, {current.bird_id: 1})
+        lay_eggs_effect(state, {current.bird_id: 1})
         stack.pop()
         return state
     elif len(bonus_types) == 1:
-        state = gain_food_effect(state, bonus_types[0], amount=1)
+        gain_food_effect(state, bonus_types[0], amount=1)
         stack.pop()
         return state
     else:
@@ -1129,11 +1128,11 @@ def _power_17_select_card(
 
 @power_handler(17, "select_food")
 def _power_17_select_food(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle food selection for tuck bonus."""
     food_type = action.replace("select_food_", "")
-    state = gain_food_effect(state, food_type, amount=1)
+    gain_food_effect(state, food_type, amount=1)
     stack.pop()
     return state
 
@@ -1145,7 +1144,7 @@ def _power_17_select_food(
 
 @power_handler(18)
 def _power_18_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Gain resource or tuck card."""
     current = stack[-1]
@@ -1157,29 +1156,27 @@ def _power_18_activate(
         current.phase = "select_card"
         return state
 
-    state = gain_food_effect(
-        state, resource, amount=1, player_index=current.player_index
-    )
+    gain_food_effect(state, resource, amount=1, player_index=current.player_index)
     stack.pop()
     return state
 
 
 @power_handler(18, "select_card")
 def _power_18_select_card(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle card selection for tucking."""
     current = stack[-1]
-    card_id = int(action.split("_")[-1])
+    id = int(action.split("_")[-1])
     player = state.players[current.player_index]
     spot = current.get_spot(state)
 
-    if card_id not in player.bird_hand:
-        raise ValueError(f"Card {card_id} not in hand")
+    if id not in player.bird_hand:
+        raise ValueError(f"Card {id} not in hand")
 
-    player.bird_hand.remove(card_id)
+    player.bird_hand.remove(id)
     assert spot.bird
-    spot.bird.tucked_cards += 1
+    spot.bird.state.tucked_cards += 1
 
     stack.pop()
     return state
@@ -1192,13 +1189,13 @@ def _power_18_select_card(
 
 @power_handler(19)
 def _power_19_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Cache rodent on this bird."""
     current = stack[-1]
     spot = current.get_spot(state)
     assert spot.bird
-    spot.bird.stashed_food += 1
+    spot.bird.state.stashed_food += 1
     stack.pop()
     return state
 
@@ -1210,7 +1207,7 @@ def _power_19_activate(
 
 @power_handler(20)
 def _power_20_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Lay egg on nest type."""
     current = stack[-1]
@@ -1223,7 +1220,7 @@ def _power_20_activate(
     valid_birds = [b for b in valid_birds if b.id != current.bird_id]
 
     if len(valid_birds) == 1:
-        state = lay_eggs_effect(
+        lay_eggs_effect(
             state, {valid_birds[0].id: 1}, player_index=current.player_index
         )
         stack.pop()
@@ -1236,12 +1233,12 @@ def _power_20_activate(
 
 @power_handler(20, "select_bird")
 def _power_20_select_bird(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle bird selection for egg laying."""
     current = stack[-1]
     bird_id = int(action.split("_")[-1])
-    state = lay_eggs_effect(state, {bird_id: 1}, player_index=current.player_index)
+    lay_eggs_effect(state, {bird_id: 1}, player_index=current.player_index)
     stack.pop()
     return state
 
@@ -1253,7 +1250,7 @@ def _power_20_select_bird(
 
 @power_handler(21)
 def _power_21_activate(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Set up die selection."""
     current = stack[-1]
@@ -1263,7 +1260,7 @@ def _power_21_activate(
 
 @power_handler(21, "select_die")
 def _power_21_select_die(
-    state: GameState, stack: List[PowerExecution], action: str
+    state: GameState, stack: list[PowerExecution], action: str
 ) -> GameState:
     """Handle die selection."""
     current = stack[-1]
@@ -1273,9 +1270,7 @@ def _power_21_select_die(
         return state
 
     die_index, food_type = parse_select_die_action(action)
-    state = select_die_effect(
-        state, die_index, food_type, player_index=current.player_index
-    )
+    select_die_effect(state, die_index, food_type, player_index=current.player_index)
 
     stack.pop()
     return state

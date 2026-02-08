@@ -73,8 +73,8 @@ def test_power_10_this_true():
     activating_spot = state.players[0].board[0][0]
 
     # Verify bird has egg capacity
-    assert placed.eggs < bird_card.egg_limit, "Bird should have egg capacity"
-    initial_eggs = placed.eggs
+    assert placed.state.eggs < bird_card.egg_limit, "Bird should have egg capacity"
+    initial_eggs = placed.state.eggs
 
     # Setup power activation
     setup_power_execution(
@@ -91,7 +91,7 @@ def test_power_10_this_true():
     # Verify egg was added to activating bird (get from returned state after deepcopy)
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird
-    assert updated_bird.eggs == initial_eggs + 1, "Bird should have one more egg"
+    assert updated_bird.state.eggs == initial_eggs + 1, "Bird should have one more egg"
 
     # Verify no sub-phase was created (auto-completed)
     assert len(state.action_data.execution_stack) == 0
@@ -161,9 +161,9 @@ def test_power_10_type_bowl():
     bird_1_1 = state.players[0].board[1][1].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_1_1 is not None and bird_2_0 is not None
-    initial_eggs_0 = bird_1_0.eggs
-    initial_eggs_1 = bird_1_1.eggs
-    initial_eggs_2 = bird_2_0.eggs
+    initial_eggs_0 = bird_1_0.state.eggs
+    initial_eggs_1 = bird_1_1.state.eggs
+    initial_eggs_2 = bird_2_0.state.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -180,9 +180,15 @@ def test_power_10_type_bowl():
     bird_1_1 = state.players[0].board[1][1].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_1_1 is not None and bird_2_0 is not None
-    assert bird_1_0.eggs == initial_eggs_0 + 1, "Bowl bird 0 should have one more egg"
-    assert bird_1_1.eggs == initial_eggs_1 + 1, "Bowl bird 1 should have one more egg"
-    assert bird_2_0.eggs == initial_eggs_2, "Bowl bird 2 at limit should be unchanged"
+    assert (
+        bird_1_0.state.eggs == initial_eggs_0 + 1
+    ), "Bowl bird 0 should have one more egg"
+    assert (
+        bird_1_1.state.eggs == initial_eggs_1 + 1
+    ), "Bowl bird 1 should have one more egg"
+    assert (
+        bird_2_0.state.eggs == initial_eggs_2
+    ), "Bowl bird 2 at limit should be unchanged"
 
     # Verify no sub-phase was created (auto-completed)
     assert len(state.action_data.execution_stack) == 0
@@ -221,8 +227,8 @@ def test_power_10_type_cavity():
     bird_1_0 = state.players[0].board[1][0].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_2_0 is not None
-    initial_eggs_0 = bird_1_0.eggs
-    initial_eggs_1 = bird_2_0.eggs
+    initial_eggs_0 = bird_1_0.state.eggs
+    initial_eggs_1 = bird_2_0.state.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -238,8 +244,12 @@ def test_power_10_type_cavity():
     bird_1_0 = state.players[0].board[1][0].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_2_0 is not None
-    assert bird_1_0.eggs == initial_eggs_0 + 1, "Cavity bird 0 should have one more egg"
-    assert bird_2_0.eggs == initial_eggs_1 + 1, "Cavity bird 1 should have one more egg"
+    assert (
+        bird_1_0.state.eggs == initial_eggs_0 + 1
+    ), "Cavity bird 0 should have one more egg"
+    assert (
+        bird_2_0.state.eggs == initial_eggs_1 + 1
+    ), "Cavity bird 1 should have one more egg"
 
     # Verify power completed (transitioned to MAIN_TURN)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -275,8 +285,8 @@ def test_power_10_type_ground():
     bird_1_0 = state.players[0].board[1][0].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_2_0 is not None
-    initial_eggs_0 = bird_1_0.eggs
-    initial_eggs_1 = bird_2_0.eggs
+    initial_eggs_0 = bird_1_0.state.eggs
+    initial_eggs_1 = bird_2_0.state.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -292,8 +302,12 @@ def test_power_10_type_ground():
     bird_1_0 = state.players[0].board[1][0].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_2_0 is not None
-    assert bird_1_0.eggs == initial_eggs_0 + 1, "Ground bird 0 should have one more egg"
-    assert bird_2_0.eggs == initial_eggs_1 + 1, "Ground bird 1 should have one more egg"
+    assert (
+        bird_1_0.state.eggs == initial_eggs_0 + 1
+    ), "Ground bird 0 should have one more egg"
+    assert (
+        bird_2_0.state.eggs == initial_eggs_1 + 1
+    ), "Ground bird 1 should have one more egg"
 
     # Verify power completed (transitioned to MAIN_TURN)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -329,8 +343,8 @@ def test_power_10_type_platform():
     bird_1_0 = state.players[0].board[1][0].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_2_0 is not None
-    initial_eggs_0 = bird_1_0.eggs
-    initial_eggs_1 = bird_2_0.eggs
+    initial_eggs_0 = bird_1_0.state.eggs
+    initial_eggs_1 = bird_2_0.state.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -347,10 +361,10 @@ def test_power_10_type_platform():
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_2_0 is not None
     assert (
-        bird_1_0.eggs == initial_eggs_0 + 1
+        bird_1_0.state.eggs == initial_eggs_0 + 1
     ), "Platform bird 0 should have one more egg"
     assert (
-        bird_2_0.eggs == initial_eggs_1 + 1
+        bird_2_0.state.eggs == initial_eggs_1 + 1
     ), "Platform bird 1 should have one more egg"
 
     # Verify power completed (transitioned to MAIN_TURN)
@@ -384,7 +398,7 @@ def test_power_10_type_any_single_bird():
 
     bird_1_0 = state.players[0].board[1][0].bird
     assert bird_1_0 is not None
-    initial_eggs = bird_1_0.eggs
+    initial_eggs = bird_1_0.state.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -399,7 +413,9 @@ def test_power_10_type_any_single_bird():
     # Verify egg was added to the only bird
     bird_1_0 = state.players[0].board[1][0].bird
     assert bird_1_0 is not None
-    assert bird_1_0.eggs == initial_eggs + 1, "Only valid bird should have one more egg"
+    assert (
+        bird_1_0.state.eggs == initial_eggs + 1
+    ), "Only valid bird should have one more egg"
 
     # Verify no sub-phase was created (auto-completed)
     assert len(state.action_data.execution_stack) == 0
@@ -494,9 +510,9 @@ def test_power_10_type_any_selection():
     bird_1_1 = state.players[0].board[1][1].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_1_1 is not None and bird_2_0 is not None
-    initial_eggs_0 = bird_1_0.eggs
-    initial_eggs_1 = bird_1_1.eggs
-    initial_eggs_2 = bird_2_0.eggs
+    initial_eggs_0 = bird_1_0.state.eggs
+    initial_eggs_1 = bird_1_1.state.eggs
+    initial_eggs_2 = bird_2_0.state.eggs
 
     activating_spot = state.players[0].board[0][0]
 
@@ -517,9 +533,9 @@ def test_power_10_type_any_selection():
     bird_1_1 = state.players[0].board[1][1].bird
     bird_2_0 = state.players[0].board[2][0].bird
     assert bird_1_0 is not None and bird_1_1 is not None and bird_2_0 is not None
-    assert bird_1_0.eggs == initial_eggs_0, "Bird 0 should be unchanged"
-    assert bird_1_1.eggs == initial_eggs_1 + 1, "Bird 1 should have one more egg"
-    assert bird_2_0.eggs == initial_eggs_2, "Bird 2 should be unchanged"
+    assert bird_1_0.state.eggs == initial_eggs_0, "Bird 0 should be unchanged"
+    assert bird_1_1.state.eggs == initial_eggs_1 + 1, "Bird 1 should have one more egg"
+    assert bird_2_0.state.eggs == initial_eggs_2, "Bird 2 should be unchanged"
 
     # Verify cleanup
     assert len(state.action_data.execution_stack) == 0
@@ -645,7 +661,12 @@ def test_power_10_mixed_capacity_birds():
     bird_2_0 = state.players[0].board[2][0].bird
     bird_2_1 = state.players[0].board[2][1].bird
     assert bird_1_0 and bird_1_1 and bird_2_0 and bird_2_1
-    initial_eggs = [bird_1_0.eggs, bird_1_1.eggs, bird_2_0.eggs, bird_2_1.eggs]
+    initial_eggs = [
+        bird_1_0.state.eggs,
+        bird_1_1.state.eggs,
+        bird_2_0.state.eggs,
+        bird_2_1.state.eggs,
+    ]
 
     activating_spot = state.players[0].board[0][0]
 
@@ -663,10 +684,14 @@ def test_power_10_mixed_capacity_birds():
     bird_2_0 = state.players[0].board[2][0].bird
     bird_2_1 = state.players[0].board[2][1].bird
     assert bird_1_0 and bird_1_1 and bird_2_0 and bird_2_1
-    assert bird_1_0.eggs == initial_eggs[0] + 1, "Bird 0 with capacity should gain egg"
-    assert bird_1_1.eggs == initial_eggs[1], "Bird 1 at limit should be unchanged"
-    assert bird_2_0.eggs == initial_eggs[2] + 1, "Bird 2 with capacity should gain egg"
-    assert bird_2_1.eggs == initial_eggs[3], "Bird 3 at limit should be unchanged"
+    assert (
+        bird_1_0.state.eggs == initial_eggs[0] + 1
+    ), "Bird 0 with capacity should gain egg"
+    assert bird_1_1.state.eggs == initial_eggs[1], "Bird 1 at limit should be unchanged"
+    assert (
+        bird_2_0.state.eggs == initial_eggs[2] + 1
+    ), "Bird 2 with capacity should gain egg"
+    assert bird_2_1.state.eggs == initial_eggs[3], "Bird 3 at limit should be unchanged"
 
 
 def test_power_10_validation():

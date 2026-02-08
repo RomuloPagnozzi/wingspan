@@ -1,5 +1,5 @@
 import json
-from typing import Callable, Dict
+from typing import Callable
 
 from .core import (
     GameState,
@@ -31,7 +31,7 @@ from .effects import (
 from .engine import finish_main_action, activate_powers, handle_end_turn
 
 PhaseHandler = Callable[[GameState, str], GameState]
-_PHASE_HANDLERS: Dict[GamePhase, PhaseHandler] = {}
+_PHASE_HANDLERS: dict[GamePhase, PhaseHandler] = {}
 
 
 def phase_handler(phase: GamePhase):
@@ -107,7 +107,7 @@ def _discard_food(state: GameState, action: str) -> GameState:
             raise ValueError(f"""Not enough {food_type} to discard {amount}
                 (there's {current_player.food.get(food_type, 0)})""")
 
-    state = pay_food_effect(state, discard)
+    pay_food_effect(state, discard)
 
     current_player.action_cubes = 8
     state.action_data.clear()
@@ -167,7 +167,7 @@ def _route_main_turn(state: GameState, action: str) -> GameState:
                 if spot.bird is not None
             ]
             available_eggs = (
-                sum(bird.eggs for bird in played_birds) if played_birds else 0
+                sum(bird.state.eggs for bird in played_birds) if played_birds else 0
             )
             can_trade = available_eggs and (
                 not wetland_spot or wetland_spot.extra_resource
@@ -192,7 +192,7 @@ def _collect_food(state: GameState, action: str) -> GameState:
     if action.startswith("select_die_"):
         die_index, food_type = parse_select_die_action(action)
 
-        state = select_die_effect(state, die_index, food_type)
+        select_die_effect(state, die_index, food_type)
         state.action_data.food_needed -= 1
 
         if food_type == "rodent":
@@ -226,7 +226,7 @@ def _lay_eggs(state: GameState, action: str) -> GameState:
     """Handle laying eggs."""
     egg_distribution = parse_lay_eggs_action(action)
 
-    state = lay_eggs_effect(state, egg_distribution)
+    lay_eggs_effect(state, egg_distribution)
 
     return finish_main_action(
         state,
@@ -241,7 +241,7 @@ def _draw_cards(state: GameState, action: str) -> GameState:
     """Handle drawing cards"""
     tray_birds, deck_count = parse_draw_cards_action(action)
 
-    state = draw_cards_effect(state, tray_birds, deck_count)
+    draw_cards_effect(state, tray_birds, deck_count)
 
     return finish_main_action(state, "brown", habitat="wetland")
 
@@ -303,7 +303,7 @@ def _discard_bird_for_food(state: GameState, action: str) -> GameState:
     if action.startswith("discard_bird_"):
         bird_id = int(action.split("_")[2])
 
-        state = discard_bird_from_hand_effect(state, bird_id)
+        discard_bird_from_hand_effect(state, bird_id)
 
         base_amount = state.action_data.base_amount
         state.game_phase = GamePhase.COLLECT_FOOD
@@ -326,7 +326,7 @@ def _discard_food_for_egg(state: GameState, action: str) -> GameState:
                 f"Food {food_key} not in player's food stash {current_player.food}"
             )
 
-        state = pay_food_effect(state, {food_key: 1})
+        pay_food_effect(state, {food_key: 1})
 
         base_amount = state.action_data.base_amount
         state.game_phase = GamePhase.LAY_EGGS
@@ -351,7 +351,7 @@ def _discard_egg_for_card(state: GameState, action: str) -> GameState:
                 if (
                     spot.bird is not None
                     and spot.bird.id == bird_id
-                    and spot.bird.eggs > 0
+                    and spot.bird.state.eggs > 0
                 ):
                     bird_with_egg = spot.bird
                     break
@@ -361,7 +361,7 @@ def _discard_egg_for_card(state: GameState, action: str) -> GameState:
         if not bird_with_egg:
             raise ValueError(f"Bird {bird_id} not found on board or has no eggs")
 
-        state = pay_eggs_effect(state, {bird_id: 1})
+        pay_eggs_effect(state, {bird_id: 1})
 
         base_amount = state.action_data.base_amount
         state.game_phase = GamePhase.DRAW_CARDS
@@ -429,7 +429,7 @@ def _play_bird(state: GameState, action: str) -> GameState:
             state.game_phase = GamePhase.PAY_FOOD_COST
             return state
 
-    state = place_bird_effect(state, bird_id, row, col)
+    place_bird_effect(state, bird_id, row, col)
 
     execution = state.action_data.get_current_execution()
     if execution and execution.power_id == 12:
@@ -465,7 +465,7 @@ def _pay_egg_cost(state: GameState, action: str) -> GameState:
         for spot in row
         if spot.bird is not None and spot.bird.id in payment.keys()
     ]
-    bird_eggs = {bird.id: bird.eggs for bird in relevant_board_birds}
+    bird_eggs = {bird.id: bird.state.eggs for bird in relevant_board_birds}
 
     if payment.keys() != bird_eggs.keys():
         raise ValueError(
@@ -473,9 +473,9 @@ def _pay_egg_cost(state: GameState, action: str) -> GameState:
         )
 
     if not all(bird_eggs[k] >= payment[k] for k in payment):
-        raise ValueError(f"Not enough eggs in birds to pay egg cost.")
+        raise ValueError("Not enough eggs in birds to pay egg cost.")
 
-    state = pay_eggs_effect(state, payment)
+    pay_eggs_effect(state, payment)
 
     pending = state.action_data.pending_cost
     if pending:
@@ -504,7 +504,7 @@ def _pay_food_cost(state: GameState, action: str) -> GameState:
     ):
         raise ValueError("Not enough food to pay food cost.")
 
-    state = pay_food_effect(state, payment)
+    pay_food_effect(state, payment)
 
     pending = state.action_data.pending_cost
     if pending:

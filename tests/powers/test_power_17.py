@@ -73,14 +73,14 @@ def test_power_17_generates_tuck_actions():
     state = setup_power_17_state(state, ["fruit"])
 
     # bird_hand now contains IDs directly
-    card_ids = list(state.players[0].bird_hand)
+    ids = list(state.players[0].bird_hand)
 
     state = transition_state(state, "activate_power")
 
     assert state.action_data.execution_stack[-1].phase == "select_card"
 
     actions = get_actions(state)
-    expected = [f"tuck_card_{cid}" for cid in card_ids]
+    expected = [f"tuck_card_{cid}" for cid in ids]
 
     assert len(actions) == len(expected)
     for exp in expected:
@@ -93,10 +93,10 @@ def test_power_17_two_food_types_generates_food_actions():
     state = setup_power_17_state(state, ["invertebrate", "seed"])
 
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
 
     assert state.action_data.execution_stack[-1].phase == "select_food"
 
@@ -108,26 +108,26 @@ def test_power_17_two_food_types_generates_food_actions():
 
 
 def test_power_17_tuck_removes_card_and_increments_tucked():
-    """Test tucking removes card from hand and increments bird.tucked_cards."""
+    """Test tucking removes card from hand and increments bird.state.tucked_cards."""
     state = initiate_state(2)
     state = setup_power_17_state(state, ["fruit"])
 
     # Get spot from board where bird was placed in setup_power_17_state
     spot = state.players[0].board[0][0]
     assert spot.bird
-    initial_tucked = spot.bird.tucked_cards
+    initial_tucked = spot.bird.state.tucked_cards
     initial_hand_size = len(state.players[0].bird_hand)
     # bird_hand now contains IDs directly
-    card_id_to_tuck = state.players[0].bird_hand[0]
+    id_to_tuck = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id_to_tuck}")
+    state = transition_state(state, f"tuck_card_{id_to_tuck}")
 
     assert len(state.players[0].bird_hand) == initial_hand_size - 1
-    assert card_id_to_tuck not in state.players[0].bird_hand
+    assert id_to_tuck not in state.players[0].bird_hand
     # Get bird from new state after transitions
     assert state.players[0].board[0][0].bird
-    assert state.players[0].board[0][0].bird.tucked_cards == initial_tucked + 1
+    assert state.players[0].board[0][0].bird.state.tucked_cards == initial_tucked + 1
 
 
 def test_power_17_bonus_card():
@@ -138,10 +138,10 @@ def test_power_17_bonus_card():
     initial_hand_size = len(state.players[0].bird_hand)
     initial_deck_size = len(state.bird_deck)
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
 
     assert len(state.players[0].bird_hand) == initial_hand_size
     assert len(state.bird_deck) == initial_deck_size - 1
@@ -155,16 +155,16 @@ def test_power_17_bonus_egg():
     # Get spot from board where bird was placed in setup_power_17_state
     spot = state.players[0].board[0][0]
     assert spot.bird
-    initial_eggs = spot.bird.eggs
+    initial_eggs = spot.bird.state.eggs
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
 
     # Get bird from new state after transitions
     assert state.players[0].board[0][0].bird
-    assert state.players[0].board[0][0].bird.eggs == initial_eggs + 1
+    assert state.players[0].board[0][0].bird.state.eggs == initial_eggs + 1
 
 
 def test_power_17_bonus_fruit():
@@ -174,10 +174,10 @@ def test_power_17_bonus_fruit():
 
     initial_fruit = state.players[0].food.get("fruit", 0)
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
 
     assert state.players[0].food.get("fruit", 0) == initial_fruit + 1
 
@@ -189,10 +189,10 @@ def test_power_17_bonus_seed():
 
     initial_seed = state.players[0].food.get("seed", 0)
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
 
     assert state.players[0].food.get("seed", 0) == initial_seed + 1
 
@@ -204,10 +204,10 @@ def test_power_17_select_invertebrate():
 
     initial_invertebrate = state.players[0].food.get("invertebrate", 0)
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
     state = transition_state(state, "select_food_invertebrate")
 
     assert state.players[0].food.get("invertebrate", 0) == initial_invertebrate + 1
@@ -220,10 +220,10 @@ def test_power_17_select_seed():
 
     initial_seed = state.players[0].food.get("seed", 0)
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
     state = transition_state(state, "select_food_seed")
 
     assert state.players[0].food.get("seed", 0) == initial_seed + 1
@@ -235,10 +235,10 @@ def test_power_17_transitions_to_main_turn():
     state = setup_power_17_state(state, ["fruit"])
 
     # bird_hand now contains IDs directly
-    card_id = state.players[0].bird_hand[0]
+    id = state.players[0].bird_hand[0]
 
     state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{card_id}")
+    state = transition_state(state, f"tuck_card_{id}")
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert len(state.action_data.execution_stack) == 0
