@@ -4,11 +4,11 @@ Bird power execution system.
 
 ## Files
 
-| File | Contents |
-|------|----------|
-| `handlers.py` | Power handlers for all 21 powers, `get_power_handler()`, `@power_handler` decorator |
-| `choices.py` | Choice generators for power phases, `get_power_choice_generator()`, `@power_choices` decorator |
-| `validators.py` | Power executability checks, `can_execute_power()`, `@power_validator` decorator |
+| File | Role |
+|------|------|
+| `handlers.py` | what each bird power actually does when activated |
+| `choices.py` | what options a power presents to the player |
+| `validators.py` | whether a power can activate given the current state |
 
 ## Dependencies
 

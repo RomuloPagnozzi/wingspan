@@ -1,9 +1,8 @@
 import copy
 import random
 
-from .player import Player, ScoreState, BirdState, PlacedBird, Spot
-from .turn_data import QueuedPower, CostPayment, ActionData
-from .game import GameState
+from .models import Player, ScoreState, BirdState, PlacedBird, Spot
+from .game import QueuedPower, CostPayment, ActionData, GameState
 
 
 def _copy_bird_state(bs: BirdState) -> BirdState:

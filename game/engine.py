@@ -8,6 +8,7 @@ from .core import (
     Action,
     SimpleAction,
     IdAction,
+    copy_state,
 )
 from .scoring import update_player_scores, update_round_goal_scores
 from .utils import (
@@ -21,7 +22,6 @@ from .utils import (
     get_first_player_index,
 )
 from .power import get_power_handler
-from .core.custom_copy import copy_state
 
 
 def transition_state(state: GameState, action: Action) -> GameState:

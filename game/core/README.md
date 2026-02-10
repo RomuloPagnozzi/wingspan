@@ -4,24 +4,20 @@ Game state data structures and initialization.
 
 ## Files
 
-| File | Contents |
-|------|----------|
-| `constants.py` | Immutable types: `PinkTrigger`, `GamePhase`, `ScoringMode`, `BirdCard`, `Bonus` |
-| `player.py` | Player/board state: `BirdState`, `PlacedBird`, `Spot`, `ScoreState`, `Player` |
-| `turn_data.py` | Turn execution: `PowerExecution`, `QueuedPower`, `CostPayment`, `EndTurnEffect`, `ActionData` |
-| `registry.py` | Card registries and loaders |
-| `game.py` | `GameState`, `initiate_state()`, `roll_feeder()` |
-| `custom_copy.py` | Custom state copying (~20x faster than deepcopy) |
+| File | Role |
+|------|------|
+| `models.py` | the domain vocabulary: types, cards, players, board |
+| `game.py` | the state container and how to start a match |
+| `action_types.py` | the moves a player can choose from |
+| `custom_copy.py` | faster than standard deepcopy |
 
 ## Dependencies
 
 ```
-constants.py   ← stdlib only
-registry.py    ← constants.py
-player.py      ← registry.py
-turn_data.py   ← (type-only imports)
-game.py        ← player.py, turn_data.py, registry.py
-custom_copy.py ← all above
+models.py       <- stdlib only
+action_types.py <- stdlib only
+game.py         <- models.py, action_types.py (type-only)
+custom_copy.py  <- models.py, game.py
 ```
 
 ## Usage
