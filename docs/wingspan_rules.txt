@@ -1,0 +1,139 @@
+Wingspan
+Introduction: Players take the role of ornithologists seeking to attract the best birds to their nature reserves. Each Bird attracted to your
+Reserve acts as part of a ecological chain that gathers food, produces eggs, and attracts more birds.
+
+Game End and Goal: The game ends at the end of the fourth Round. The player with the most points is the winner!
+
+Setup:
+
+    1.  Put the grey Bird Tray in the middle of the table.
+    2.  Shuffle all 170 Bird Cards (turquoise backs), and create a deck next to the Bird Tray. Reveal and place 3 cards into the 3 slots in
+        the tray.
+    3. Create a Supply next to the Bird Tray with all 103 Food Tokens and 75 multi-coloured Eggs.
+    4. Put the Birdfeeder in the middle of the table, and roll the 5 (wooden) Food Dice into the Birdfeeder.
+    5. Place the Goal Board in the middle of the table. This board can be placed Green side up for more competition between players,
+        or Blue side up for less. The green side is the default. Players agree between themselves which side to use.
+    6. Shuffle the 8 (double-sided) Goal Tiles without looking at them, and draw 4 of the tiles (random side up), placing one on each
+        of the Goal Tile spaces on the Goal Board. Make sure everyone is clear on the Goals for each round.
+    7. Shuffle the 26 Bonus Cards (green backs), and place them face down as a deck next to the Bird Tray.
+    8. Each Player takes the following items:
+             a. 1 Player Mat
+             b. 8 (wooden) Action Cubes of their chosen player colour (R/Y/G/B/P)
+             c. 2 Bonus Cards (drawn from the Bonus Card Deck)
+             d. 5 Bird Cards (drawn from the Bird Card Deck, not the Bird Tray display)
+             e. 5 Food Tokens, one of each type (Invertibrate (worm), Seed, Fish, Berry, Rodent)
+    9. Each player decides how many Bird Cards from their hand to keep, discarding 1 Food Token for each Bird they keep. Their
+        remaining Bird Cards are discarded. You may look at your Bonus Cards when picking your birds.
+    10. Each player chooses one Bonus Card to keep from the 2 they were dealt, discarding the remaining card to the Bird Card discard.
+    11. Randomly select a First Player and give them the First Player token (with the bird that matches the box lid).
+
+Course of Play:
+
+The game is played in 4 Rounds. During each round, players take turns until they have used all their available action cubes.
+
+On a player’s turn, they must take one of the four possible actions (these are also listed on the left of the player board for easy reference).
+
+    1.   Play a Bird from your hand
+             a. Select a Bird Card from your hand.
+             b. Pay the bird’s Food Cost by discarding Food Tokens from your personal supply
+                         i. You may not discard cached food on other Bird Cards.
+                        ii. A Wild Food requirement can be paid with any Food Token.
+                       iii. If the Food requirement has a “+”, discard both types of Food token. If it has a “/” you choose which to discard.
+                       iv. Some Birds have no Food requirements.
+                        v. Two Food Tokens of the same type can be discarded to stand in for one Food Token of a required type
+                            that you don’t have, if needed.
+             c. Place the Bird Card chosen in the Habitat row matching the Bird’s desired habitat (Forest, Grassland, Wetland). The
+                  Bird Card must be placed in the leftmost unoccupied space in that row (if there is more than one Habitat shown on the
+                  Bird Card, the player may choose which habitat they place the bird in). A player may not exceed 5 Bird Cards per row.
+                         i. Pay the Egg Cost of the column you are placing the Bird into (if any) with Eggs from your Player Mat.
+                        ii. Place one of your Action Tokens on the top left corner of your Player Mat to indicate that you used an Action.
+                       iii. If the Bird Card has a “when played” benefit, receive it now. Other Bird Card powers activate when triggered.
+                       iv. You do not activate all the cards in the row like you do when performing Actions 2, 3, or 4.
+    2.   Gain Food and Activate Forest Bird Powers
+             a. Place an Action Token on the left-most uncovered space in the Forest Row. You will activate this space.
+             b. Determine how many dies-worth of Food you are receiving from that space. Then, examine the dice in the Birdfeeder.
+                  For each Food that you will be receiving, select a die in the Birdfeeder, take a Food Token of the matching type, and
+                  then put the die to one side of the Birdfeeder, to show it has been used.
+                         i. Where there is a “/” on the die, you may choose which food to take.
+                        ii. There is no limit to the number of Food tokens a player can have in personal supply.
+                       iii. Numbers and types of Food Tokens held by players are open information.
+                       iv. Food tokens are unlimited. Use substitutes if they supply runs out.
+                        v. If the Bonus Action “convert 1 Bird Card to Food” icon is visible on the activated space, a player may discard
+                            one Bird Card from hand to take an additional die from the Birdfeeder. You may only do this once per
+                            Action, and the Card discarded cannot come from your player mat, only your hand.
+                       vi. If the Birdfeeder is empty, take all the used dice and re-roll them into the Birdfeeder.
+                      vii. If you are about to gain Food for any reason, and there is only one choice of Food type in the Birdfeeder
+                            (including a single die), you may re-roll all five dice into the Birdfeeder before selecting dice. Faces
+                            with the “/” count as a unique face type (and only match identical versions of themselves).
+                     viii. You can still activate the Gain Food Action even if you have no Bird Cards in the Forest Row.
+                     ix. If the Forest Row is full (5 Bird Cards), the reward for the Action is listed to the right of the row.
+              c. Once Food Tokens have been gained, walk the Action Token from right to left across the Bird Cards in the Forest row,
+                 and each time a card with a “When Activated” power is reached, the player may activate its power. Finally place the
+                 Action Cube to the left of the Forest Row to indicate the action is complete.
+                       i. A “skull and crossbones” icon indicates that the bird is a predator.
+                      ii. If a Bird Card Caches a particular type of Food, you place it on that card. These Food Tokens are worth a Point
+                           each at the end of the game. Cached Food cannot be spent during the Play a Bird action.
+                     iii. If an effect causes a player to “Tuck” a card, the card is placed under the Bird Card you activated, and the
+                           tucked card is worth 1 Point at the end of the game.
+    3.   Lay Eggs and Activate Grassland Bird Powers
+             a. Place an Action Token on the leftmost uncovered space on the Grassland row.
+             b. Determine how many Eggs you are receiving (and any bonus actions to take afterwards). The colour of Egg is irrelevant.
+             c. Distribute the Eggs you receive between any Bird Cards on your Player Mat that are capable of holding them (see left
+                 bar on Bird Card for Egg capacity), ensuring that you do not exceed the egg capacity of the card.
+             d. Any excess Eggs you cannot store on Bird Cards are lost back to the general supply.
+                       i. The Grassland Bonus Action allows you to exchange any Food Token for one additional Egg.
+                      ii. The Egg supply is unlimited. Use substitutes if you run out.
+             e. Once Eggs have been gained, walk the Action token from right to left across the Bird Cards in the Grassland Row, and
+                 each time a card with a “When Activated” power is reached, the player may activate its power. Finally place the Action
+                 cube to the left of the Grassland Row to indicate the action is complete.
+    4.   Draw Bird Cards and Activate Wetland Bird Powers:
+             a. Place an Action Token on the leftmost uncovered space on the Wetland row.
+             b. Determine how many Bird Cards you are drawing from the icons on that space.
+             c. Draw that number of Bird Cards from either the face-up Bird Card display, or blind from the Bird Deck.
+                       i. The cards in the Bird Card display do not get refilled until your whole Action (including “When Activated”
+                           powers) are completed.
+             d. If the space also has the “Egg to Card” icon, you may discard an Egg from your Player Mat to draw a Bird Card.
+             e. Once Cards have been gained, walk the Action token from right to left across the Bird Cards in the Wetland Row, and
+                 each time a card with a “When Activated” power is reached, the player may activate its power.
+
+Play then passes to the next player in clockwise order. When all players have placed all their action cubes, the round ends.
+
+        Some Bird Cards have a “Once Between Turns” power, which is triggered by something another player does. Use the power as
+         instructed on the card, but you cannot re-use that power until it has been your turn again. The “between” term would be better
+         expressed as “once per Action rotation, when its not your turn… do X”. It does not matter if it hasn’t been your turn yet this round,
+         or if its after your last turn this round – the power will activate provided it hasn’t already been used this rotation.
+
+At the End of the Round, follow these steps in order:
+
+    1.   Remove all Action Cubes from your player mat, and put them beside it, ready to use in the next round.
+    2.   Score the end-of-round Goal for the round you just completed. Use one of your Action Cubes to mark your score on the Goal.
+             a. Green Scoring: Count the quantity you have of the targeted item on the Goal Board for the current round. Arrange the
+                   players’ cubes according to how players rank for the targeted item. Players score the indicated points at game end. If
+                   players tie, place both cubes in the tied place, and do not award the next place. At game end, sum the points from the
+                   tied space and the empty space behind it, and divide by the number of tied players, rounded down, awarding the points to
+                   both players.
+                          i. Any player that does not have any of the targeted item scores 0 points.
+                         ii. Any player in 4th or 5th points scores 0 points.
+             b. Blue Scoring: Count the quantity of the targeted item each player has, and place their Action Cube on that space. Players
+                   score 1 point per targeted item at game end, max. 5 points. If they have none of the targeted item, they score 0.
+             c. As a result of using an Action Token to score, you will have 1 fewer action cube for the next round, i.e. 8/7/6/5 Action cubes
+                   for rounds 1/2/3/4, respectively.
+    3.   Discard all Bird Cards in the Bird Tray and restock with Bird Cards from the deck
+    4.   Pass the First Player token clockwise to the next player.
+
+Game End and Scoring:
+
+The game ends after Round 4. Use the Scorepad to sum the points for each player as follows:
+
+    1.   Birds: The Points (marked with a feather) on the left of each Bird Card on your Player Mat (Bird Cards in hand score 0).
+    2.   Bonus Cards: Points for each Bonus Card in hand, according to each Bonus Card’s scoring criterion.
+    3.   End of Round Goals: Score points for your position in each of the End of Round Goals.
+             a. Green Scoring: Score the points associated with the space your Action Cube is on for each Round. If players are tied,
+                  sum the points from the tied space and the empty space behind it, and divide by the number of tied players, rounded down,
+                  awarding the points to both players.
+             b. Blue Scoring: Score the points associated with the space your Action Cube is on for each Round (max 5 per round).
+    4.   Eggs on Birds/Food on Birds/Tucked Cards: Score 1 point for each Egg on a Bird Card, Food Token Cached on a Bird Card,
+         and Bird Card tucked under another Bird Card.
+
+The player with the most points wins! In case of a tie, the tied player with the most Food Tokens left wins.
+
