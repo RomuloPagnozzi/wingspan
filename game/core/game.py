@@ -8,13 +8,13 @@ from .registry import init_registries, BIRD_REGISTRY, BONUS_REGISTRY
 
 
 def _load_bird_ids() -> list[int]:
-    """Load bird deck as list of IDs (initializes registries as side effect)."""
+    """Load bird deck and initializes registries."""
     init_registries()
     return list(BIRD_REGISTRY.keys())
 
 
 def _load_bonus_ids() -> list[int]:
-    """Load bonus deck as list of IDs (initializes registries as side effect)."""
+    """Load bonus deck and initializes registries."""
     init_registries()
     return list(BONUS_REGISTRY.keys())
 
@@ -87,7 +87,7 @@ def initiate_state(
         raise Exception("Forbidden number of players")
 
     s = GameState()
-    if seed:
+    if seed is not None:
         s.rng = random.Random(seed)
 
     s.rng.shuffle(s.bird_deck)

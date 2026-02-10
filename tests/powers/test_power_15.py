@@ -7,6 +7,7 @@ from game.core import (
     GamePhase,
     get_bird_power,
     init_registries,
+    SimpleAction,
 )
 from game.engine import transition_state
 from game.power import can_execute_power
@@ -103,7 +104,7 @@ def test_power_15_caches_food_on_match():
     matching_seed = find_seed_for_roll(food_type, should_match=True, n_dice=5)
     state.rng = random.Random(matching_seed)
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird
@@ -134,7 +135,7 @@ def test_power_15_no_cache_on_no_match():
     non_matching_seed = find_seed_for_roll(food_type, should_match=False, n_dice=5)
     state.rng = random.Random(non_matching_seed)
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird

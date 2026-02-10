@@ -61,4 +61,4 @@ class Bonus:
     name: str
     condition: str
     score_params: dict
-    valid_birds_ids: set[int] = field(repr=False)
+    valid_birds_ids: frozenset[int] = field(repr=False)

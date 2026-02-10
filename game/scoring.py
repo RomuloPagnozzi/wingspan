@@ -23,6 +23,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
                     spot.bird
                     for row in player.board
                     for spot in row
+                    if spot.bird
                     if spot.habitat == "forest"
                 ]
             )
@@ -31,6 +32,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
                     spot.bird
                     for row in player.board
                     for spot in row
+                    if spot.bird
                     if spot.habitat == "grassland"
                 ]
             )
@@ -39,6 +41,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
                     spot.bird
                     for row in player.board
                     for spot in row
+                    if spot.bird
                     if spot.habitat == "wetland"
                 ]
             )
@@ -142,7 +145,7 @@ def _count_sets_of_eggs(player: Player) -> int:
     return min(eggs_per_habitat)
 
 
-def evaluate_goal(state: GameState, player: Player, goal_name: str) -> int:
+def evaluate_goal(_, player: Player, goal_name: str) -> int:
     """Evaluate how many items a player has matching the goal criteria."""
     habitat_rows = {"forest": 0, "grassland": 1, "wetland": 2}
     match goal_name:

@@ -1,6 +1,6 @@
 """Tests for Power 17: Tuck 1 card from hand behind bird for bonus."""
 
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction, IdAction, NameAction
 from game.engine import transition_state
 from game.actions import get_actions
 from game.power import can_execute_power
@@ -75,12 +75,12 @@ def test_power_17_generates_tuck_actions():
     # bird_hand now contains IDs directly
     ids = list(state.players[0].bird_hand)
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     assert state.action_data.execution_stack[-1].phase == "select_card"
 
     actions = get_actions(state)
-    expected = [f"tuck_card_{cid}" for cid in ids]
+    expected = [IdAction("tuck_card", cid) for cid in ids]
 
     assert len(actions) == len(expected)
     for exp in expected:
@@ -95,16 +95,16 @@ def test_power_17_two_food_types_generates_food_actions():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
 
     assert state.action_data.execution_stack[-1].phase == "select_food"
 
     actions = get_actions(state)
 
     assert len(actions) == 2
-    assert "select_food_invertebrate" in actions
-    assert "select_food_seed" in actions
+    assert NameAction("select_food", "invertebrate") in actions
+    assert NameAction("select_food", "seed") in actions
 
 
 def test_power_17_tuck_removes_card_and_increments_tucked():
@@ -120,8 +120,8 @@ def test_power_17_tuck_removes_card_and_increments_tucked():
     # bird_hand now contains IDs directly
     id_to_tuck = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id_to_tuck}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id_to_tuck))
 
     assert len(state.players[0].bird_hand) == initial_hand_size - 1
     assert id_to_tuck not in state.players[0].bird_hand
@@ -140,8 +140,8 @@ def test_power_17_bonus_card():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
 
     assert len(state.players[0].bird_hand) == initial_hand_size
     assert len(state.bird_deck) == initial_deck_size - 1
@@ -159,8 +159,8 @@ def test_power_17_bonus_egg():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
 
     # Get bird from new state after transitions
     assert state.players[0].board[0][0].bird
@@ -176,8 +176,8 @@ def test_power_17_bonus_fruit():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
 
     assert state.players[0].food.get("fruit", 0) == initial_fruit + 1
 
@@ -191,8 +191,8 @@ def test_power_17_bonus_seed():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
 
     assert state.players[0].food.get("seed", 0) == initial_seed + 1
 
@@ -206,9 +206,9 @@ def test_power_17_select_invertebrate():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
-    state = transition_state(state, "select_food_invertebrate")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
+    state = transition_state(state, NameAction("select_food", "invertebrate"))
 
     assert state.players[0].food.get("invertebrate", 0) == initial_invertebrate + 1
 
@@ -222,9 +222,9 @@ def test_power_17_select_seed():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
-    state = transition_state(state, "select_food_seed")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
+    state = transition_state(state, NameAction("select_food", "seed"))
 
     assert state.players[0].food.get("seed", 0) == initial_seed + 1
 
@@ -237,8 +237,8 @@ def test_power_17_transitions_to_main_turn():
     # bird_hand now contains IDs directly
     id = state.players[0].bird_hand[0]
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"tuck_card_{id}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("tuck_card", id))
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert len(state.action_data.execution_stack) == 0

@@ -7,6 +7,8 @@ from game.core import (
     Spot,
     PinkTrigger,
     BIRD_REGISTRY,
+    SimpleAction,
+    IdAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -66,7 +68,7 @@ class TestPower18ForestInvertebrate:
         state.current_player_index = 1
 
         # Activate the power
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         assert state.players[1].food.get("invertebrate", 0) == initial_invertebrate + 1
 
@@ -92,7 +94,7 @@ class TestPower18WetlandFish:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         assert state.players[1].food.get("fish", 0) == initial_fish + 1
 
@@ -119,7 +121,7 @@ class TestPower18GrasslandCard:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         # Should be in select_card phase
         assert len(state.action_data.execution_stack) == 1
@@ -148,13 +150,13 @@ class TestPower18GrasslandCard:
         state.current_player_index = 1
 
         # Activate to enter select_card phase
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         actions = get_actions(state)
 
-        assert f"tuck_card_{hand_ids[0]}" in actions
-        assert f"tuck_card_{hand_ids[1]}" in actions
-        assert f"tuck_card_{hand_ids[2]}" in actions
+        assert IdAction("tuck_card", hand_ids[0]) in actions
+        assert IdAction("tuck_card", hand_ids[1]) in actions
+        assert IdAction("tuck_card", hand_ids[2]) in actions
         assert len(actions) == 3
 
     def test_power_18_tuck_card_removes_from_hand(self):
@@ -184,8 +186,8 @@ class TestPower18GrasslandCard:
         initial_tucked = spot.bird.state.tucked_cards
 
         # Activate then tuck the first card
-        state = transition_state(state, "activate_power")
-        state = transition_state(state, f"tuck_card_{hand_id_1}")
+        state = transition_state(state, SimpleAction("activate_power"))
+        state = transition_state(state, IdAction("tuck_card", hand_id_1))
 
         assert len(state.players[1].bird_hand) == 1
         # bird_hand contains IDs directly now
@@ -338,9 +340,9 @@ class TestPower18SkipAndValidation:
         state.current_player_index = 1
 
         actions = get_actions(state)
-        assert "skip_power" in actions
+        assert SimpleAction("skip_power") in actions
 
-        state = transition_state(state, "skip_power")
+        state = transition_state(state, SimpleAction("skip_power"))
 
         assert state.players[1].food == initial_food
 

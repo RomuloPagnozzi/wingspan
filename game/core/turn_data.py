@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from .player import Spot
     from .constants import GamePhase
     from .game import GameState
+    from .action_types import Action
 
 
 @dataclass(slots=True)
@@ -45,7 +46,7 @@ class CostPayment:
     cost_type: str
     amount: int | dict[str, int] | list[dict[str, int]]
     callback_phase: GamePhase
-    callback_action: str
+    callback_action: Action
 
 
 @dataclass(slots=True)
@@ -75,7 +76,7 @@ class ActionData:
     base_amount: int = 0
     gained_rodent: bool = False
     amount_to_discard: int = 0
-    pending_callback: tuple[GamePhase, str] | None = None
+    pending_callback: tuple[GamePhase, Action] | None = None
 
     def clear(self) -> None:
         """Reset to empty state for new turn."""

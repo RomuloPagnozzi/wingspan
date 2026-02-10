@@ -5,14 +5,10 @@ from game.effects import (
     draw_cards_effect,
     gain_food_effect,
     lay_eggs_effect,
-    parse_draw_cards_action,
-    parse_lay_eggs_action,
     place_bird_effect,
-    parse_play_bird_action,
     pay_eggs_effect,
     pay_food_effect,
 )
-import json
 
 
 def test_draw_cards_from_deck():
@@ -89,19 +85,6 @@ def test_lay_eggs_multiple_birds():
     assert state.players[0].board[1][1].bird.state.eggs == 3
 
 
-def test_parse_draw_cards_action():
-    action = json.dumps({"tray_birds": [1, 2], "deck_cards": 3})
-    tray_ids, deck_count = parse_draw_cards_action(action)
-    assert tray_ids == [1, 2]
-    assert deck_count == 3
-
-
-def test_parse_lay_eggs_action():
-    action = json.dumps({"123": 2, "456": 1})
-    distribution = parse_lay_eggs_action(action)
-    assert distribution == {123: 2, 456: 1}
-
-
 def test_place_bird():
     state = initiate_state(2)
     # bird_hand contains IDs
@@ -124,14 +107,6 @@ def test_place_bird_different_player():
     place_bird_effect(state, bird_id, row=1, col=2, player_index=1)
     assert state.players[1].board[1][2].bird
     assert state.players[1].board[1][2].bird.id == bird_id
-
-
-def test_parse_play_bird_action():
-    action = "play_bird_123_at_1_2"
-    bird_id, row, col = parse_play_bird_action(action)
-    assert bird_id == 123
-    assert row == 1
-    assert col == 2
 
 
 def test_pay_eggs():

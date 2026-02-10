@@ -1,6 +1,6 @@
 """Tests for Power 1: All players gain a resource (food or card)."""
 
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction
 from game.engine import transition_state
 from conftest import setup_power_queue
 
@@ -24,7 +24,7 @@ def test_power_1_execution():
         ],
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     assert state.players[0].food.get("seed", 0) == initial_p0 + 1
     assert state.players[1].food.get("seed", 0) == initial_p1 + 1
@@ -52,7 +52,7 @@ def test_power_1_all_players_gain_cards_end_to_end():
             ],
         )
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         # Verify all players got exactly 1 card
         for i, player in enumerate(state.players):
@@ -84,7 +84,7 @@ def test_power_1_all_players_gain_food_end_to_end():
                 ],
             )
 
-            state = transition_state(state, "activate_power")
+            state = transition_state(state, SimpleAction("activate_power"))
 
             # Verify all players got exactly 1 food
             for i, player in enumerate(state.players):

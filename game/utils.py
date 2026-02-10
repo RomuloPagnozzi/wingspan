@@ -13,6 +13,9 @@ from .core import (
     get_bird_power,
     PinkTrigger,
     get_bird_card,
+    Action,
+    SelectDieAction,
+    SimpleAction,
 )
 
 
@@ -121,7 +124,8 @@ def generate_playable_bird_spots(
 
 
 def get_egg_payment_combinations(
-    birds: dict[int, int], egg_cost: int
+    birds: dict[int, int],
+    egg_cost: int,
 ) -> list[dict[int, int]]:
     """Generate all valid ways to pay egg cost using available eggs from birds."""
 
@@ -155,7 +159,8 @@ def get_egg_payment_combinations(
 
 
 def get_egg_distribution_combinations(
-    birds_capacity: dict[int, int], eggs_to_distribute: int
+    birds_capacity: dict[int, int],
+    eggs_to_distribute: int,
 ) -> list[dict[int, int]]:
     """Generate all valid ways to distribute eggs to birds based on their available capacity."""
 
@@ -185,7 +190,9 @@ def get_egg_distribution_combinations(
     bird_ids = list(available_birds.keys())
 
     def find_distributions(
-        remaining_eggs: int, distribution: dict[int, int], bird_index: int
+        remaining_eggs: int,
+        distribution: dict[int, int],
+        bird_index: int,
     ) -> None:
         if bird_index == len(bird_ids):
             if remaining_eggs == 0:
@@ -214,7 +221,8 @@ def get_egg_distribution_combinations(
 
 
 def can_afford_bird(
-    cost_options: list[dict[str, int]], resources: dict[str, int]
+    cost_options: list[dict[str, int]],
+    resources: dict[str, int],
 ) -> bool:
     """Check if we can afford a bird using any of its cost options."""
     try:
@@ -225,7 +233,8 @@ def can_afford_bird(
 
 
 def can_afford_bird_cost(
-    frozen_cost: tuple[tuple[tuple[str, int], ...], ...], resources: dict[str, int]
+    frozen_cost: tuple[tuple[tuple[str, int], ...], ...],
+    resources: dict[str, int],
 ) -> bool:
     """Check if we can afford a bird using its frozen cost format (from BirdCard)."""
     cost_options = [dict(option) for option in frozen_cost]
@@ -233,7 +242,8 @@ def can_afford_bird_cost(
 
 
 def generate_food_payments(
-    cost_options: list[dict[str, int]], resources: dict[str, int]
+    cost_options: list[dict[str, int]],
+    resources: dict[str, int],
 ) -> Generator[dict[str, int], None, None]:
     """Generator that yields all valid ways to pay bird food cost with available resources."""
     if not cost_options:
@@ -250,7 +260,8 @@ def generate_food_payments(
 
 
 def _generate_food_payments_for_cost_option(
-    cost: dict[str, int], resources: dict[str, int]
+    cost: dict[str, int],
+    resources: dict[str, int],
 ) -> Generator[dict[str, int], None, None]:
     """Generate all valid ways to pay a single food cost option with available resources."""
     remaining_cost = cost.copy()
@@ -337,7 +348,9 @@ def _generate_2_to_1_trade_combinations(
 
 
 def _generate_wild_payments(
-    base_payment: dict[str, int], remaining: dict[str, int], wild_count: int
+    base_payment: dict[str, int],
+    remaining: dict[str, int],
+    wild_count: int,
 ) -> Generator[dict[str, int], None, None]:
     """Generate all ways to pay wild cost with remaining resources."""
     available_foods = []
@@ -479,7 +492,10 @@ def get_valid_birds_for_eggs(player: Player, nest_type: str) -> list[PlacedBird]
 
 
 def get_triggered_powers(
-    player: Player, color: str, habitat: str | None = None, spot: Spot | None = None
+    player: Player,
+    color: str,
+    habitat: str | None = None,
+    spot: Spot | None = None,
 ) -> list[dict]:
     """Get powers whose trigger conditions are met for a specific color."""
     triggered_powers = []
@@ -646,15 +662,15 @@ def get_first_player_index(state: GameState) -> int:
     return next(i for i, p in enumerate(state.players) if p.first_player)
 
 
-def get_collect_food_actions(state: GameState) -> list[str]:
+def get_collect_food_actions(state: GameState) -> list[Action]:
     """Return possible foods to collect from the bird feeder."""
-    actions = []
+    actions: list[Action] = []
 
     for die_index, food_types in state.feeder.items():
         for food_type in food_types:
-            actions.append(f"select_die_{die_index}_{food_type}")
+            actions.append(SelectDieAction(die_index, food_type))
 
     if len(set(tuple(sorted(die_face)) for die_face in state.feeder.values())) == 1:
-        actions.append("reroll_all")
+        actions.append(SimpleAction("reroll_all"))
 
     return actions

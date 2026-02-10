@@ -5,6 +5,9 @@ from .core import (
     PinkTrigger,
     QueuedPower,
     PowerExecution,
+    Action,
+    SimpleAction,
+    IdAction,
 )
 from .scoring import update_player_scores, update_round_goal_scores
 from .utils import (
@@ -21,7 +24,7 @@ from .power import get_power_handler
 from .core.custom_copy import copy_state
 
 
-def transition_state(state: GameState, action: str) -> GameState:
+def transition_state(state: GameState, action: Action) -> GameState:
     """Return new state after applying an action."""
     from .phase_handlers import get_phase_handler
 
@@ -91,7 +94,7 @@ def finish_main_action(
     return _finalize_turn(state)
 
 
-def activate_powers(state: GameState, action: str) -> GameState:
+def activate_powers(state: GameState, action: Action) -> GameState:
     """Handle power activation using stack-based execution.
 
     Paths:
@@ -102,11 +105,11 @@ def activate_powers(state: GameState, action: str) -> GameState:
     stack = state.action_data.execution_stack
 
     if not stack:
-        if action == "skip_power":
+        if isinstance(action, SimpleAction) and action.type == "skip_power":
             state.action_data.current_power_index += 1
             return _check_powers_done(state)
 
-        if action == "activate_power":
+        if isinstance(action, SimpleAction) and action.type == "activate_power":
             queued = state.action_data.get_current_queued_power()
             if not queued:
                 raise ValueError("No power to activate")
@@ -160,7 +163,7 @@ def activate_powers(state: GameState, action: str) -> GameState:
         initial_handler = get_power_handler(new_power.power_id, None)
         if not initial_handler:
             raise ValueError(f"No handler for power {new_power.power_id}")
-        state = initial_handler(state, stack, "")
+        state = initial_handler(state, stack, SimpleAction(""))
         if not stack:
             state.action_data.current_power_index += 1
             return _check_powers_done(state)
@@ -175,7 +178,7 @@ def _check_powers_done(state: GameState) -> GameState:
 
     if current_index >= len(queue):
         state.game_phase = GamePhase.END_TURN
-        return handle_end_turn(state, "")
+        return handle_end_turn(state, SimpleAction(""))
 
     next_power = queue[current_index]
     state.current_player_index = next_power.player_index
@@ -221,7 +224,7 @@ def _finalize_turn(state: GameState) -> GameState:
     return state
 
 
-def handle_end_turn(state: GameState, action: str) -> GameState:
+def handle_end_turn(state: GameState, action: Action) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.end_turn_effects
 
@@ -247,7 +250,8 @@ def handle_end_turn(state: GameState, action: str) -> GameState:
             )
             return state
 
-        id = int(action.split("_")[-1])
+        assert isinstance(action, IdAction)
+        id = action.id
         player = state.players[current_effect.player_index]
 
         if id in player.bird_hand:
@@ -260,6 +264,6 @@ def handle_end_turn(state: GameState, action: str) -> GameState:
         if not effects:
             return _finalize_turn(state)
 
-        return handle_end_turn(state, "")
+        return handle_end_turn(state, SimpleAction(""))
 
     return state

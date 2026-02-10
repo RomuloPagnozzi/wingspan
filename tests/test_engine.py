@@ -5,6 +5,7 @@ from game.core import (
     GamePhase,
     ActionData,
     QueuedPower,
+    SimpleAction,
 )
 from game.engine import (
     finish_main_action,
@@ -105,6 +106,6 @@ def test_power_activation_skip():
         ],
     )
 
-    state = transition_state(state, "skip_power")
+    state = transition_state(state, SimpleAction("skip_power"))
 
     assert state.action_data.current_power_index == 1

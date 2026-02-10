@@ -1,6 +1,6 @@
 """Comprehensive end-to-end test for Power 7: Each player gains 1 die from birdfeeder, starting with player of your choice."""
 
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction, IdAction, SelectDieAction
 from game.engine import transition_state
 from game.actions import get_actions
 from conftest import place_bird_on_board, setup_power_execution
@@ -50,11 +50,11 @@ def test_power_7_full_game_scenario_with_3_players():
 
     # Get available actions - should be able to activate or skip
     actions = get_actions(state)
-    assert "activate_power" in actions
-    assert "skip_power" in actions
+    assert SimpleAction("activate_power") in actions
+    assert SimpleAction("skip_power") in actions
 
     # Activate Power 7
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in choose_starting_player phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
@@ -65,12 +65,12 @@ def test_power_7_full_game_scenario_with_3_players():
     # Get available player selection actions
     actions = get_actions(state)
     assert len(actions) == 3, "Should have 3 players to choose from"
-    assert "choose_player_0" in actions
-    assert "choose_player_1" in actions
-    assert "choose_player_2" in actions
+    assert IdAction("choose_player", 0) in actions
+    assert IdAction("choose_player", 1) in actions
+    assert IdAction("choose_player", 2) in actions
 
     # Player 0 chooses Player 1 to start
-    state = transition_state(state, "choose_player_1")
+    state = transition_state(state, IdAction("choose_player", 1))
 
     # Should transition to die selection phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
@@ -87,14 +87,14 @@ def test_power_7_full_game_scenario_with_3_players():
     # Get available die selection actions
     actions = get_actions(state)
     assert len(actions) == 5, "Should have 5 dice to choose from"
-    assert "select_die_0_fish" in actions
-    assert "select_die_1_seed" in actions
-    assert "select_die_2_invertebrate" in actions
-    assert "select_die_3_fruit" in actions
-    assert "select_die_4_rodent" in actions
+    assert SelectDieAction(0, "fish") in actions
+    assert SelectDieAction(1, "seed") in actions
+    assert SelectDieAction(2, "invertebrate") in actions
+    assert SelectDieAction(3, "fruit") in actions
+    assert SelectDieAction(4, "rodent") in actions
 
     # Player 1 selects die 0 (fish)
-    state = transition_state(state, "select_die_0_fish")
+    state = transition_state(state, SelectDieAction(0, "fish"))
 
     # Verify Player 1 received the fish
     assert state.players[1].food.get("fish", 0) == initial_food_p1.get("fish", 0) + 1
@@ -116,9 +116,9 @@ def test_power_7_full_game_scenario_with_3_players():
     # Player 2 selects die 1 (seed)
     actions = get_actions(state)
     assert len(actions) == 4, "Should have 4 dice remaining"
-    assert "select_die_0_fish" not in actions, "Die 0 already taken"
+    assert SelectDieAction(0, "fish") not in actions, "Die 0 already taken"
 
-    state = transition_state(state, "select_die_1_seed")
+    state = transition_state(state, SelectDieAction(1, "seed"))
 
     # Verify Player 2 received the seed
     assert state.players[2].food.get("seed", 0) == initial_food_p2.get("seed", 0) + 1
@@ -137,7 +137,7 @@ def test_power_7_full_game_scenario_with_3_players():
     actions = get_actions(state)
     assert len(actions) == 3, "Should have 3 dice remaining"
 
-    state = transition_state(state, "select_die_2_invertebrate")
+    state = transition_state(state, SelectDieAction(2, "invertebrate"))
 
     # Verify Player 0 received the invertebrate
     assert (
@@ -202,14 +202,14 @@ def test_power_7_activator_chooses_self():
     setup_power_execution(state, 7, bird_id, activating_spot, 2)
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in player selection phase
     current_exec = state.action_data.execution_stack[-1]
     assert current_exec.phase == "choose_starting_player"
 
     # Player 2 chooses themselves (Player 2)
-    state = transition_state(state, "choose_player_2")
+    state = transition_state(state, IdAction("choose_player", 2))
 
     # Verify player order: [2, 3, 0, 1] (clockwise from Player 2)
     current_exec = state.action_data.execution_stack[-1]
@@ -260,15 +260,15 @@ def test_power_7_feeder_empties_mid_power():
     setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Activate and choose starting player
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, "choose_player_0")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("choose_player", 0))
 
     # Player 0 selects die 0
-    state = transition_state(state, "select_die_0_fish")
+    state = transition_state(state, SelectDieAction(0, "fish"))
     assert len(state.feeder) == 1
 
     # Player 1 selects die 1 (empties feeder)
-    state = transition_state(state, "select_die_1_seed")
+    state = transition_state(state, SelectDieAction(1, "seed"))
 
     # Feeder should have been auto-rerolled to 5 dice
     assert len(state.feeder) == 5, "Feeder should reroll when emptied"
@@ -312,10 +312,10 @@ def test_power_7_with_2_players():
     setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Choose Player 1 to start
-    state = transition_state(state, "choose_player_1")
+    state = transition_state(state, IdAction("choose_player", 1))
 
     # Verify player order: [1, 0]
     current_exec = state.action_data.execution_stack[-1]
@@ -364,10 +364,10 @@ def test_power_7_with_5_players():
     setup_power_execution(state, 7, bird_id, activating_spot, 3)
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Player 3 chooses Player 0 to start
-    state = transition_state(state, "choose_player_0")
+    state = transition_state(state, IdAction("choose_player", 0))
 
     # Verify player order: [0, 1, 2, 3, 4] (clockwise from Player 0)
     current_exec = state.action_data.execution_stack[-1]
@@ -421,24 +421,26 @@ def test_power_7_all_dice_same_face():
     setup_power_execution(state, 7, bird_id, activating_spot, 0)
 
     # Activate and choose starting player
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, "choose_player_0")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("choose_player", 0))
 
     # Get available actions for Player 0
     actions = get_actions(state)
 
     # Should have "reroll_all" option when all dice match (per official Wingspan rules)
     assert (
-        "reroll_all" in actions
+        SimpleAction("reroll_all") in actions
     ), "Power 7 should allow reroll when all dice show same face"
 
     # Should have 5 fish selections
-    fish_actions = [a for a in actions if "fish" in a]
+    fish_actions = [
+        a for a in actions if isinstance(a, SelectDieAction) and a.food_type == "fish"
+    ]
     assert len(fish_actions) == 5, "Should have 5 fish dice to choose from"
 
     # Players must select from available dice
-    state = transition_state(state, "select_die_0_fish")
-    state = transition_state(state, "select_die_1_fish")
+    state = transition_state(state, SelectDieAction(0, "fish"))
+    state = transition_state(state, SelectDieAction(1, "fish"))
 
     # Should complete successfully
     assert state.game_phase == GamePhase.MAIN_TURN

@@ -16,6 +16,8 @@ def test_same_seed_produces_identical_initial_state():
     assert state1.bonus_deck == state2.bonus_deck
     assert state1.feeder == state2.feeder
     assert state1.bird_tray == state2.bird_tray
+    assert state1.round_goal_config
+    assert state2.round_goal_config
     assert (
         state1.round_goal_config.selected_goals
         == state2.round_goal_config.selected_goals
@@ -31,6 +33,9 @@ def test_different_seeds_produce_different_states():
     """Different seeds should produce different game setups."""
     state1 = initiate_state(2, seed=42)
     state2 = initiate_state(2, seed=43)
+
+    assert state1.round_goal_config
+    assert state2.round_goal_config
 
     different = (
         state1.bird_deck != state2.bird_deck

@@ -1,6 +1,6 @@
 """Tests for Power 5: Draw cards (bonus or bird cards with optional discard)."""
 
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction, IdAction
 from game.engine import transition_state
 from game.actions import get_actions
 from conftest import place_bird_on_board, setup_power_queue
@@ -43,7 +43,7 @@ def test_power_5_draw_2_bonus_keep_1_end_to_end():
         ],
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
     # Stack-based: check execution stack
@@ -59,14 +59,14 @@ def test_power_5_draw_2_bonus_keep_1_end_to_end():
     assert len(state.bonus_deck) == initial_bonus_deck_size - 2
 
     actions = get_actions(state)
-    expected_action_1 = f"power_5_bonus_{bonus_id_1}"
-    expected_action_2 = f"power_5_bonus_{bonus_id_2}"
+    expected_action_1 = IdAction("power_5_bonus", bonus_id_1)
+    expected_action_2 = IdAction("power_5_bonus", bonus_id_2)
     assert expected_action_1 in actions
     assert expected_action_2 in actions
     assert len(actions) == 2
 
     selected_bonus_id = bonus_id_1
-    state = transition_state(state, f"power_5_bonus_{selected_bonus_id}")
+    state = transition_state(state, IdAction("power_5_bonus", selected_bonus_id))
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert len(state.players[0].bonus_hand) == initial_bonus_hand_size + 1
@@ -110,7 +110,7 @@ def test_power_5_draw_cards_discard_at_end_of_turn():
         ],
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     assert state.game_phase == GamePhase.END_TURN
     assert len(state.players[0].bird_hand) == initial_hand_size + 2
@@ -120,11 +120,14 @@ def test_power_5_draw_cards_discard_at_end_of_turn():
 
     actions = get_actions(state)
     assert len(actions) == initial_hand_size + 2
-    assert all(action.startswith("discard_card_") for action in actions)
+    assert all(
+        isinstance(action, IdAction) and action.type == "discard_card"
+        for action in actions
+    )
 
     # bird_hand contains IDs directly now
     id_to_discard = state.players[0].bird_hand[0]
-    state = transition_state(state, f"discard_card_{id_to_discard}")
+    state = transition_state(state, IdAction("discard_card", id_to_discard))
 
     assert state.game_phase == GamePhase.MAIN_TURN
     assert len(state.players[0].bird_hand) == initial_hand_size + 1
@@ -185,11 +188,11 @@ def test_power_5_multiple_discards_at_end_of_turn():
     )
 
     # Activate first Power 5 - draws 1 card, queues discard effect
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     assert len(state.action_data.end_turn_effects) == 1
 
     # Activate second Power 5 - draws 1 card, queues another discard effect
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     assert len(state.action_data.end_turn_effects) == 2
 
     # Now we're in END_TURN phase with 2 discard effects
@@ -198,11 +201,11 @@ def test_power_5_multiple_discards_at_end_of_turn():
     # First discard should work
     actions = get_actions(state)
     assert len(actions) > 0, "Should have discard actions for first effect"
-    assert any(a.startswith("discard_card_") for a in actions)
+    assert any(isinstance(a, IdAction) and a.type == "discard_card" for a in actions)
 
     # bird_hand contains IDs directly now
     first_id = state.players[0].bird_hand[0]
-    state = transition_state(state, f"discard_card_{first_id}")
+    state = transition_state(state, IdAction("discard_card", first_id))
 
     # BUG: After first discard, should still have actions for second discard
     # The bug causes get_actions to return [] because sub_phase is cleared
@@ -212,11 +215,11 @@ def test_power_5_multiple_discards_at_end_of_turn():
         "Should have discard actions for second effect, but got empty. "
         f"end_turn_effects={state.action_data.end_turn_effects if state.action_data else None}"
     )
-    assert any(a.startswith("discard_card_") for a in actions)
+    assert any(isinstance(a, IdAction) and a.type == "discard_card" for a in actions)
 
     # Second discard
     second_id = state.players[0].bird_hand[0]
-    state = transition_state(state, f"discard_card_{second_id}")
+    state = transition_state(state, IdAction("discard_card", second_id))
 
     # Now should have finalized turn
     assert state.game_phase == GamePhase.MAIN_TURN

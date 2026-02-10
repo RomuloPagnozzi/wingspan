@@ -1,4 +1,3 @@
-import json
 from typing import Optional
 
 from game.core import GameState, roll_feeder, PlacedBird, BirdState
@@ -25,12 +24,6 @@ def draw_cards_effect(
     actual_deck_draws = min(deck_count, len(state.bird_deck))
     for _ in range(actual_deck_draws):
         target_player.bird_hand.append(state.bird_deck.pop())
-
-
-def parse_draw_cards_action(action: str) -> tuple:
-    """Parse draw cards action to effect parameters."""
-    data = json.loads(action)
-    return data["tray_birds"], data["deck_cards"]
 
 
 def tuck_cards_effect(state: GameState, bird_id: int, count: int) -> None:
@@ -86,11 +79,6 @@ def lay_eggs_effect(
                     break
 
 
-def parse_lay_eggs_action(action: str) -> dict[int, int]:
-    """Parse lay eggs action to effect parameters."""
-    return {int(k): v for k, v in json.loads(action).items()}
-
-
 def select_die_effect(
     state: GameState,
     die_index: int,
@@ -108,14 +96,6 @@ def select_die_effect(
 
     if not state.feeder:
         state.feeder = roll_feeder(state.rng)
-
-
-def parse_select_die_action(action: str) -> tuple:
-    """Parse select die action to effect parameters."""
-    parts = action.split("_")
-    die_index = int(parts[2])
-    food_type = parts[3]
-    return die_index, food_type
 
 
 def place_bird_effect(
@@ -143,20 +123,6 @@ def place_bird_effect(
     target_player.bird_hand.remove(bird_id)
 
 
-def parse_play_bird_action(action: str) -> tuple:
-    """Parse play bird action to effect parameters."""
-    parts = action.split("_")
-    bird_id = int(parts[2])
-    row = int(parts[4])
-    col = int(parts[5])
-    return bird_id, row, col
-
-
-def parse_pay_eggs_action(action: str) -> dict[int, int]:
-    """Parse pay eggs action to effect parameters."""
-    return {int(k): v for k, v in json.loads(action).items()}
-
-
 def pay_eggs_effect(
     state: GameState,
     egg_payment: dict[int, int],
@@ -173,11 +139,6 @@ def pay_eggs_effect(
                 if spot.bird is not None and spot.bird.id == bird_id:
                     spot.bird.state.eggs -= eggs_to_remove
                     break
-
-
-def parse_pay_food_action(action: str) -> dict[str, int]:
-    """Parse pay food action to effect parameters."""
-    return json.loads(action)
 
 
 def pay_food_effect(

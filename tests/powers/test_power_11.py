@@ -8,6 +8,7 @@ from game.core import (
     get_bird_power,
     BIRD_REGISTRY,
     init_registries,
+    SimpleAction,
 )
 from game.engine import transition_state
 from conftest import place_bird_on_board, setup_power_execution
@@ -76,7 +77,7 @@ def test_power_11_tuck_card():
         state, 11, bird_id, activating_spot, state.current_player_index, power_data
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Get bird from returned state after deepcopy
     updated_bird = state.players[0].board[0][0].bird
@@ -108,7 +109,7 @@ def test_power_11_discard_card():
         state, 11, bird_id, activating_spot, state.current_player_index, power_data
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Check the board bird after deepcopy
     updated_bird = state.players[0].board[0][0].bird
@@ -164,7 +165,7 @@ def test_power_11_multiple_activations():
     initial_tucked = placed.state.tucked_cards
 
     # First activation - draws large_bird (popped from end of list)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     # Get bird from returned state after deepcopy
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird is not None
@@ -174,7 +175,7 @@ def test_power_11_multiple_activations():
     assert state.game_phase == GamePhase.ACTIVATE_POWERS  # Still processing queue
 
     # Second activation - draws small_bird
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     # Get bird from returned state after deepcopy
     updated_bird = state.players[0].board[0][0].bird
     assert updated_bird is not None
@@ -189,12 +190,12 @@ if __name__ == "__main__":
     print("Running Power 11 tests...")
 
     test_power_11_tuck_card()
-    print("✓ test_power_11_tuck_card passed")
+    print("+ test_power_11_tuck_card passed")
 
     test_power_11_discard_card()
-    print("✓ test_power_11_discard_card passed")
+    print("+ test_power_11_discard_card passed")
 
     test_power_11_multiple_activations()
-    print("✓ test_power_11_multiple_activations passed")
+    print("+ test_power_11_multiple_activations passed")
 
-    print("\n✅ All Power 11 tests passed!")
+    print("\n+ All Power 11 tests passed!")

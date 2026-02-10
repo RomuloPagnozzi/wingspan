@@ -7,6 +7,8 @@ from game.core import (
     QueuedPower,
     get_bird_power,
     init_registries,
+    SimpleAction,
+    IdAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -82,10 +84,10 @@ def test_power_14_brown_repeat_simple_power():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute Power 14
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should have an execution on stack with select_bird phase
     assert len(state.action_data.execution_stack) == 1
@@ -93,10 +95,10 @@ def test_power_14_brown_repeat_simple_power():
 
     # Verify bird selection available
     actions = get_actions(state)
-    assert f"select_bird_{power_3_bird_id}" in actions
+    assert IdAction("select_bird", power_3_bird_id) in actions
 
     # Select Power 3 bird - power executes immediately
-    state = transition_state(state, f"select_bird_{power_3_bird_id}")
+    state = transition_state(state, IdAction("select_bird", power_3_bird_id))
 
     # Verify Power 3 was executed (get bird from returned state after deepcopy)
     updated_power_3_bird = state.players[0].board[0][1].bird
@@ -147,7 +149,7 @@ def test_power_14_predator_repeat():
     setup_power_queue(state, power_14_bird_id, power_14_data, activating_spot)
 
     # Execute Power 14
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should enter sub-phase
     assert len(state.action_data.execution_stack) == 1
@@ -155,9 +157,9 @@ def test_power_14_predator_repeat():
 
     # Select Power 11 bird
     actions = get_actions(state)
-    assert f"select_bird_{power_11_bird_id}" in actions
+    assert IdAction("select_bird", power_11_bird_id) in actions
 
-    state = transition_state(state, f"select_bird_{power_11_bird_id}")
+    state = transition_state(state, IdAction("select_bird", power_11_bird_id))
 
     # Verify Power 11 was executed (predator power draws from deck and tucks/discards)
     # Stack should be empty
@@ -195,8 +197,8 @@ def test_power_14_no_eligible_birds():
 
     # Cannot activate (only skip available)
     actions = get_actions(state)
-    assert "activate_power" not in actions
-    assert "skip_power" in actions
+    assert SimpleAction("activate_power") not in actions
+    assert SimpleAction("skip_power") in actions
 
 
 def test_power_14_self_repeat_prevented():
@@ -234,9 +236,9 @@ def test_power_14_self_repeat_prevented():
     # Power 14 cannot repeat other power 14 birds, so activate_power should not be available
     actions = get_actions(state)
     assert (
-        "activate_power" not in actions
+        SimpleAction("activate_power") not in actions
     ), "Power 14 should not be activatable when only other Power 14 birds exist"
-    assert "skip_power" in actions, "skip_power should be the only option"
+    assert SimpleAction("skip_power") in actions, "skip_power should be the only option"
 
 
 def test_power_14_different_habitat_isolated():
@@ -283,8 +285,8 @@ def test_power_14_different_habitat_isolated():
 
     # Cannot activate (bird in different habitat)
     actions = get_actions(state)
-    assert "activate_power" not in actions
-    assert "skip_power" in actions
+    assert SimpleAction("activate_power") not in actions
+    assert SimpleAction("skip_power") in actions
 
 
 def test_power_14_brown_filters_correctly():
@@ -354,12 +356,12 @@ def test_power_14_brown_filters_correctly():
     setup_power_queue(state, power_14_bird_id, power_14_data, activating_spot)
 
     # Execute Power 14
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify only brown bird is selectable
     actions = get_actions(state)
-    assert f"select_bird_{brown_bird_id}" in actions
-    assert f"select_bird_{white_bird_id}" not in actions
+    assert IdAction("select_bird", brown_bird_id) in actions
+    assert IdAction("select_bird", white_bird_id) not in actions
 
 
 def test_power_14_validation():
@@ -475,8 +477,8 @@ def test_power_14_repeat_power_with_subphase():
 
     # Execute Power 14
     actions = get_actions(state)
-    assert "activate_power" in actions
-    state = transition_state(state, "activate_power")
+    assert SimpleAction("activate_power") in actions
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in Power 14's bird selection phase
     assert len(state.action_data.execution_stack) == 1
@@ -484,10 +486,10 @@ def test_power_14_repeat_power_with_subphase():
 
     # Verify Power 17 bird is selectable
     actions = get_actions(state)
-    assert f"select_bird_{power_17_bird_id}" in actions
+    assert IdAction("select_bird", power_17_bird_id) in actions
 
     # Select Power 17 bird - this triggers Power 17 which sets up select_card phase
-    state = transition_state(state, f"select_bird_{power_17_bird_id}")
+    state = transition_state(state, IdAction("select_bird", power_17_bird_id))
 
     # Power 17 should now be on the stack with its card selection phase
     # Power 14 should have popped itself
@@ -505,11 +507,13 @@ def test_power_14_repeat_power_with_subphase():
         f"player hand size={len(state.players[0].bird_hand)}"
     )
     assert any(
-        a.startswith("tuck_card_") for a in actions
+        isinstance(a, IdAction) and a.type == "tuck_card" for a in actions
     ), f"Expected tuck_card actions, got: {actions}"
 
     # Complete Power 17 by tucking a card
-    tuck_action = [a for a in actions if a.startswith("tuck_card_")][0]
+    tuck_action = [
+        a for a in actions if isinstance(a, IdAction) and a.type == "tuck_card"
+    ][0]
     state = transition_state(state, tuck_action)
 
     # Verify cleanup - power should be done or in food selection
@@ -525,27 +529,27 @@ if __name__ == "__main__":
     print("Running Power 14 tests...")
 
     test_power_14_brown_repeat_simple_power()
-    print("✓ test_power_14_brown_repeat_simple_power passed")
+    print("+ test_power_14_brown_repeat_simple_power passed")
 
     test_power_14_predator_repeat()
-    print("✓ test_power_14_predator_repeat passed")
+    print("+ test_power_14_predator_repeat passed")
 
     test_power_14_no_eligible_birds()
-    print("✓ test_power_14_no_eligible_birds passed")
+    print("+ test_power_14_no_eligible_birds passed")
 
     test_power_14_self_repeat_prevented()
-    print("✓ test_power_14_self_repeat_prevented passed")
+    print("+ test_power_14_self_repeat_prevented passed")
 
     test_power_14_different_habitat_isolated()
-    print("✓ test_power_14_different_habitat_isolated passed")
+    print("+ test_power_14_different_habitat_isolated passed")
 
     test_power_14_brown_filters_correctly()
-    print("✓ test_power_14_brown_filters_correctly passed")
+    print("+ test_power_14_brown_filters_correctly passed")
 
     test_power_14_validation()
-    print("✓ test_power_14_validation passed")
+    print("+ test_power_14_validation passed")
 
     test_power_14_repeat_power_with_subphase()
-    print("✓ test_power_14_repeat_power_with_subphase passed")
+    print("+ test_power_14_repeat_power_with_subphase passed")
 
-    print("\n✅ All Power 14 tests passed!")
+    print("\n+ All Power 14 tests passed!")

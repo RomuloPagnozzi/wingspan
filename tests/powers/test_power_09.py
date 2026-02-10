@@ -7,6 +7,8 @@ from game.core import (
     get_bird_card,
     BIRD_REGISTRY,
     init_registries,
+    SimpleAction,
+    NameAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -58,10 +60,10 @@ def test_power_9_bird_solo_in_row():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Check if auto-completed or requires choice
     if len(state.action_data.execution_stack) > 0:
@@ -70,12 +72,16 @@ def test_power_9_bird_solo_in_row():
 
         # Verify habitat selection actions available
         actions = get_actions(state)
-        habitat_actions = [a for a in actions if a.startswith("select_habitat_")]
+        habitat_actions = [
+            a
+            for a in actions
+            if isinstance(a, NameAction) and a.type == "select_habitat"
+        ]
         assert len(habitat_actions) >= 1, "Should have at least one habitat choice"
 
         # Select the first available habitat
         selected_action = habitat_actions[0]
-        target_habitat = selected_action.split("_")[2]
+        target_habitat = selected_action.name
 
         # Execute habitat selection
         state = transition_state(state, selected_action)
@@ -144,25 +150,30 @@ def test_power_9_full_row_bird_last():
 
     # Verify can activate (bird is rightmost)
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should have habitat selection choices
     if len(state.action_data.execution_stack) > 0:
         assert state.action_data.execution_stack[-1].phase == "select_habitat"
 
         actions = get_actions(state)
-        habitat_actions = [a for a in actions if a.startswith("select_habitat_")]
+        habitat_actions = [
+            a
+            for a in actions
+            if isinstance(a, NameAction) and a.type == "select_habitat"
+        ]
 
         # Select grassland if available, otherwise first option
-        if any("grassland" in a for a in habitat_actions):
-            selected_action = "select_habitat_grassland"
+        grassland_action = NameAction("select_habitat", "grassland")
+        if grassland_action in actions:
+            selected_action = grassland_action
         else:
             selected_action = habitat_actions[0]
 
-        target_habitat = selected_action.split("_")[2]
+        target_habitat = selected_action.name
         state = transition_state(state, selected_action)
 
         # Verify bird moved to leftmost spot (col 0) in target habitat (compare by ID)
@@ -218,11 +229,11 @@ def test_power_9_bird_not_rightmost():
 
     # Verify cannot activate (bird is not rightmost)
     actions = get_actions(state)
-    assert "activate_power" not in actions
+    assert SimpleAction("activate_power") not in actions
 
     # Skip power should be available
-    if "skip_power" in actions:
-        state = transition_state(state, "skip_power")
+    if SimpleAction("skip_power") in actions:
+        state = transition_state(state, SimpleAction("skip_power"))
 
     # Verify bird position unchanged (compare by ID)
     bird_0 = state.players[0].board[current_row][0].bird
@@ -269,11 +280,11 @@ def test_power_9_all_other_rows_full():
 
     # Verify cannot activate (no valid target habitats with empty spots)
     actions = get_actions(state)
-    assert "activate_power" not in actions
+    assert SimpleAction("activate_power") not in actions
 
     # Skip power should be available
-    if "skip_power" in actions:
-        state = transition_state(state, "skip_power")
+    if SimpleAction("skip_power") in actions:
+        state = transition_state(state, SimpleAction("skip_power"))
 
     # Verify bird remains in original position (compare by ID)
     bird = state.players[0].board[current_row][0].bird

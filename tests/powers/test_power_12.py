@@ -6,6 +6,8 @@ from game.core import (
     get_bird_power,
     BIRD_REGISTRY,
     init_registries,
+    SimpleAction,
+    PlayBirdAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -93,36 +95,33 @@ def test_power_12_forest_basic():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions, "Should be able to activate power"
+    assert SimpleAction("activate_power") in actions, "Should be able to activate power"
 
     # Execute activation - should transition to PLAY_BIRD phase
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     assert (
         state.game_phase == GamePhase.PLAY_BIRD
     ), "Should transition to PLAY_BIRD phase"
 
     # Verify only forest birds at forest spots appear in actions
     actions = get_actions(state)
-    play_bird_actions = [a for a in actions if a.startswith("play_bird_")]
+    play_bird_actions = [a for a in actions if isinstance(a, PlayBirdAction)]
     assert len(play_bird_actions) > 0, "Should have at least one play_bird action"
 
     # All actions should be for forest row (row 0)
     for action in play_bird_actions:
-        # Parse: "play_bird_123_at_0_2" → row=0
-        parts = action.replace("play_bird_", "").split("_at_")
-        row, col = parts[1].split("_")
         assert (
-            row == "0"
-        ), f"Action {action} should be for forest row (0), got row {row}"
+            action.row == 0
+        ), f"Action {action} should be for forest row (0), got row {action.row}"
 
     # Select first valid action and execute
     selected_action = play_bird_actions[0]
     state = transition_state(state, selected_action)
 
-    # Parse the action to get bird_id and position
-    parts = selected_action.replace("play_bird_", "").split("_at_")
-    placed_bird_id = int(parts[0])
-    row, col = parts[1].split("_")
+    # Get bird_id and position from the action
+    placed_bird_id = selected_action.bird_id
+    row = selected_action.row
+    col = selected_action.col
 
     # Handle egg cost payment if needed
     if state.game_phase == GamePhase.PAY_EGG_COST:
@@ -135,10 +134,10 @@ def test_power_12_forest_basic():
         state = transition_state(state, food_actions[0])
 
     # Verify bird is on board at correct position
-    placed_bird = state.players[0].board[int(row)][int(col)].bird
+    placed_bird = state.players[0].board[row][col].bird
     assert placed_bird is not None, "Bird should be placed on board"
     assert placed_bird.id == placed_bird_id, "Correct bird should be placed"
-    assert int(row) == 0, "Bird should be in forest row"
+    assert row == 0, "Bird should be in forest row"
 
     # Verify no action cube consumed
     assert (
@@ -211,21 +210,21 @@ def test_power_12_habitat_filtering():
     )
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     assert state.game_phase == GamePhase.PLAY_BIRD
 
     # Get play_bird actions
     actions = get_actions(state)
-    play_bird_actions = [a for a in actions if a.startswith("play_bird_")]
+    play_bird_actions = [a for a in actions if isinstance(a, PlayBirdAction)]
 
     # Parse bird IDs from actions
     bird_ids_in_actions = set()
     for action in play_bird_actions:
-        parts = action.replace("play_bird_", "").split("_at_")
-        bird_ids_in_actions.add(int(parts[0]))
+        bird_ids_in_actions.add(action.bird_id)
         # Verify all actions are for forest row (row 0)
-        row, col = parts[1].split("_")
-        assert row == "0", f"All actions should be for forest row, got {row}"
+        assert (
+            action.row == 0
+        ), f"All actions should be for forest row, got {action.row}"
 
     # Verify only forest-compatible birds appear
     if bird_a_id:
@@ -276,19 +275,19 @@ def test_power_12_this_variant():
     )
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
     assert state.game_phase == GamePhase.PLAY_BIRD
 
     # Get play_bird actions
     actions = get_actions(state)
-    play_bird_actions = [a for a in actions if a.startswith("play_bird_")]
+    play_bird_actions = [a for a in actions if isinstance(a, PlayBirdAction)]
     assert len(play_bird_actions) > 0, "Should have grassland play actions"
 
     # Verify all actions are for grassland row (row 1)
     for action in play_bird_actions:
-        parts = action.replace("play_bird_", "").split("_at_")
-        row, col = parts[1].split("_")
-        assert row == "1", f"'this' should resolve to grassland (row 1), got row {row}"
+        assert (
+            action.row == 1
+        ), f"'this' should resolve to grassland (row 1), got row {action.row}"
 
 
 def test_power_12_no_valid_birds():
@@ -324,8 +323,10 @@ def test_power_12_no_valid_birds():
 
     # Verify cannot activate
     actions = get_actions(state)
-    assert "activate_power" not in actions, "Should not be able to activate power"
-    assert "skip_power" in actions, "Should be able to skip power"
+    assert (
+        SimpleAction("activate_power") not in actions
+    ), "Should not be able to activate power"
+    assert SimpleAction("skip_power") in actions, "Should be able to skip power"
 
 
 def test_power_12_validation():
@@ -385,18 +386,18 @@ if __name__ == "__main__":
     print("Running Power 12 tests...")
 
     test_power_12_forest_basic()
-    print("✓ test_power_12_forest_basic passed")
+    print("+ test_power_12_forest_basic passed")
 
     test_power_12_habitat_filtering()
-    print("✓ test_power_12_habitat_filtering passed")
+    print("+ test_power_12_habitat_filtering passed")
 
     test_power_12_this_variant()
-    print("✓ test_power_12_this_variant passed")
+    print("+ test_power_12_this_variant passed")
 
     test_power_12_no_valid_birds()
-    print("✓ test_power_12_no_valid_birds passed")
+    print("+ test_power_12_no_valid_birds passed")
 
     test_power_12_validation()
-    print("✓ test_power_12_validation passed")
+    print("+ test_power_12_validation passed")
 
-    print("\n✅ All Power 12 tests passed!")
+    print("\n+ All Power 12 tests passed!")

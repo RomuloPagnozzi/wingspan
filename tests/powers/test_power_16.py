@@ -1,6 +1,6 @@
 """Tests for Power 16: Trade 1 food for any other type from supply."""
 
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction, TradeAction
 from game.engine import transition_state
 from game.actions import get_actions
 from game.power import can_execute_power
@@ -72,17 +72,17 @@ def test_power_16_generates_correct_actions_single_food_type():
     state = initiate_state(2)
     state = setup_power_16_state(state, {"seed": 2})
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     assert state.action_data.execution_stack[-1].phase == "select_trade"
 
     actions = get_actions(state)
 
     expected_actions = [
-        "trade_seed_for_invertebrate",
-        "trade_seed_for_fish",
-        "trade_seed_for_fruit",
-        "trade_seed_for_rodent",
+        TradeAction("seed", "invertebrate"),
+        TradeAction("seed", "fish"),
+        TradeAction("seed", "fruit"),
+        TradeAction("seed", "rodent"),
     ]
 
     assert len(actions) == 4
@@ -95,21 +95,21 @@ def test_power_16_generates_correct_actions_multiple_food_types():
     state = initiate_state(2)
     state = setup_power_16_state(state, {"seed": 2, "fish": 1})
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     assert state.action_data.execution_stack[-1].phase == "select_trade"
 
     actions = get_actions(state)
 
     expected_actions = [
-        "trade_seed_for_invertebrate",
-        "trade_seed_for_fish",
-        "trade_seed_for_fruit",
-        "trade_seed_for_rodent",
-        "trade_fish_for_invertebrate",
-        "trade_fish_for_seed",
-        "trade_fish_for_fruit",
-        "trade_fish_for_rodent",
+        TradeAction("seed", "invertebrate"),
+        TradeAction("seed", "fish"),
+        TradeAction("seed", "fruit"),
+        TradeAction("seed", "rodent"),
+        TradeAction("fish", "invertebrate"),
+        TradeAction("fish", "seed"),
+        TradeAction("fish", "fruit"),
+        TradeAction("fish", "rodent"),
     ]
 
     assert len(actions) == 8
@@ -122,8 +122,8 @@ def test_power_16_trade_executes_correctly():
     state = initiate_state(2)
     state = setup_power_16_state(state, {"seed": 2, "fish": 1})
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, "trade_seed_for_invertebrate")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, TradeAction("seed", "invertebrate"))
 
     assert state.players[0].food.get("seed") == 1
     assert state.players[0].food.get("fish") == 1
@@ -138,8 +138,8 @@ def test_power_16_trade_removes_food_type_when_depleted():
     state = initiate_state(2)
     state = setup_power_16_state(state, {"seed": 1})
 
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, "trade_seed_for_fruit")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, TradeAction("seed", "fruit"))
 
     assert "seed" not in state.players[0].food
     assert state.players[0].food.get("fruit") == 1

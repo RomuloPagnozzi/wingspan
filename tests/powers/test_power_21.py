@@ -7,6 +7,8 @@ from game.core import (
     Spot,
     PinkTrigger,
     BIRD_REGISTRY,
+    SimpleAction,
+    SelectDieAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -50,7 +52,7 @@ class TestPower21Execution:
         setup_power_execution(state, 21, bird_id, spot, 1)
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         # Should be in select_die phase
         assert len(state.action_data.execution_stack) == 1
@@ -77,16 +79,16 @@ class TestPower21Execution:
         state.current_player_index = 1
 
         # Activate to enter select_die phase
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         actions = get_actions(state)
 
         # Should have actions for each food type on each die
-        assert "select_die_0_invertebrate" in actions
-        assert "select_die_0_seed" in actions
-        assert "select_die_1_fish" in actions
-        assert "select_die_2_rodent" in actions
-        assert "select_die_2_fruit" in actions
+        assert SelectDieAction(0, "invertebrate") in actions
+        assert SelectDieAction(0, "seed") in actions
+        assert SelectDieAction(1, "fish") in actions
+        assert SelectDieAction(2, "rodent") in actions
+        assert SelectDieAction(2, "fruit") in actions
 
     def test_power_21_select_die_gains_food(self):
         """Selecting a die removes it from feeder and gains food."""
@@ -110,8 +112,8 @@ class TestPower21Execution:
         state.current_player_index = 1
 
         # Activate then select die
-        state = transition_state(state, "activate_power")
-        state = transition_state(state, "select_die_0_invertebrate")
+        state = transition_state(state, SimpleAction("activate_power"))
+        state = transition_state(state, SelectDieAction(0, "invertebrate"))
 
         assert state.players[1].food.get("invertebrate", 0) == initial_invertebrate + 1
         assert 0 not in state.feeder  # Die was removed
@@ -139,10 +141,10 @@ class TestPower21Execution:
         state.current_player_index = 1
 
         # Activate to enter select_die phase
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         actions = get_actions(state)
-        assert "reroll_all" in actions
+        assert SimpleAction("reroll_all") in actions
 
     def test_power_21_reroll_all_rerolls_feeder(self):
         """Reroll all action rerolls the feeder but stays in sub_phase."""
@@ -167,8 +169,8 @@ class TestPower21Execution:
         state.current_player_index = 1
 
         # Activate to enter select_die phase
-        state = transition_state(state, "activate_power")
-        state = transition_state(state, "reroll_all")
+        state = transition_state(state, SimpleAction("activate_power"))
+        state = transition_state(state, SimpleAction("reroll_all"))
 
         # Should still be in select_die phase, feeder has been rerolled
         assert len(state.action_data.execution_stack) == 1
@@ -368,9 +370,9 @@ class TestPower21Validation:
         state.current_player_index = 1
 
         actions = get_actions(state)
-        assert "skip_power" in actions
+        assert SimpleAction("skip_power") in actions
 
-        state = transition_state(state, "skip_power")
+        state = transition_state(state, SimpleAction("skip_power"))
 
         assert state.players[1].food == initial_food
 

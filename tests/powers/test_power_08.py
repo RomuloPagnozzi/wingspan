@@ -5,6 +5,9 @@ from game.core import (
     GamePhase,
     load_deck,
     get_bird_power,
+    SimpleAction,
+    SelectDieAction,
+    NameAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -55,10 +58,10 @@ def test_power_8_supply_single_food_no_cache():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation - should complete immediately
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify food gained
     expected_fruit = initial_food.get("fruit", 0) + 1
@@ -99,10 +102,10 @@ def test_power_8_supply_multiple_quantity():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation - should gain 3 food immediately
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify 3 food gained
     expected_seed = initial_food.get("seed", 0) + 3
@@ -153,10 +156,10 @@ def test_power_8_birdfeeder_all_dice():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation - should take all 3 fish dice immediately
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify 3 fish gained
     expected_fish = initial_food.get("fish", 0) + 3
@@ -174,7 +177,7 @@ def test_power_8_birdfeeder_all_dice():
 
 
 def test_power_8_birdfeeder_die_selection_then_cache():
-    """Test complete 2-stage flow: die selection → cache choice."""
+    """Test complete 2-stage flow: die selection -> cache choice."""
     state = initiate_state(2)
     state.game_phase = GamePhase.ACTIVATE_POWERS
     state.current_player_index = 0
@@ -209,23 +212,23 @@ def test_power_8_birdfeeder_die_selection_then_cache():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation - should transition to die selection
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify sub-phase: die selection
     assert state.action_data.execution_stack[-1].phase == "select_die"
 
     # Verify 2 die selection actions available
     actions = get_actions(state)
-    die_actions = [a for a in actions if a.startswith("select_die_")]
+    die_actions = [a for a in actions if isinstance(a, SelectDieAction)]
     assert len(die_actions) == 2
-    assert "select_die_0_seed" in actions
-    assert "select_die_1_seed" in actions
+    assert SelectDieAction(0, "seed") in actions
+    assert SelectDieAction(1, "seed") in actions
 
     # Select die 0
-    state = transition_state(state, "select_die_0_seed")
+    state = transition_state(state, SelectDieAction(0, "seed"))
 
     # Verify food gained in supply
     expected_seed = initial_food.get("seed", 0) + 1
@@ -240,11 +243,11 @@ def test_power_8_birdfeeder_die_selection_then_cache():
 
     # Verify cache actions available
     actions = get_actions(state)
-    assert "cache_food" in actions
-    assert "supply_food" in actions
+    assert SimpleAction("cache_food") in actions
+    assert SimpleAction("supply_food") in actions
 
     # Choose to cache the food
-    state = transition_state(state, "cache_food")
+    state = transition_state(state, SimpleAction("cache_food"))
 
     # Verify food moved from supply to bird.state.stashed_food
     assert state.players[0].food.get("seed", 0) == initial_food.get("seed", 0)
@@ -298,21 +301,21 @@ def test_power_8_food_type_then_die_selection():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation - should transition to food type selection
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify sub-phase: food type selection
     assert state.action_data.execution_stack[-1].phase == "select_food_type"
 
     # Verify food type actions available
     actions = get_actions(state)
-    assert "select_food_type_fruit" in actions
-    assert "select_food_type_invertebrate" in actions
+    assert NameAction("select_food_type", "fruit") in actions
+    assert NameAction("select_food_type", "invertebrate") in actions
 
     # Choose fruit
-    state = transition_state(state, "select_food_type_fruit")
+    state = transition_state(state, NameAction("select_food_type", "fruit"))
 
     # Verify transitions to die selection
     assert state.action_data.execution_stack[-1].phase == "select_die"
@@ -322,13 +325,13 @@ def test_power_8_food_type_then_die_selection():
 
     # Verify only fruit dice options available
     actions = get_actions(state)
-    die_actions = [a for a in actions if a.startswith("select_die_")]
+    die_actions = [a for a in actions if isinstance(a, SelectDieAction)]
     assert len(die_actions) == 2
-    assert "select_die_2_fruit" in actions
-    assert "select_die_3_fruit" in actions
+    assert SelectDieAction(2, "fruit") in actions
+    assert SelectDieAction(3, "fruit") in actions
 
     # Select fruit die
-    state = transition_state(state, "select_die_2_fruit")
+    state = transition_state(state, SelectDieAction(2, "fruit"))
 
     # Verify fruit food gained
     expected_fruit = initial_food.get("fruit", 0) + 1
@@ -379,25 +382,27 @@ def test_power_8_wild_dice_display_format():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions
+    assert SimpleAction("activate_power") in actions
 
     # Execute activation - should transition to die selection
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify sub-phase: die selection
     assert state.action_data.execution_stack[-1].phase == "select_die"
 
     # Verify action format - only dice with selected food type appear
     actions = get_actions(state)
-    assert "select_die_0_invertebrate" in actions  # Single food die with invertebrate
-    assert "select_die_1_invertebrate" in actions  # Wild die has invertebrate
     assert (
-        "select_die_1_seed" not in actions
+        SelectDieAction(0, "invertebrate") in actions
+    )  # Single food die with invertebrate
+    assert SelectDieAction(1, "invertebrate") in actions  # Wild die has invertebrate
+    assert (
+        SelectDieAction(1, "seed") not in actions
     )  # Seed option filtered out (player chose invertebrate)
-    assert "select_die_2_fruit" not in actions  # Fruit die filtered out
+    assert SelectDieAction(2, "fruit") not in actions  # Fruit die filtered out
 
     # Select wild die - choose invertebrate from the wild die
-    state = transition_state(state, "select_die_1_invertebrate")
+    state = transition_state(state, SelectDieAction(1, "invertebrate"))
 
     # Verify only "invertebrate" food gained (not both foods from die)
     expected_invertebrate = initial_food.get("invertebrate", 0) + 1

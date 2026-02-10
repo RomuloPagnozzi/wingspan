@@ -18,6 +18,20 @@ from .registry import (
 )
 from .game import GameState, initiate_state, roll_feeder
 from .custom_copy import copy_state
+from .action_types import (
+    Action,
+    SimpleAction,
+    IdAction,
+    NameAction,
+    PlayBirdAction,
+    SelectDieAction,
+    TradeAction,
+    FoodMapAction,
+    EggMapAction,
+    DrawCardsAction,
+    SelectInitialAction,
+    frozen_map,
+)
 
 __all__ = [
     # frozen
@@ -32,7 +46,20 @@ __all__ = [
     "Spot",
     # player
     "Player",
-    # action
+    # action types
+    "Action",
+    "SimpleAction",
+    "IdAction",
+    "NameAction",
+    "PlayBirdAction",
+    "SelectDieAction",
+    "TradeAction",
+    "FoodMapAction",
+    "EggMapAction",
+    "DrawCardsAction",
+    "SelectInitialAction",
+    "frozen_map",
+    # action data
     "PowerExecution",
     "QueuedPower",
     "CostPayment",

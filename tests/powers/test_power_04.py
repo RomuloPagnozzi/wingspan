@@ -1,7 +1,14 @@
 """Tests for Power 4: Discard to gain resources (exchange powers)."""
 
-import json
-from game.core import initiate_state, GamePhase
+from game.core import (
+    initiate_state,
+    GamePhase,
+    SimpleAction,
+    IdAction,
+    NameAction,
+    FoodMapAction,
+    frozen_map,
+)
 from game.engine import transition_state
 from game.actions import get_actions
 from conftest import place_bird_on_board, setup_power_queue
@@ -50,7 +57,7 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
     )
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in discard selection phase (stack-based)
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
@@ -59,13 +66,13 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
 
     # Player must discard from bird2 (not activating bird)
     actions = get_actions(state)
-    assert f"discard_egg_from_{bird_id2}" in actions
+    assert IdAction("discard_egg_from", bird_id2) in actions
     assert (
-        f"discard_egg_from_{bird_id1}" not in actions
+        IdAction("discard_egg_from", bird_id1) not in actions
     ), "Cannot discard from activating bird"
 
     # Discard egg from bird2
-    state = transition_state(state, f"discard_egg_from_{bird_id2}")
+    state = transition_state(state, IdAction("discard_egg_from", bird_id2))
 
     # Should now be in gain selection phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
@@ -73,11 +80,13 @@ def test_power_4_discard_egg_gain_wild_food_end_to_end():
 
     # Get available food choices
     actions = get_actions(state)
-    assert f'gain_{json.dumps({"invertebrate": 1})}' in actions
-    assert f'gain_{json.dumps({"fish": 1})}' in actions
+    assert FoodMapAction("gain_food_combo", frozen_map({"invertebrate": 1})) in actions
+    assert FoodMapAction("gain_food_combo", frozen_map({"fish": 1})) in actions
 
     # Choose to gain 1 fish
-    state = transition_state(state, f'gain_{json.dumps({"fish": 1})}')
+    state = transition_state(
+        state, FoodMapAction("gain_food_combo", frozen_map({"fish": 1}))
+    )
 
     # Verify results (get birds from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -133,16 +142,20 @@ def test_power_4_discard_egg_gain_2_wild_food():
     )
 
     # Activate and discard
-    state = transition_state(state, "activate_power")
-    state = transition_state(state, f"discard_egg_from_{bird_id2}")
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, IdAction("discard_egg_from", bird_id2))
 
     # Get available combinations for 2 foods
     actions = get_actions(state)
-    assert f'gain_{json.dumps({"seed": 2})}' in actions
-    assert f'gain_{json.dumps({"seed": 1, "fish": 1})}' in actions
+    assert FoodMapAction("gain_food_combo", frozen_map({"seed": 2})) in actions
+    assert (
+        FoodMapAction("gain_food_combo", frozen_map({"seed": 1, "fish": 1})) in actions
+    )
 
     # Choose 2 seeds
-    state = transition_state(state, f'gain_{json.dumps({"seed": 2})}')
+    state = transition_state(
+        state, FoodMapAction("gain_food_combo", frozen_map({"seed": 2}))
+    )
 
     # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -191,10 +204,10 @@ def test_power_4_discard_egg_draw_cards_end_to_end():
     )
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Discard egg (can discard from activating bird since gain != "wild")
-    state = transition_state(state, f"discard_egg_from_{bird_id1}")
+    state = transition_state(state, IdAction("discard_egg_from", bird_id1))
 
     # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -242,17 +255,19 @@ def test_power_4_discard_food_tuck_cards_end_to_end():
     )
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in discard selection phase (stack-based)
     assert state.action_data.execution_stack[0].phase == "select_discard"
 
     # Verify fish discard action is available
     actions = get_actions(state)
-    assert "discard_food_fish" in actions, "Fish discard should be available"
+    assert (
+        NameAction("discard_food", "fish") in actions
+    ), "Fish discard should be available"
 
     # Discard fish
-    state = transition_state(state, "discard_food_fish")
+    state = transition_state(state, NameAction("discard_food", "fish"))
 
     # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN
@@ -301,17 +316,19 @@ def test_power_4_discard_food_gain_specific_food_end_to_end():
     )
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in discard selection phase (stack-based)
     assert state.action_data.execution_stack[0].phase == "select_discard"
 
     # Verify seed discard action is available
     actions = get_actions(state)
-    assert "discard_food_seed" in actions, "Seed discard should be available"
+    assert (
+        NameAction("discard_food", "seed") in actions
+    ), "Seed discard should be available"
 
     # Discard seed
-    state = transition_state(state, "discard_food_seed")
+    state = transition_state(state, NameAction("discard_food", "seed"))
 
     # Verify results - should auto-gain rodent without choice
     assert state.game_phase == GamePhase.MAIN_TURN

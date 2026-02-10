@@ -1,6 +1,6 @@
 """Tests for Power 3: Cache seed on activating bird."""
 
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction
 from game.engine import transition_state
 from conftest import place_bird_on_board, setup_power_queue
 
@@ -41,7 +41,7 @@ def test_power_3_caches_seed_on_activating_bird_end_to_end():
         ],
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify only the activating bird (bird2) gained 1 seed
     assert state.players[0].board[0][0].bird

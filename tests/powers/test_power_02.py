@@ -1,7 +1,6 @@
 """Tests for Power 2: All players lay eggs on matching nest types."""
 
-import json
-from game.core import initiate_state, GamePhase
+from game.core import initiate_state, GamePhase, SimpleAction, EggMapAction, frozen_map
 from game.engine import transition_state
 from game.actions import get_actions
 from conftest import (
@@ -37,7 +36,7 @@ def test_power_2_sets_up_multi_player():
         ],
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Stack-based: check execution stack
     assert len(state.action_data.execution_stack) == 1
@@ -73,12 +72,12 @@ def test_multi_player_actions_generated():
     )
 
     # Activate to enter choices phase
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     actions = get_actions(state)
 
     assert len(actions) > 0
-    assert all(a.startswith("activate_") for a in actions)
+    assert all(isinstance(a, EggMapAction) for a in actions)
 
 
 def test_power_2_all_players_lay_eggs_end_to_end():
@@ -114,7 +113,7 @@ def test_power_2_all_players_lay_eggs_end_to_end():
             )
 
             # Activate the power (sets up multi-player state)
-            state = transition_state(state, "activate_power")
+            state = transition_state(state, SimpleAction("activate_power"))
 
             # Each player makes their egg-laying choice
             while state.game_phase == GamePhase.ACTIVATE_POWERS:
@@ -122,7 +121,7 @@ def test_power_2_all_players_lay_eggs_end_to_end():
                 bird_id = placed_bird_ids[current_player]
 
                 # Have each player lay 1 egg on their bird
-                action = f"activate_{json.dumps({str(bird_id): 1})}"
+                action = EggMapAction("activate_eggs", frozen_map({bird_id: 1}))
                 state = transition_state(state, action)
 
             # Verify all players laid exactly 1 egg
@@ -170,7 +169,7 @@ def test_power_2_with_mixed_eligibility():
         ],
     )
 
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Only players 0 and 2 should be in awaiting list (in execution stack context)
     ctx = state.action_data.execution_stack[0].context
@@ -179,7 +178,7 @@ def test_power_2_with_mixed_eligibility():
     # Players 0 and 2 make their choices
     for player_index, bird_id in zip([0, 2], placed_bowl_ids):
         assert state.current_player_index == player_index
-        action = f"activate_{json.dumps({str(bird_id): 1})}"
+        action = EggMapAction("activate_eggs", frozen_map({bird_id: 1}))
         state = transition_state(state, action)
 
     # Verify only players 0 and 2 laid eggs

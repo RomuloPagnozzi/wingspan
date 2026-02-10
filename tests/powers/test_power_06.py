@@ -1,6 +1,15 @@
 """Comprehensive end-to-end test for Power 6: Draw N+1 cards, all players select clockwise."""
 
-from game.core import initiate_state, GamePhase, get_bird_card
+from game.core import (
+    initiate_state,
+    GamePhase,
+    get_bird_card,
+    SimpleAction,
+    IdAction,
+    PlayBirdAction,
+    FoodMapAction,
+    frozen_map,
+)
 from game.engine import transition_state
 from game.actions import get_actions
 from conftest import place_bird_on_board, setup_power_execution
@@ -41,12 +50,12 @@ def test_power_6_full_game_scenario_with_3_players():
     initial_deck_size = len(state.bird_deck)
 
     # Player 0 chooses to play a bird
-    state = transition_state(state, "play_bird")
+    state = transition_state(state, SimpleAction("play_bird"))
     assert state.game_phase == GamePhase.PLAY_BIRD
 
     # Check available actions - should be able to play the bird in wetland habitat
     actions = get_actions(state)
-    play_action = f"play_bird_{power_6_bird_id}_at_2_0"  # Wetland row, first spot
+    play_action = PlayBirdAction(power_6_bird_id, 2, 0)  # Wetland row, first spot
     assert play_action in actions, f"Should be able to play bird. Actions: {actions}"
 
     # Play the bird in wetland (row 2, col 0)
@@ -58,10 +67,8 @@ def test_power_6_full_game_scenario_with_3_players():
     assert state.action_data.pending_cost.cost_type == "food"
 
     # Pay the food cost (2 invertebrates)
-    import json
-
     payment = {"invertebrate": 2}
-    state = transition_state(state, json.dumps(payment))
+    state = transition_state(state, FoodMapAction("pay_food", frozen_map(payment)))
 
     # After paying and placing bird, white power should trigger
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
@@ -87,11 +94,11 @@ def test_power_6_full_game_scenario_with_3_players():
 
     # Get available actions - should be able to activate or skip
     actions = get_actions(state)
-    assert "activate_power" in actions
-    assert "skip_power" in actions
+    assert SimpleAction("activate_power") in actions
+    assert SimpleAction("skip_power") in actions
 
     # Activate Power 6
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should be in select_card phase
     assert state.game_phase == GamePhase.ACTIVATE_POWERS
@@ -120,14 +127,17 @@ def test_power_6_full_game_scenario_with_3_players():
     # Get available card selection actions
     actions = get_actions(state)
     assert len(actions) == 4, "Should have 4 cards to choose from"
-    assert all(action.startswith("select_card_") for action in actions)
+    assert all(
+        isinstance(action, IdAction) and action.type == "select_card"
+        for action in actions
+    )
 
     # Store card IDs for verification
     ids = list(available_ids)
 
     # Player 0 selects first card
     selected_card_0_first_id = available_ids[0]
-    state = transition_state(state, f"select_card_{selected_card_0_first_id}")
+    state = transition_state(state, IdAction("select_card", selected_card_0_first_id))
 
     # Verify Player 0 received the card - query actual hand size
     assert selected_card_0_first_id in state.players[0].bird_hand
@@ -148,7 +158,7 @@ def test_power_6_full_game_scenario_with_3_players():
     actions = get_actions(state)
     assert len(actions) == 3
     selected_card_1_id = remaining_ids[0]
-    state = transition_state(state, f"select_card_{selected_card_1_id}")
+    state = transition_state(state, IdAction("select_card", selected_card_1_id))
 
     # Verify Player 1 received the card - query actual state
     assert selected_card_1_id in state.players[1].bird_hand
@@ -164,7 +174,7 @@ def test_power_6_full_game_scenario_with_3_players():
     actions = get_actions(state)
     assert len(actions) == 2
     selected_card_2_id = remaining_ids[0]
-    state = transition_state(state, f"select_card_{selected_card_2_id}")
+    state = transition_state(state, IdAction("select_card", selected_card_2_id))
 
     # Verify Player 2 received the card - query actual state
     assert selected_card_2_id in state.players[2].bird_hand
@@ -180,7 +190,7 @@ def test_power_6_full_game_scenario_with_3_players():
     actions = get_actions(state)
     assert len(actions) == 1
     selected_card_0_second_id = remaining_ids[0]
-    state = transition_state(state, f"select_card_{selected_card_0_second_id}")
+    state = transition_state(state, IdAction("select_card", selected_card_0_second_id))
 
     # Verify Player 0 received the second card - query actual state
     assert selected_card_0_second_id in state.players[0].bird_hand
@@ -244,7 +254,7 @@ def test_power_6_with_2_players():
     setup_power_execution(state, 6, power_6_bird_id, activating_spot, 0)
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should draw 3 cards (2 players + 1)
     current_exec = state.action_data.execution_stack[-1]
@@ -260,7 +270,7 @@ def test_power_6_with_2_players():
         current_exec = state.action_data.execution_stack[-1]
         available = current_exec.context["available_cards"]
         selected_id = available[0]
-        state = transition_state(state, f"select_card_{selected_id}")
+        state = transition_state(state, IdAction("select_card", selected_id))
 
     # Verify final distribution
     assert len(state.players[0].bird_hand) == initial_hand_sizes[0] + 2
@@ -287,7 +297,7 @@ def test_power_6_with_5_players():
     setup_power_execution(state, 6, power_6_bird_id, activating_spot, 2)
 
     # Activate power
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Should draw 6 cards (5 players + 1)
     current_exec = state.action_data.execution_stack[-1]
@@ -308,7 +318,7 @@ def test_power_6_with_5_players():
         available = current_exec.context["available_cards"]
         selected_id = available[0]
         selections_by_player[current_player].append(selected_id)
-        state = transition_state(state, f"select_card_{selected_id}")
+        state = transition_state(state, IdAction("select_card", selected_id))
 
     # Verify final distribution
     assert (

@@ -4,6 +4,8 @@ from game.core import (
     initiate_state,
     get_bird_power,
     GamePhase,
+    SimpleAction,
+    SelectDieAction,
 )
 from game.actions import get_actions
 from game.engine import transition_state
@@ -45,7 +47,7 @@ def test_power_13_card_single_player():
     )
 
     # Execute activation (should complete immediately for card variant)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify Player 0 gained 1 card
     assert (
@@ -91,7 +93,7 @@ def test_power_13_card_multiple_tied():
     )
 
     # Execute activation
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify all players gained 1 card
     assert (
@@ -151,7 +153,7 @@ def test_power_13_die_single_player():
     )
 
     # Execute activation (should enter sub_phase for die selection)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify sub_phase created
     assert (
@@ -163,11 +165,11 @@ def test_power_13_die_single_player():
 
     # Verify die selection actions available
     actions = get_actions(state)
-    assert "select_die_0_fish" in actions, "Should have die 0 (fish) option"
-    assert "select_die_1_seed" in actions, "Should have die 1 (seed) option"
+    assert SelectDieAction(0, "fish") in actions, "Should have die 0 (fish) option"
+    assert SelectDieAction(1, "seed") in actions, "Should have die 1 (seed) option"
 
     # Select die 1 (seed)
-    state = transition_state(state, "select_die_1_seed")
+    state = transition_state(state, SelectDieAction(1, "seed"))
 
     # Verify Player 0 gained seed
     assert (
@@ -219,7 +221,7 @@ def test_power_13_die_multiple_players():
     )
 
     # Execute activation
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify awaiting_players includes all 3 players
     assert sorted(
@@ -232,7 +234,7 @@ def test_power_13_die_multiple_players():
 
     # Player 0 selects die 0 (fish)
     assert state.current_player_index == 0, "Should start with Player 0"
-    state = transition_state(state, "select_die_0_fish")
+    state = transition_state(state, SelectDieAction(0, "fish"))
     assert (
         state.players[0].food.get("fish", 0) == initial_food[0].get("fish", 0) + 1
     ), "Player 0 should have gained fish"
@@ -240,7 +242,7 @@ def test_power_13_die_multiple_players():
 
     # Player 1 selects die 1 (seed)
     assert state.current_player_index == 1, "Should be Player 1's turn"
-    state = transition_state(state, "select_die_1_seed")
+    state = transition_state(state, SelectDieAction(1, "seed"))
     assert (
         state.players[1].food.get("seed", 0) == initial_food[1].get("seed", 0) + 1
     ), "Player 1 should have gained seed"
@@ -248,7 +250,7 @@ def test_power_13_die_multiple_players():
 
     # Player 2 selects die 2 (invertebrate)
     assert state.current_player_index == 2, "Should be Player 2's turn"
-    state = transition_state(state, "select_die_2_invertebrate")
+    state = transition_state(state, SelectDieAction(2, "invertebrate"))
     assert (
         state.players[2].food.get("invertebrate", 0)
         == initial_food[2].get("invertebrate", 0) + 1
@@ -291,15 +293,19 @@ def test_power_13_reroll_all_dice():
     )
 
     # Execute activation
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify reroll option available
     actions = get_actions(state)
-    assert "reroll_all" in actions, "Should have reroll_all option when all dice match"
-    assert "select_die_0_fish" in actions, "Should still have fish selection option"
+    assert (
+        SimpleAction("reroll_all") in actions
+    ), "Should have reroll_all option when all dice match"
+    assert (
+        SelectDieAction(0, "fish") in actions
+    ), "Should still have fish selection option"
 
     # Choose to reroll
-    state = transition_state(state, "reroll_all")
+    state = transition_state(state, SimpleAction("reroll_all"))
 
     # Verify feeder rerolled
     assert len(state.feeder) == 5, "Feeder should still have 5 dice"
@@ -311,7 +317,7 @@ def test_power_13_reroll_all_dice():
     # Get new actions (should have different die options now, likely)
     actions = get_actions(state)
     # Can't assert specific dice since random, but should have selection actions
-    select_actions = [a for a in actions if a.startswith("select_die_")]
+    select_actions = [a for a in actions if isinstance(a, SelectDieAction)]
     assert len(select_actions) > 0, "Should have die selection actions after reroll"
 
     # Select a die to complete the power
@@ -352,22 +358,22 @@ def test_power_13_feeder_empties_during_power():
     )
 
     # Execute activation
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Players select dice sequentially
-    state = transition_state(state, "select_die_0_fish")  # Player 0
+    state = transition_state(state, SelectDieAction(0, "fish"))  # Player 0
     assert len(state.feeder) == 4, "Should have 4 dice after first selection"
 
-    state = transition_state(state, "select_die_1_seed")  # Player 1
+    state = transition_state(state, SelectDieAction(1, "seed"))  # Player 1
     assert len(state.feeder) == 3, "Should have 3 dice after second selection"
 
-    state = transition_state(state, "select_die_2_invertebrate")  # Player 2
+    state = transition_state(state, SelectDieAction(2, "invertebrate"))  # Player 2
     assert len(state.feeder) == 2, "Should have 2 dice after third selection"
 
-    state = transition_state(state, "select_die_3_fruit")  # Player 3
+    state = transition_state(state, SelectDieAction(3, "fruit"))  # Player 3
     assert len(state.feeder) == 1, "Should have 1 die after fourth selection"
 
-    state = transition_state(state, "select_die_4_rodent")  # Player 4 (last)
+    state = transition_state(state, SelectDieAction(4, "rodent"))  # Player 4 (last)
 
     # After last die selected, feeder should auto-refill
     assert len(state.feeder) == 5, "Feeder should auto-refill after emptying"

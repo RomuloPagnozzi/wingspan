@@ -7,6 +7,8 @@ from game.core import (
     get_bird_card,
     BIRD_REGISTRY,
     init_registries,
+    SimpleAction,
+    IdAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -83,10 +85,10 @@ def test_power_10_this_true():
 
     # Verify can activate
     actions = get_actions(state)
-    assert "activate_power" in actions, "Should be able to activate power"
+    assert SimpleAction("activate_power") in actions, "Should be able to activate power"
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify egg was added to activating bird (get from returned state after deepcopy)
     updated_bird = state.players[0].board[0][0].bird
@@ -125,8 +127,10 @@ def test_power_10_this_true_at_limit():
 
     # Verify cannot activate (only skip available)
     actions = get_actions(state)
-    assert "activate_power" not in actions, "Should not be able to activate power"
-    assert "skip_power" in actions, "Should be able to skip power"
+    assert (
+        SimpleAction("activate_power") not in actions
+    ), "Should not be able to activate power"
+    assert SimpleAction("skip_power") in actions, "Should be able to skip power"
 
 
 def test_power_10_type_bowl():
@@ -173,7 +177,7 @@ def test_power_10_type_bowl():
     )
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify eggs added to bowl birds with capacity
     bird_1_0 = state.players[0].board[1][0].bird
@@ -238,7 +242,7 @@ def test_power_10_type_cavity():
     )
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify eggs added to cavity birds
     bird_1_0 = state.players[0].board[1][0].bird
@@ -296,7 +300,7 @@ def test_power_10_type_ground():
     )
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify eggs added to ground birds
     bird_1_0 = state.players[0].board[1][0].bird
@@ -354,7 +358,7 @@ def test_power_10_type_platform():
     )
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify eggs added to platform birds
     bird_1_0 = state.players[0].board[1][0].bird
@@ -408,7 +412,7 @@ def test_power_10_type_any_single_bird():
     )
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify egg was added to the only bird
     bird_1_0 = state.players[0].board[1][0].bird
@@ -459,14 +463,16 @@ def test_power_10_type_any_multiple_birds():
     )
 
     # Execute activation (should enter sub-phase)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify sub-phase created
     assert state.action_data.execution_stack[-1].phase == "select_bird"
 
     # Verify bird selection actions available
     actions = get_actions(state)
-    bird_actions = [a for a in actions if a.startswith("select_bird_")]
+    bird_actions = [
+        a for a in actions if isinstance(a, IdAction) and a.type == "select_bird"
+    ]
     assert len(bird_actions) == 3, "Should have 3 bird selection actions"
 
     # Verify valid bird IDs stored
@@ -522,11 +528,10 @@ def test_power_10_type_any_selection():
     )
 
     # Execute activation (should enter sub-phase)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Select bird 1 (middle bird)
-    selected_action = f"select_bird_{other_bird_ids[1]}"
-    state = transition_state(state, selected_action)
+    state = transition_state(state, IdAction("select_bird", other_bird_ids[1]))
 
     # Verify only selected bird received egg
     bird_1_0 = state.players[0].board[1][0].bird
@@ -581,8 +586,10 @@ def test_power_10_no_valid_birds_specific_type():
 
     # Verify cannot activate (only skip available)
     actions = get_actions(state)
-    assert "activate_power" not in actions, "Should not be able to activate power"
-    assert "skip_power" in actions, "Should be able to skip power"
+    assert (
+        SimpleAction("activate_power") not in actions
+    ), "Should not be able to activate power"
+    assert SimpleAction("skip_power") in actions, "Should be able to skip power"
 
 
 def test_power_10_all_birds_at_limit():
@@ -623,8 +630,10 @@ def test_power_10_all_birds_at_limit():
 
     # Verify cannot activate (only skip available)
     actions = get_actions(state)
-    assert "activate_power" not in actions, "Should not be able to activate power"
-    assert "skip_power" in actions, "Should be able to skip power"
+    assert (
+        SimpleAction("activate_power") not in actions
+    ), "Should not be able to activate power"
+    assert SimpleAction("skip_power") in actions, "Should be able to skip power"
 
 
 def test_power_10_mixed_capacity_birds():
@@ -676,7 +685,7 @@ def test_power_10_mixed_capacity_birds():
     )
 
     # Execute activation (should auto-complete)
-    state = transition_state(state, "activate_power")
+    state = transition_state(state, SimpleAction("activate_power"))
 
     # Verify only birds with capacity received eggs
     bird_1_0 = state.players[0].board[1][0].bird
@@ -728,42 +737,42 @@ if __name__ == "__main__":
     print("Running Power 10 tests...")
 
     test_power_10_this_true()
-    print("✓ test_power_10_this_true passed")
+    print("+ test_power_10_this_true passed")
 
     test_power_10_this_true_at_limit()
-    print("✓ test_power_10_this_true_at_limit passed")
+    print("+ test_power_10_this_true_at_limit passed")
 
     test_power_10_type_bowl()
-    print("✓ test_power_10_type_bowl passed")
+    print("+ test_power_10_type_bowl passed")
 
     test_power_10_type_cavity()
-    print("✓ test_power_10_type_cavity passed")
+    print("+ test_power_10_type_cavity passed")
 
     test_power_10_type_ground()
-    print("✓ test_power_10_type_ground passed")
+    print("+ test_power_10_type_ground passed")
 
     test_power_10_type_platform()
-    print("✓ test_power_10_type_platform passed")
+    print("+ test_power_10_type_platform passed")
 
     test_power_10_type_any_single_bird()
-    print("✓ test_power_10_type_any_single_bird passed")
+    print("+ test_power_10_type_any_single_bird passed")
 
     test_power_10_type_any_multiple_birds()
-    print("✓ test_power_10_type_any_multiple_birds passed")
+    print("+ test_power_10_type_any_multiple_birds passed")
 
     test_power_10_type_any_selection()
-    print("✓ test_power_10_type_any_selection passed")
+    print("+ test_power_10_type_any_selection passed")
 
     test_power_10_no_valid_birds_specific_type()
-    print("✓ test_power_10_no_valid_birds_specific_type passed")
+    print("+ test_power_10_no_valid_birds_specific_type passed")
 
     test_power_10_all_birds_at_limit()
-    print("✓ test_power_10_all_birds_at_limit passed")
+    print("+ test_power_10_all_birds_at_limit passed")
 
     test_power_10_mixed_capacity_birds()
-    print("✓ test_power_10_mixed_capacity_birds passed")
+    print("+ test_power_10_mixed_capacity_birds passed")
 
     test_power_10_validation()
-    print("✓ test_power_10_validation passed")
+    print("+ test_power_10_validation passed")
 
-    print("\n✓ All Power 10 tests passed!")
+    print("\n+ All Power 10 tests passed!")

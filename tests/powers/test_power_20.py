@@ -9,6 +9,8 @@ from game.core import (
     Spot,
     PinkTrigger,
     BIRD_REGISTRY,
+    SimpleAction,
+    IdAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -80,7 +82,7 @@ class TestPower20SingleBird:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs + 1
 
@@ -113,7 +115,7 @@ class TestPower20MultipleBirds:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         # Should be in select_bird phase
         assert len(state.action_data.execution_stack) == 1
@@ -145,12 +147,12 @@ class TestPower20MultipleBirds:
         state.current_player_index = 1
 
         # Activate to enter select_bird phase
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
 
         actions = get_actions(state)
 
-        assert f"select_bird_{bowl_bird_id_1}" in actions
-        assert f"select_bird_{bowl_bird_id_2}" in actions
+        assert IdAction("select_bird", bowl_bird_id_1) in actions
+        assert IdAction("select_bird", bowl_bird_id_2) in actions
         assert len(actions) == 2
 
     def test_power_20_select_bird_lays_egg(self):
@@ -183,8 +185,8 @@ class TestPower20MultipleBirds:
         state.current_player_index = 1
 
         # Activate then select bird
-        state = transition_state(state, "activate_power")
-        state = transition_state(state, f"select_bird_{bowl_bird_id_1}")
+        state = transition_state(state, SimpleAction("activate_power"))
+        state = transition_state(state, IdAction("select_bird", bowl_bird_id_1))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][1].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs_1 + 1
@@ -444,9 +446,9 @@ class TestPower20Validation:
         state.current_player_index = 1
 
         actions = get_actions(state)
-        assert "skip_power" in actions
+        assert SimpleAction("skip_power") in actions
 
-        state = transition_state(state, "skip_power")
+        state = transition_state(state, SimpleAction("skip_power"))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs
 
@@ -478,7 +480,7 @@ class TestPower20NestTypes:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs + 1
 
@@ -506,7 +508,7 @@ class TestPower20NestTypes:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs + 1
 
@@ -534,6 +536,6 @@ class TestPower20NestTypes:
         )
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs + 1

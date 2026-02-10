@@ -7,6 +7,7 @@ from game.core import (
     Spot,
     PinkTrigger,
     BIRD_REGISTRY,
+    SimpleAction,
 )
 from game.engine import transition_state
 from game.actions import get_actions
@@ -53,7 +54,7 @@ class TestPower19Execution:
         setup_power_execution(state, 19, bird_id, spot, 1)
         state.current_player_index = 1
 
-        state = transition_state(state, "activate_power")
+        state = transition_state(state, SimpleAction("activate_power"))
         assert state.players[1].board[0][0].bird
         assert (
             state.players[1].board[0][0].bird.state.stashed_food == initial_stashed + 1
@@ -227,8 +228,8 @@ class TestPower19Validation:
         state.current_player_index = 1
 
         actions = get_actions(state)
-        assert "skip_power" in actions
+        assert SimpleAction("skip_power") in actions
 
-        state = transition_state(state, "skip_power")
+        state = transition_state(state, SimpleAction("skip_power"))
         assert state.players[1].board[0][0].bird
         assert state.players[1].board[0][0].bird.state.stashed_food == initial_stashed
