@@ -1,7 +1,0 @@
-raw/
-.gitignore
-.python-version
-test.ipynb
-game/assets/
-.venv/
-__pycache__/

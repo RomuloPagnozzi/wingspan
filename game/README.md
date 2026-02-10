@@ -1,0 +1,47 @@
+# game
+
+Core game logic for Wingspan.
+
+## Files
+
+| File | Role |
+|------|------|
+| `engine.py` | the game loop: apply an action, get the next state |
+| `phase_handlers.py` | what happens in each phase when an action arrives |
+| `actions.py` | what moves are legal in each phase |
+| `effects.py` | atomic state mutations like "draw cards" or "lay eggs" |
+| `utils.py` | shared queries and combinatorics over game state |
+| `scoring.py` | how points are tallied at turn and round boundaries |
+
+## Subpackages
+
+| Package | Role |
+|---------|------|
+| `core/` | the data layer: state, types, initialization, copying |
+| `power/` | the bird power system: execution, options, validation |
+| `assets/` | serialized card data loaded at runtime |
+
+## Dependencies
+
+```
+core/             <- stdlib only
+power/            <- core, effects, utils
+effects.py        <- core, utils
+utils.py          <- core
+scoring.py        <- core
+actions.py        <- core, utils, power
+phase_handlers.py <- core, effects, utils, engine
+engine.py         <- core, scoring, utils, power, phase_handlers
+```
+
+## Usage
+
+```python
+from game.core import initiate_state
+from game.engine import transition_state
+from game.actions import get_actions
+
+state = initiate_state(n_players=2)
+actions = get_actions(state)
+new_state = transition_state(state, actions[0])
+```
