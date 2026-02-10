@@ -77,7 +77,7 @@ Uses constructor instead of `object.__new__()` because the overhead difference i
 ```python
 @dataclass(slots=True, eq=False, repr=False)
 class PlacedBird:
-    card_id: int
+    id: int
     state: BirdState = field(default_factory=BirdState)
 ```
 
@@ -86,14 +86,14 @@ class PlacedBird:
 def _copy_placed_bird(pb: PlacedBird | None) -> PlacedBird | None:
     if pb is None:
         return None
-    return PlacedBird(pb.card_id, _copy_bird_state(pb.state))
+    return PlacedBird(pb.id, _copy_bird_state(pb.state))
 ```
 
 **Field analysis:**
 
 | Field | Type | Copy Strategy | Rationale |
 |-------|------|---------------|-----------|
-| `card_id` | `int` | Direct pass to constructor | Immutable |
+| `id` | `int` | Direct pass to constructor | Immutable |
 | `state` | `BirdState` | `_copy_bird_state()` | Mutable dataclass |
 
 Handles `None` because a `Spot` may or may not have a bird placed on it.
@@ -159,8 +159,8 @@ class ScoreState:
     egg_points: int = 0
     cached_food: int = 0
     tucked_cards: int = 0
-    round_goals: List[int] = field(default_factory=lambda: [0, 0, 0, 0])
-    bonus_scores: Dict[int, int] = field(default_factory=dict)
+    round_goals: list[int] = field(default_factory=lambda: [0, 0, 0, 0])
+    bonus_scores: dict[int, int] = field(default_factory=dict)
 ```
 
 **Copy implementation:**
@@ -184,8 +184,8 @@ def _copy_score_state(score: ScoreState) -> ScoreState:
 | `egg_points` | `int` | Direct assignment | Immutable |
 | `cached_food` | `int` | Direct assignment | Immutable |
 | `tucked_cards` | `int` | Direct assignment | Immutable |
-| `round_goals` | `List[int]` | `list()` shallow copy | New list; contents are immutable |
-| `bonus_scores` | `Dict[int, int]` | `dict()` shallow copy | New dict; keys and values are immutable |
+| `round_goals` | `list[int]` | `list()` shallow copy | New list; contents are immutable |
+| `bonus_scores` | `dict[int, int]` | `dict()` shallow copy | New dict; keys and values are immutable |
 
 ---
 
@@ -196,13 +196,13 @@ def _copy_score_state(score: ScoreState) -> ScoreState:
 @dataclass(slots=True)
 class Player:
     id: int
-    bird_hand: List[int] = field(default_factory=list, init=False)
-    bonus_hand: List[int] = field(default_factory=list, init=False)
-    food: Dict[str, int] = field(default_factory=init_food, init=False)
-    board: List[List[Spot]] = field(default_factory=build_board, init=False, repr=False)
+    bird_hand: list[int] = field(default_factory=list, init=False)
+    bonus_hand: list[int] = field(default_factory=list, init=False)
+    food: dict[str, int] = field(default_factory=init_food, init=False)
+    board: list[list[Spot]] = field(default_factory=build_board, init=False, repr=False)
     action_cubes: int = field(default=9, init=False)
     first_player: bool = field(default=False, init=False)
-    used_pink_powers: Set[int] = field(default_factory=set, init=False)
+    used_pink_powers: set[int] = field(default_factory=set, init=False)
     score: ScoreState = field(default_factory=ScoreState, init=False)
 ```
 
@@ -227,13 +227,13 @@ def _copy_player(player: Player) -> Player:
 | Field | Type | Copy Strategy | Rationale |
 |-------|------|---------------|-----------|
 | `id` | `int` | Direct assignment | Immutable |
-| `bird_hand` | `List[int]` | `list()` shallow copy | Contents are immutable bird IDs |
-| `bonus_hand` | `List[int]` | `list()` shallow copy | Contents are immutable bonus IDs |
-| `food` | `Dict[str, int]` | `dict()` shallow copy | Keys and values are immutable |
+| `bird_hand` | `list[int]` | `list()` shallow copy | Contents are immutable bird IDs |
+| `bonus_hand` | `list[int]` | `list()` shallow copy | Contents are immutable bonus IDs |
+| `food` | `dict[str, int]` | `dict()` shallow copy | Keys and values are immutable |
 | `action_cubes` | `int` | Direct assignment | Immutable |
 | `first_player` | `bool` | Direct assignment | Immutable |
-| `used_pink_powers` | `Set[int]` | `set()` shallow copy | Contents are immutable bird IDs |
-| `board` | `List[List[Spot]]` | Nested list comprehension with `_copy_spot()` | Mutable nested structure |
+| `used_pink_powers` | `set[int]` | `set()` shallow copy | Contents are immutable bird IDs |
+| `board` | `list[list[Spot]]` | Nested list comprehension with `_copy_spot()` | Mutable nested structure |
 | `score` | `ScoreState` | `_copy_score_state()` | Mutable dataclass |
 
 `object.__new__()` is critical here because `Player.__init__` would call default factories for all fields (`build_board()`, `init_food()`, etc.), which is expensive.
@@ -251,7 +251,7 @@ class QueuedPower:
     spot_row: int
     spot_col: int
     player_index: int
-    power_data: Dict[str, Any]
+    power_data: dict[str, Any]
 ```
 
 **Copy implementation:**
@@ -276,7 +276,7 @@ def _copy_queued_power(qp: QueuedPower) -> QueuedPower:
 | `spot_row` | `int` | Direct pass to constructor | Immutable |
 | `spot_col` | `int` | Direct pass to constructor | Immutable |
 | `player_index` | `int` | Direct pass to constructor | Immutable |
-| `power_data` | `Dict[str, Any]` | Direct reference | Registry data, never modified |
+| `power_data` | `dict[str, Any]` | Direct reference | Registry data, never modified |
 
 `power_data` is shared by reference because it originates from `POWER_REGISTRY` and is never modified during gameplay.
 
@@ -289,9 +289,9 @@ def _copy_queued_power(qp: QueuedPower) -> QueuedPower:
 @dataclass(slots=True)
 class CostPayment:
     cost_type: str
-    amount: int | Dict[str, int] | List[Dict[str, int]]
+    amount: int | dict[str, int] | list[dict[str, int]]
     callback_phase: GamePhase
-    callback_action: str
+    callback_action: Action
 ```
 
 **Copy implementation:**
@@ -318,14 +318,14 @@ def _copy_cost_payment(cp: CostPayment | None) -> CostPayment | None:
 | Field | Type | Copy Strategy | Rationale |
 |-------|------|---------------|-----------|
 | `cost_type` | `str` | Direct pass | Immutable |
-| `amount` | `int \| Dict[str, int] \| List[Dict[str, int]]` | Type-dependent | See below |
+| `amount` | `int \| dict[str, int] \| list[dict[str, int]]` | Type-dependent | See below |
 | `callback_phase` | `GamePhase` | Direct pass | Enum, immutable |
-| `callback_action` | `str` | Direct pass | Immutable |
+| `callback_action` | `Action` | Direct pass | Frozen dataclass, immutable |
 
 **Amount field handling:**
 - `int`: Direct assignment (immutable)
-- `Dict[str, int]`: `dict()` shallow copy (keys/values immutable)
-- `List[Dict[str, int]]`: List comprehension with `dict()` for each element
+- `dict[str, int]`: `dict()` shallow copy (keys/values immutable)
+- `list[dict[str, int]]`: List comprehension with `dict()` for each element
 
 ---
 
@@ -335,19 +335,19 @@ def _copy_cost_payment(cp: CostPayment | None) -> CostPayment | None:
 ```python
 @dataclass(slots=True)
 class ActionData:
-    powers_queue: List[QueuedPower] = field(default_factory=list)
+    powers_queue: list[QueuedPower] = field(default_factory=list)
     current_power_index: int = 0
     action_player_index: int | None = None
-    execution_stack: List[PowerExecution] = field(default_factory=list)
+    execution_stack: list[PowerExecution] = field(default_factory=list)
     pending_cost: CostPayment | None = None
-    end_turn_effects: List[EndTurnEffect] = field(default_factory=list)
+    end_turn_effects: list[EndTurnEffect] = field(default_factory=list)
     food_needed: int = 0
     eggs_needed: int = 0
     cards_needed: int = 0
     base_amount: int = 0
     gained_rodent: bool = False
     amount_to_discard: int = 0
-    pending_callback: tuple[GamePhase, str] | None = None
+    pending_callback: tuple[GamePhase, Action] | None = None
 ```
 
 **Copy implementation:**
@@ -374,19 +374,19 @@ def _copy_action_data(ad: ActionData) -> ActionData:
 
 | Field | Type | Copy Strategy | Rationale |
 |-------|------|---------------|-----------|
-| `powers_queue` | `List[QueuedPower]` | List comp with `_copy_queued_power()` | Mutable elements |
+| `powers_queue` | `list[QueuedPower]` | List comp with `_copy_queued_power()` | Mutable elements |
 | `current_power_index` | `int` | Direct assignment | Immutable |
 | `action_player_index` | `int \| None` | Direct assignment | Immutable |
-| `execution_stack` | `List[PowerExecution]` | `copy.deepcopy()` | Mutable context dict; small objects, rare |
+| `execution_stack` | `list[PowerExecution]` | `copy.deepcopy()` | Mutable context dict; small objects, rare |
 | `pending_cost` | `CostPayment \| None` | `_copy_cost_payment()` | Mutable if not None |
-| `end_turn_effects` | `List[EndTurnEffect]` | `list()` shallow copy | Elements have only immutable fields |
+| `end_turn_effects` | `list[EndTurnEffect]` | `list()` shallow copy | Elements have only immutable fields |
 | `food_needed` | `int` | Direct assignment | Immutable |
 | `eggs_needed` | `int` | Direct assignment | Immutable |
 | `cards_needed` | `int` | Direct assignment | Immutable |
 | `base_amount` | `int` | Direct assignment | Immutable |
 | `gained_rodent` | `bool` | Direct assignment | Immutable |
 | `amount_to_discard` | `int` | Direct assignment | Immutable |
-| `pending_callback` | `tuple[GamePhase, str] \| None` | Direct assignment | Tuple is immutable |
+| `pending_callback` | `tuple[GamePhase, Action] \| None` | Direct assignment | Tuple and Action are both immutable |
 
 ---
 
@@ -396,18 +396,19 @@ def _copy_action_data(ad: ActionData) -> ActionData:
 ```python
 @dataclass(slots=True)
 class GameState:
-    players: List[Player] = field(default_factory=list, init=False)
-    bird_deck: List[int] = field(default_factory=_load_bird_ids, init=False)
-    discarded_birds: List[int] = field(default_factory=list, init=False)
-    bonus_deck: List[int] = field(default_factory=_load_bonus_ids, init=False)
-    discarded_bonuses: List[int] = field(default_factory=list, init=False)
-    bird_tray: List[int] = field(default_factory=list, init=False)
-    feeder: Dict = field(default_factory=roll_feeder, init=False)
+    players: list[Player] = field(default_factory=list, init=False)
+    bird_deck: list[int] = field(default_factory=_load_bird_ids, init=False)
+    discarded_birds: list[int] = field(default_factory=list, init=False)
+    bonus_deck: list[int] = field(default_factory=_load_bonus_ids, init=False)
+    discarded_bonuses: list[int] = field(default_factory=list, init=False)
+    bird_tray: list[int] = field(default_factory=list, init=False)
+    feeder: dict = field(default_factory=dict, init=False)
     round: int = field(default=1, init=False)
     current_player_index: int = field(default=0, init=False)
     game_phase: GamePhase = field(default=GamePhase.GAME_SETUP, init=False)
     action_data: ActionData = field(default_factory=ActionData, init=False)
     round_goal_config: RoundGoalConfig | None = field(default=None, init=False)
+    rng: random.Random = field(default_factory=random.Random, init=False)
 ```
 
 **Copy implementation:**
@@ -426,6 +427,8 @@ def copy_state(state: GameState) -> GameState:
     new_state.game_phase = state.game_phase
     new_state.action_data = _copy_action_data(state.action_data)
     new_state.round_goal_config = state.round_goal_config
+    new_state.rng = random.Random()
+    new_state.rng.setstate(state.rng.getstate())
     return new_state
 ```
 
@@ -433,17 +436,18 @@ def copy_state(state: GameState) -> GameState:
 
 | Field | Type | Copy Strategy | Rationale |
 |-------|------|---------------|-----------|
-| `players` | `List[Player]` | List comp with `_copy_player()` | Mutable elements |
-| `bird_deck` | `List[int]` | `list()` shallow copy | Contents are immutable IDs |
-| `discarded_birds` | `List[int]` | `list()` shallow copy | Contents are immutable IDs |
-| `bonus_deck` | `List[int]` | `list()` shallow copy | Contents are immutable IDs |
-| `discarded_bonuses` | `List[int]` | `list()` shallow copy | Contents are immutable IDs |
-| `bird_tray` | `List[int]` | `list()` shallow copy | Contents are immutable IDs |
-| `feeder` | `Dict[int, List[str]]` | Dict comp with `list()` for values | Keys immutable, values are mutable lists |
+| `players` | `list[Player]` | List comp with `_copy_player()` | Mutable elements |
+| `bird_deck` | `list[int]` | `list()` shallow copy | Contents are immutable IDs |
+| `discarded_birds` | `list[int]` | `list()` shallow copy | Contents are immutable IDs |
+| `bonus_deck` | `list[int]` | `list()` shallow copy | Contents are immutable IDs |
+| `discarded_bonuses` | `list[int]` | `list()` shallow copy | Contents are immutable IDs |
+| `bird_tray` | `list[int]` | `list()` shallow copy | Contents are immutable IDs |
+| `feeder` | `dict[int, list[str]]` | Dict comp with `list()` for values | Keys immutable, values are mutable lists |
 | `round` | `int` | Direct assignment | Immutable |
 | `current_player_index` | `int` | Direct assignment | Immutable |
 | `game_phase` | `GamePhase` | Direct assignment | Enum, immutable |
 | `action_data` | `ActionData` | `_copy_action_data()` | Mutable dataclass |
 | `round_goal_config` | `RoundGoalConfig \| None` | Direct assignment | Set once at game init, never modified |
+| `rng` | `random.Random` | New instance with copied state | Mutable; `getstate()`/`setstate()` preserves exact PRNG position |
 
-**Note on `round_goal_config`:** This is assigned directly without copying because `RoundGoalConfig` contains a `ScoringMode` enum and a `List[str]` of goal names. Both are set once during game initialization and never modified during gameplay.
+**Note on `round_goal_config`:** This is assigned directly without copying because `RoundGoalConfig` contains a `ScoringMode` enum and a `list[str]` of goal names. Both are set once during game initialization and never modified during gameplay.
