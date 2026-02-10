@@ -1,6 +1,12 @@
-import json
+"""WIP: minimal Textual TUI for interactively testing the game engine."""
 
-from game.core import initiate_state, get_bird_card, get_bonus_card
+from game.core import (
+    initiate_state,
+    get_bird_card,
+    get_bonus_card,
+    SimpleAction,
+    SelectInitialAction,
+)
 from game.actions import get_actions
 from game.engine import transition_state
 
@@ -24,8 +30,8 @@ class WingspanApp(App):
         super().__init__()
         self.state = initiate_state(2)
         self.actions = get_actions(self.state)
-        if self.actions == ["start_setup"]:
-            self.state = transition_state(self.state, "start_setup")
+        if self.actions == [SimpleAction("start_setup")]:
+            self.state = transition_state(self.state, SimpleAction("start_setup"))
             self.actions = get_actions(self.state)
 
     def compose(self) -> ComposeResult:
@@ -49,19 +55,15 @@ class WingspanApp(App):
 
         yield Footer()
 
-    def _is_setup_action(self, action: str) -> bool:
-        try:
-            parsed = json.loads(action)
-            return "kept_birds" in parsed
-        except:
-            return False
+    def _is_setup_action(self, action) -> bool:
+        return isinstance(action, SelectInitialAction)
 
     def _parse_setup_options(self):
         birds, bonuses = set(), set()
         for action in self.actions:
-            parsed = json.loads(action)
-            birds.update(parsed["kept_birds"])
-            bonuses.add(parsed["kept_bonus"])
+            assert isinstance(action, SelectInitialAction)
+            birds.update(action.kept_birds)
+            bonuses.add(action.kept_bonus)
         return sorted(birds), sorted(bonuses)
 
     def on_mount(self) -> None:
@@ -75,7 +77,7 @@ class WingspanApp(App):
         list_view = self.query_one("#actions", ListView)
         list_view.clear()
         for action in self.actions:
-            list_view.append(ListItem(Label(action)))
+            list_view.append(ListItem(Label(str(action))))
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         selected_index = event.list_view.index
@@ -110,9 +112,7 @@ class WingspanApp(App):
         _, bonuses = self._parse_setup_options()
         selected_bonus = bonuses[selected_bonus_index]
 
-        action = json.dumps(
-            {"kept_birds": selected_birds, "kept_bonus": selected_bonus}
-        )
+        action = SelectInitialAction(tuple(selected_birds), selected_bonus)
 
         if action not in self.actions:
             self.notify("Invalid selection", severity="error")
