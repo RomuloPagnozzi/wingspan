@@ -222,25 +222,38 @@ def get_egg_distribution_combinations(
     return combinations
 
 
-def can_afford_bird(
-    cost_options: list[dict[str, int]],
-    resources: dict[str, int],
-) -> bool:
-    """Check if we can afford a bird using any of its cost options."""
-    try:
-        next(generate_food_payments(cost_options, resources))
-        return True
-    except StopIteration:
-        return False
-
-
 def can_afford_bird_cost(
     frozen_cost: tuple[tuple[tuple[str, int], ...], ...],
     resources: dict[str, int],
 ) -> bool:
     """Check if we can afford a bird using its frozen cost format (from BirdCard)."""
-    cost_options = [dict(option) for option in frozen_cost]
-    return can_afford_bird(cost_options, resources)
+    if not frozen_cost:
+        return True
+
+    for option in frozen_cost:
+        wild_cost = 0
+        remaining = dict(resources)
+
+        deficit = 0
+        for food_type, amount in option:
+            if food_type == "wild":
+                wild_cost = amount
+                continue
+            available = remaining.get(food_type, 0)
+            used = min(available, amount)
+            remaining[food_type] = available - used
+            deficit += amount - used
+
+        if deficit == 0 and wild_cost == 0:
+            return True
+
+        available_pairs = sum(v // 2 for v in remaining.values())
+        total_remaining = sum(remaining.values())
+
+        if available_pairs >= deficit and total_remaining >= 2 * deficit + wild_cost:
+            return True
+
+    return False
 
 
 def generate_food_payments(

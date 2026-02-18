@@ -494,10 +494,12 @@ def _power_8_activate(state: GameState, stack: list[PowerExecution], _) -> GameS
 
         if len(food_types) > 1 and len(available_foods) > 1:
             current.phase = "select_food_type"
-            current.context["available_foods"] = list(available_foods)
+            current.context["available_foods"] = sorted(available_foods)
             return state
 
-        food_type = food_types[0] if len(food_types) == 1 else list(available_foods)[0]
+        food_type = (
+            food_types[0] if len(food_types) == 1 else sorted(available_foods)[0]
+        )
         current.context["food_type"] = food_type
 
         matching_dice = [
