@@ -80,8 +80,8 @@ def finish_main_action(
             QueuedPower(
                 power_id=p["power_data"]["data"]["id"],
                 bird_id=p["bird_id"],
-                spot_row=p["spot"].row,
-                spot_col=p["spot"].col,
+                spot_row=p["spot"].config.row,
+                spot_col=p["spot"].config.col,
                 player_index=p["player_index"],
                 power_data=p["power_data"],
             )

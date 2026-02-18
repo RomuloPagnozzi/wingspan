@@ -106,7 +106,9 @@ def generate_playable_bird_spots(
         sum(bird.state.eggs for bird in played_birds) if played_birds else 0
     )
 
-    available_spots = [spot for spot in empty_spots if spot.egg_cost <= available_eggs]
+    available_spots = [
+        spot for spot in empty_spots if spot.config.egg_cost <= available_eggs
+    ]
 
     if not available_spots:
         return
@@ -119,7 +121,7 @@ def generate_playable_bird_spots(
             continue
 
         for spot in available_spots:
-            if spot.habitat in bird_card.habitats:
+            if spot.config.habitat in bird_card.habitats:
                 yield (bird_id, spot)
 
 

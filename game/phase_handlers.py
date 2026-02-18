@@ -132,9 +132,9 @@ def _route_main_turn(state: GameState, action: Action) -> GameState:
     match action:
         case SimpleAction("gain_food"):
             forest_spot = find_leftmost_empty_spot(current_player.board[0])
-            base_amount = forest_spot.resource_amount if forest_spot else 3
+            base_amount = forest_spot.config.resource_amount if forest_spot else 3
             can_trade = current_player.bird_hand and (
-                not forest_spot or forest_spot.extra_resource
+                not forest_spot or forest_spot.config.extra_resource
             )
 
             if can_trade:
@@ -151,9 +151,9 @@ def _route_main_turn(state: GameState, action: Action) -> GameState:
 
         case SimpleAction("lay_eggs"):
             grassland_spot = find_leftmost_empty_spot(current_player.board[1])
-            base_amount = grassland_spot.resource_amount if grassland_spot else 4
+            base_amount = grassland_spot.config.resource_amount if grassland_spot else 4
             can_trade = current_player.food and (
-                not grassland_spot or grassland_spot.extra_resource
+                not grassland_spot or grassland_spot.config.extra_resource
             )
 
             if can_trade:
@@ -166,7 +166,7 @@ def _route_main_turn(state: GameState, action: Action) -> GameState:
 
         case SimpleAction("draw_cards"):
             wetland_spot = find_leftmost_empty_spot(current_player.board[2])
-            base_amount = wetland_spot.resource_amount if wetland_spot else 3
+            base_amount = wetland_spot.config.resource_amount if wetland_spot else 3
 
             played_birds = [
                 spot.bird
@@ -178,7 +178,7 @@ def _route_main_turn(state: GameState, action: Action) -> GameState:
                 sum(bird.state.eggs for bird in played_birds) if played_birds else 0
             )
             can_trade = available_eggs and (
-                not wetland_spot or wetland_spot.extra_resource
+                not wetland_spot or wetland_spot.config.extra_resource
             )
 
             if can_trade:
@@ -405,13 +405,13 @@ def _play_bird(state: GameState, action: Action) -> GameState:
 
     target_spot = current_player.board[row][col]
 
-    if target_spot.egg_cost and not (
+    if target_spot.config.egg_cost and not (
         state.action_data.pending_cost
         and state.action_data.pending_cost.cost_type == "egg_paid"
     ):
         state.action_data.pending_cost = CostPayment(
             cost_type="egg",
-            amount=target_spot.egg_cost,
+            amount=target_spot.config.egg_cost,
             callback_phase=state.game_phase,
             callback_action=action,
         )
@@ -458,7 +458,7 @@ def _play_bird(state: GameState, action: Action) -> GameState:
             spot=target_spot,
             skip_action_cube=True,
             pink_trigger=PinkTrigger.BIRD_PLAYED,
-            pink_context={"habitat": target_spot.habitat},
+            pink_context={"habitat": target_spot.config.habitat},
         )
 
     state.action_data.pending_cost = None
@@ -467,7 +467,7 @@ def _play_bird(state: GameState, action: Action) -> GameState:
         "white",
         spot=target_spot,
         pink_trigger=PinkTrigger.BIRD_PLAYED,
-        pink_context={"habitat": target_spot.habitat},
+        pink_context={"habitat": target_spot.config.habitat},
     )
 
 

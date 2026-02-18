@@ -170,7 +170,7 @@ def _can_execute_power_9(state: GameState, power_entry: dict) -> bool:
     """Validate power type 9: move bird to another habitat if rightmost."""
     spot = power_entry["spot"]
     bird = spot.bird
-    current_habitat = spot.habitat
+    current_habitat = spot.config.habitat
 
     habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
     current_player = state.players[state.current_player_index]
@@ -179,8 +179,8 @@ def _can_execute_power_9(state: GameState, power_entry: dict) -> bool:
     birds_in_habitat = [s for s in habitat_row if s.bird is not None]
     if not birds_in_habitat:
         return False
-    rightmost_spot = max(birds_in_habitat, key=lambda s: s.col)
-    if spot.col != rightmost_spot.col:
+    rightmost_spot = max(birds_in_habitat, key=lambda s: s.config.col)
+    if spot.config.col != rightmost_spot.config.col:
         return False
 
     for habitat in bird.card.habitats:
@@ -253,14 +253,14 @@ def _can_execute_power_12(state: GameState, power_entry: dict) -> bool:
         spot = power_entry.get("spot")
         if not spot:
             return False
-        target_habitat = spot.habitat
+        target_habitat = spot.config.habitat
     else:
         target_habitat = habitat_spec
 
     current_player = state.players[state.current_player_index]
 
     for _, spot in generate_playable_bird_spots(current_player):
-        if spot.habitat == target_habitat:
+        if spot.config.habitat == target_habitat:
             return True
 
     return False
@@ -283,7 +283,7 @@ def _can_execute_power_14(state: GameState, power_entry: dict) -> bool:
         return False
 
     current_player = state.players[state.current_player_index]
-    habitat_row = current_player.board[spot.row]
+    habitat_row = current_player.board[spot.config.row]
 
     activating_bird_id = power_entry.get("bird_id")
 

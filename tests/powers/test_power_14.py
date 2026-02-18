@@ -33,8 +33,8 @@ def setup_power_queue(state, bird_id, power_data, spot):
         QueuedPower(
             power_id=power_data["data"]["id"],
             bird_id=bird_id,
-            spot_row=spot.row,
-            spot_col=spot.col,
+            spot_row=spot.config.row,
+            spot_col=spot.config.col,
             player_index=state.current_player_index,
             power_data=power_data,
         )
