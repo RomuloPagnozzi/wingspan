@@ -7,12 +7,17 @@ requires-python = ">=3.13"
 dependencies = [
     "black>=26.1.0",
     "ipykernel>=7.1.0",
+    "matplotlib>=3.10.8",
     "openpyxl>=3.1.5",
     "pandas>=3.0.0",
+    "pyarrow>=23.0.0",
     "pydeps>=3.0.2",
     "pyinstrument>=5.1.2",
     "pytest>=9.0.2",
+    "pyyaml>=6.0.3",
+    "seaborn>=0.13.2",
     "textual>=7.5.0",
+    "uuid6>=2025.0.1",
 ]
 
 [tool.pytest.ini_options]
