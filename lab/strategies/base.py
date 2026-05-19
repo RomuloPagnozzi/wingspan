@@ -35,6 +35,14 @@ class Strategy(ABC):
         """Return visit counts from the last select_action call, if available."""
         return None
 
+    def get_last_root_value(self) -> float | None:
+        """Return MCTS root value from the last select_action call, if available."""
+        return None
+
+    def get_last_action_values(self) -> dict[Action, float] | None:
+        """Return MCTS per-action Q-values from the last select_action call, if available."""
+        return None
+
 
 # Strategy registry
 _STRATEGY_REGISTRY: dict[str, type[Strategy]] = {}

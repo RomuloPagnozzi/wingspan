@@ -54,6 +54,8 @@ class DecisionRecord:
     action_taken: str
     legal_actions: list[str]
     visit_counts: dict[str, int] | None = None
+    mcts_root_value: float | None = None
+    mcts_action_values: dict[str, float] | None = None
 
 
 @dataclass
@@ -118,6 +120,8 @@ def decisions_to_rows(game_decisions: GameDecisions) -> list[dict]:
                 "action_taken": decision.action_taken,
                 "legal_actions": decision.legal_actions,
                 "visit_counts": decision.visit_counts,
+                "mcts_root_value": decision.mcts_root_value,
+                "mcts_action_values": decision.mcts_action_values,
                 "outcome": outcome,
             }
         )
@@ -162,6 +166,8 @@ DECISIONS_SCHEMA = pa.schema(
         ("action_taken", pa.string()),
         ("legal_actions", pa.list_(pa.string())),
         ("visit_counts", pa.map_(pa.string(), pa.int32())),
+        ("mcts_root_value", pa.float64()),
+        ("mcts_action_values", pa.map_(pa.string(), pa.float64())),
         ("outcome", pa.float64()),
     ]
 )

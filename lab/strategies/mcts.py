@@ -167,7 +167,7 @@ def _worker_init():
     init_registries()
 
 
-def _run_mcts_worker(args: tuple) -> dict[Action, int]:
+def _run_mcts_worker(args: tuple) -> dict[Action, tuple[int, float]]:
     state, player_index, simulations, exploration_constant, value_function, seed = args
     rng = random.Random(seed)
 
@@ -179,7 +179,10 @@ def _run_mcts_worker(args: tuple) -> dict[Action, int]:
         value = _simulate(node, player_index, value_function, rng)
         _backpropagate(node, value)
 
-    return {action: child.visits for action, child in root.children.items()}
+    return {
+        action: (child.visits, child.total_value)
+        for action, child in root.children.items()
+    }
 
 
 # =============================================================================
@@ -218,6 +221,8 @@ class MCTSStrategy(Strategy):
         self._seed: int = seed if seed is not None else random.randint(0, 2**31)
         self._rng = random.Random(self._seed)
         self._last_visit_counts: dict[Action, int] | None = None
+        self._last_root_value: float | None = None
+        self._last_action_values: dict[Action, float] | None = None
         self._pool: Pool | None = None
 
     def __enter__(self) -> MCTSStrategy:
@@ -243,6 +248,8 @@ class MCTSStrategy(Strategy):
     def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
         if len(legal_actions) == 1:
             self._last_visit_counts = {legal_actions[0]: 1}
+            self._last_root_value = None
+            self._last_action_values = None
             return legal_actions[0]
 
         if self.config.num_workers > 1:
@@ -264,6 +271,12 @@ class MCTSStrategy(Strategy):
 
         self._last_visit_counts = {
             action: child.visits for action, child in root.children.items()
+        }
+        self._last_root_value = root.total_value / root.visits if root.visits else None
+        self._last_action_values = {
+            action: child.total_value / child.visits
+            for action, child in root.children.items()
+            if child.visits > 0
         }
         return max(root.children.items(), key=lambda x: x[1].visits)[0]
 
@@ -292,11 +305,21 @@ class MCTSStrategy(Strategy):
         results = self._pool.map(_run_mcts_worker, worker_args)
 
         merged_visits: dict[Action, int] = {}
-        for visit_counts in results:
-            for action, visits in visit_counts.items():
+        merged_values: dict[Action, float] = {}
+        for worker_result in results:
+            for action, (visits, total_value) in worker_result.items():
                 merged_visits[action] = merged_visits.get(action, 0) + visits
+                merged_values[action] = merged_values.get(action, 0.0) + total_value
 
         self._last_visit_counts = merged_visits
+        total_visits = sum(merged_visits.values())
+        total_value = sum(merged_values.values())
+        self._last_root_value = total_value / total_visits if total_visits else None
+        self._last_action_values = {
+            action: merged_values[action] / merged_visits[action]
+            for action in merged_visits
+            if merged_visits[action] > 0
+        }
         return max(merged_visits.items(), key=lambda x: x[1])[0]
 
     @property
@@ -311,6 +334,12 @@ class MCTSStrategy(Strategy):
 
     def get_last_visit_counts(self) -> dict[Action, int] | None:
         return self._last_visit_counts
+
+    def get_last_root_value(self) -> float | None:
+        return self._last_root_value
+
+    def get_last_action_values(self) -> dict[Action, float] | None:
+        return self._last_action_values
 
     def __str__(self) -> str:
         return f"MCTS(n={self.config.simulations}, c={self.config.exploration_constant}, {self.config.value_function.value})"

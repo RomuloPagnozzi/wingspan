@@ -55,6 +55,8 @@ def simulate_game(
         if game_decisions is not None and len(actions) > 1:
             config = strategy.config_for_storage
             visit_counts = strategy.get_last_visit_counts()
+            root_value = strategy.get_last_root_value()
+            action_values = strategy.get_last_action_values()
             game_decisions.add_decision(
                 DecisionRecord(
                     player_position=player_idx + 1,
@@ -66,6 +68,12 @@ def simulate_game(
                     visit_counts=(
                         {str(k): v for k, v in visit_counts.items()}
                         if visit_counts
+                        else None
+                    ),
+                    mcts_root_value=root_value,
+                    mcts_action_values=(
+                        {str(k): v for k, v in action_values.items()}
+                        if action_values
                         else None
                     ),
                 )
