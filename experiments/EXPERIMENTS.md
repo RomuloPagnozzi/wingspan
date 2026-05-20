@@ -27,6 +27,17 @@ Position swapping controls for first-player advantage. Same MCTS seed ensures th
 - Paired comparisons → McNemar's test (not binomial CI)
 - Estimate: 50-100 paired games can detect differences that would need 400+ unpaired games
 
+## Experiment modes: when to use which
+
+Two run modes implement the paired-comparison machinery, each suited to a different shape of question.
+
+- **`vs_reference`** — every arm pitted against the fixed project-wide reference opponent (`REFERENCE_PARAMS` in `lab/generators.py`). Win rates for any arm in any vs_reference experiment live on the same scale and stack into a coherent ablation table. Linear scaling in number of values swept. **Use for**: sweeping multiple values of a parameter to find the best (best `c`, best sim count, best rollout policy).
+- **`paired`** — direct A vs B head-to-head with shared seeds. Highest statistical power per binary question. Pairwise combinatorial scaling — expensive at >2 values. **Use for**: specific A/B questions (peek-MCTS vs PIMC, score-aware vs random rollouts) or tiebreaking between two arms that came out close in a `vs_reference` sweep.
+
+**Recommended sequence for sweeps:** `vs_reference` coarse sweep → if top arms are within noise, `paired` tiebreak between the contenders.
+
+**Setting `base` in `vs_reference`:** by default, set `base` to match the reference's non-swept params. Arms then differ from the reference only in the swept dimension, giving the cleanest "pure effect of this one knob" reading. Diverging `base` from the reference (e.g., different sim count) is valid for explicit interaction studies — but be aware that win rates compress near 0% or 100% when arms are much weaker or stronger than the reference, and multi-parameter divergence muddies attribution. Call out divergence explicitly in the experiment hypothesis.
+
 ## Hypotheses & Goals
 
 - **H1:** Higher simulation counts yield diminishing returns beyond a threshold

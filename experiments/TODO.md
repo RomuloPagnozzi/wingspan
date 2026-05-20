@@ -164,3 +164,12 @@ Script that simulates many random games at each `n_players ∈ {2, 3, 4, 5}` and
 - Output as a table in standard notation suitable for the paper.
 
 Replaces the previous deleted version. Goal: be thorough enough to cite as the canonical Wingspan complexity characterization.
+
+---
+
+## Inbox
+
+Unprioritized notes — things to revisit when relevant, not scheduled.
+
+- **vs_reference: factorial sweeps.** v1 sweeps one parameter at a time. If we ever want to vary two parameters together (e.g., simulations × exploration_constant) under the same vs_reference framework, generalize `compare` from a single `parameter`/`values` pair to a list. Currently solvable by multiple sequential single-parameter runs.
+- **vs_reference: 3+ player games.** v1 assumes 2-player matchups. Multi-player vs_reference is non-trivial: which slots get reference opponents, how to attribute wins, how to handle position rotation. Defer until we have a concrete 3-player experiment in mind.

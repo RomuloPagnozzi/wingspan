@@ -11,7 +11,7 @@ import yaml
 from lab.strategies import Strategy
 from lab.data import GamesWriter, DecisionsWriter
 from lab.simulation import simulate_game
-from lab.generators import get_generator, count_games, build_strategy
+from lab.generators import REFERENCE_PARAMS, build_strategy, count_games, get_generator
 
 _shutdown_requested = False
 
@@ -26,6 +26,33 @@ def _signal_handler(signum, frame):
 
 def format_matchup(strategies: list[Strategy]) -> str:
     return " vs ".join(str(s) for s in strategies)
+
+
+def _attribute_by_position(result, games_in_group: int) -> str:
+    """Attribute a game result to arm A, arm B, or ties.
+
+    Arm A occupies player position 0 on even games (game_in_group % 2 == 0)
+    and position 1 on odd games (position swap). Identical attribution
+    rule for both paired and vs_reference modes — they only differ in
+    what A and B *are*, not where they sit in the player list.
+    """
+    a_idx = 0 if games_in_group % 2 == 0 else 1
+    if result.players[a_idx].is_winner:
+        return "A"
+    if any(p.is_winner for p in result.players):
+        return "B"
+    return "ties"
+
+
+def _print_group(header: str, r: dict, a_label: str, b_label: str):
+    total = sum(r.values())
+    if total == 0:
+        return
+    print(f"\n{header}:")
+    print(f"  {a_label}: {r['A']}/{total} ({r['A'] / total * 100:.1f}%)")
+    print(f"  {b_label}: {r['B']}/{total} ({r['B'] / total * 100:.1f}%)")
+    if r["ties"] > 0:
+        print(f"  ties: {r['ties']}")
 
 
 def print_config_summary(config: dict, data_dir: Path):
@@ -46,6 +73,19 @@ def print_config_summary(config: dict, data_dir: Path):
         print(f"Parameter: {param_name}")
         print(f"Values: {param_values}")
         print(f"Pairs: {len(pairs)}")
+        print(
+            f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
+        )
+        print(f"Total games: {total_games}")
+    elif mode == "vs_reference":
+        compare = config["compare"]
+        seeds_config = config["seeds"]
+        print(
+            f"Reference: MCTS(sims={REFERENCE_PARAMS.simulations}, "
+            f"c={REFERENCE_PARAMS.exploration_constant}, "
+            f"vf={REFERENCE_PARAMS.value_function.value})"
+        )
+        print(f"Sweep: {compare['parameter']} = {compare['values']}")
         print(
             f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
         )
@@ -72,20 +112,31 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
     total_games = count_games(config)
     generator = get_generator(config)
 
-    param_name = ""
-    pairs: list[tuple] = []
-    results: dict[tuple, dict[str, int]] = {}
-    current_pair_idx = 0
-    games_in_pair = 0
-    seeds_per_pair = 0
+    # Group-based modes (paired, vs_reference) share tracking machinery.
+    # They differ only in how groups are defined and what A/B mean.
+    groups: list = []
+    header_fn = None
+    labels_fn = None
+    results: dict = {}
+    games_per_group = 0
+    current_group_idx = 0
+    games_in_group = 0
 
-    if mode == "paired":
+    if mode in ("paired", "vs_reference"):
         compare = config["compare"]
         param_name = compare["parameter"]
-        param_values = compare["values"]
-        pairs = list(itertools.combinations(param_values, 2))
-        results = {pair: {"A_wins": 0, "B_wins": 0, "ties": 0} for pair in pairs}
-        seeds_per_pair = config["seeds"]["count"] * 2
+        games_per_group = config["seeds"]["count"] * 2  # ×2 for position swap
+
+        if mode == "paired":
+            groups = list(itertools.combinations(compare["values"], 2))
+            header_fn = lambda g: f"{param_name}={g[0]} vs {param_name}={g[1]}"
+            labels_fn = lambda g: (str(g[0]), str(g[1]))
+        else:  # vs_reference
+            groups = list(compare["values"])
+            header_fn = lambda g: f"{param_name}={g} vs reference"
+            labels_fn = lambda g: ("arm", "reference")
+
+        results = {g: {"A": 0, "B": 0, "ties": 0} for g in groups}
 
     games_played = 0
 
@@ -106,42 +157,20 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
                 if decisions_writer and game_decisions:
                     decisions_writer.add_game_decisions(game_decisions)
 
-                # Track wins for paired mode
-                if mode == "paired":
-                    pair = pairs[current_pair_idx]
-                    winner = next((p for p in result.players if p.is_winner), None)
-                    if winner:
-                        winner_value = winner.strategy_config.get(param_name)
-                        if winner_value == str(pair[0]):
-                            results[pair]["A_wins"] += 1
-                        else:
-                            results[pair]["B_wins"] += 1
-                    else:
-                        results[pair]["ties"] += 1
+                if groups:
+                    group = groups[current_group_idx]
+                    outcome = _attribute_by_position(result, games_in_group)
+                    results[group][outcome] += 1
+                    games_in_group += 1
 
-                    games_in_pair += 1
-                    if games_in_pair >= seeds_per_pair:
-                        # Print pair summary
-                        r = results[pair]
-                        total = r["A_wins"] + r["B_wins"] + r["ties"]
-                        print(f"\n{param_name}={pair[0]} vs {param_name}={pair[1]}:")
-                        print(
-                            f"  {pair[0]}: {r['A_wins']} wins ({r['A_wins']/total*100:.1f}%)"
-                        )
-                        print(
-                            f"  {pair[1]}: {r['B_wins']} wins ({r['B_wins']/total*100:.1f}%)"
-                        )
-                        if r["ties"] > 0:
-                            print(f"  Ties: {r['ties']}")
-
-                        current_pair_idx += 1
-                        games_in_pair = 0
-
-                # Progress for continuous mode
+                    if games_in_group >= games_per_group:
+                        a_label, b_label = labels_fn(group)
+                        _print_group(header_fn(group), results[group], a_label, b_label)
+                        current_group_idx += 1
+                        games_in_group = 0
                 elif games_played % 10 == 0:
                     print(f"Games played: {games_played}")
 
-                # Check if finite experiment is done
                 if total_games and games_played >= total_games:
                     break
 
@@ -154,17 +183,10 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
     print(f"RESULTS ({games_played} games)")
     print("=" * 60)
 
-    if mode == "paired":
-        for pair, r in results.items():
-            total = r["A_wins"] + r["B_wins"] + r["ties"]
-            if total > 0:
-                print(f"\n{param_name}={pair[0]} vs {param_name}={pair[1]}:")
-                print(
-                    f"  {pair[0]}: {r['A_wins']}/{total} ({r['A_wins']/total*100:.1f}%)"
-                )
-                print(
-                    f"  {pair[1]}: {r['B_wins']}/{total} ({r['B_wins']/total*100:.1f}%)"
-                )
+    if groups:
+        for group, r in results.items():
+            a_label, b_label = labels_fn(group)
+            _print_group(header_fn(group), r, a_label, b_label)
 
 
 def load_config(config_path: Path) -> dict:
@@ -207,9 +229,13 @@ def main():
             for i, spec_list in enumerate(config["matchups"], 1):
                 strategies = [build_strategy(spec, defaults) for spec in spec_list]
                 print(f"  {i}. {format_matchup(strategies)}")
-        else:
+        elif mode == "paired":
             compare = config["compare"]
             print(f"Paired comparison: {compare['parameter']}")
+            print(f"Values: {compare['values']}")
+        elif mode == "vs_reference":
+            compare = config["compare"]
+            print(f"vs_reference sweep: {compare['parameter']}")
             print(f"Values: {compare['values']}")
         return
 

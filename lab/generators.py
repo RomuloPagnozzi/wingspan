@@ -2,16 +2,38 @@
 
 import itertools
 import random
+from dataclasses import replace
 from typing import Iterator
 
-from lab.strategies import Strategy, create_strategy
+from lab.strategies import (
+    MCTSConfig,
+    MCTSStrategy,
+    Strategy,
+    ValueFunction,
+    create_strategy,
+)
+
+# Project-wide fixed reference opponent. Locked strategic params; num_workers
+# is overridden per-run. Changing these constants invalidates cross-experiment
+# comparability — pre-change and post-change win rates do not live on the same
+# scale.
+REFERENCE_PARAMS = MCTSConfig(
+    simulations=500,
+    exploration_constant=1.41,
+    value_function=ValueFunction.SCORE_DELTA,
+)
+
+
+def _instantiate(spec: dict) -> Strategy:
+    """Create a strategy from a fully-merged spec dict (with 'strategy' key)."""
+    return create_strategy(
+        spec["strategy"], **{k: v for k, v in spec.items() if k != "strategy"}
+    )
 
 
 def build_strategy(spec: dict, defaults: dict) -> Strategy:
     """Build a strategy from spec dict merged with defaults."""
-    name = spec["strategy"]
-    params = {**defaults, **{k: v for k, v in spec.items() if k != "strategy"}}
-    return create_strategy(name, **params)
+    return _instantiate({**defaults, **spec})
 
 
 def continuous_generator(
@@ -54,37 +76,54 @@ def paired_generator(
     seed_count = seeds_config["count"]
     seed_start = seeds_config.get("start", 1)
 
-    pairs = list(itertools.combinations(param_values, 2))
-
-    for val_a, val_b in pairs:
+    for val_a, val_b in itertools.combinations(param_values, 2):
         for seed_idx in range(seed_count):
-            game_seed = seed_start + seed_idx
-            mcts_seed = seed_start + seed_idx
+            game_seed = trial_seed = seed_start + seed_idx
 
-            config_a = {**base, param_name: val_a, "seed": mcts_seed}
-            config_b = {**base, param_name: val_b, "seed": mcts_seed}
+            config_a = {**base, param_name: val_a, "seed": trial_seed}
+            config_b = {**base, param_name: val_b, "seed": trial_seed}
 
-            # Game 1: A as P1, B as P2
-            strategy_a = create_strategy(
-                config_a["strategy"],
-                **{k: v for k, v in config_a.items() if k != "strategy"},
-            )
-            strategy_b = create_strategy(
-                config_b["strategy"],
-                **{k: v for k, v in config_b.items() if k != "strategy"},
-            )
-            yield [strategy_a, strategy_b], game_seed
+            # Two games per pair: A as P1, then B as P1 (position swap).
+            # Fresh strategies each yield so internal RNG starts clean.
+            for swap in (False, True):
+                pair = [_instantiate(config_a), _instantiate(config_b)]
+                yield (pair[::-1] if swap else pair), game_seed
 
-            # Game 2: B as P1, A as P2 (position swap)
-            strategy_a = create_strategy(
-                config_a["strategy"],
-                **{k: v for k, v in config_a.items() if k != "strategy"},
-            )
-            strategy_b = create_strategy(
-                config_b["strategy"],
-                **{k: v for k, v in config_b.items() if k != "strategy"},
-            )
-            yield [strategy_b, strategy_a], game_seed
+
+def vs_reference_generator(
+    config: dict,
+) -> Iterator[tuple[list[Strategy], int]]:
+    """Generate games of each arm against the fixed reference opponent.
+
+    For each value in `compare.values`, runs `seeds.count` paired comparisons
+    against REFERENCE_PARAMS. The trial seed is shared between arm and
+    reference each game, and position is swapped between the two games of
+    each pair — the same paired-comparison machinery as `paired_generator`,
+    just with one side fixed to the reference.
+    """
+    base = config["base"]
+    compare = config["compare"]
+    seeds_config = config["seeds"]
+
+    param_name = compare["parameter"]
+    param_values = compare["values"]
+    seed_count = seeds_config["count"]
+    seed_start = seeds_config.get("start", 1)
+    ref_params = replace(REFERENCE_PARAMS, num_workers=base.get("num_workers", 1))
+
+    for val in param_values:
+        for seed_idx in range(seed_count):
+            game_seed = trial_seed = seed_start + seed_idx
+            arm_spec = {**base, param_name: val, "seed": trial_seed}
+
+            # Two games per arm: arm as P1, then reference as P1 (position swap).
+            # Fresh strategies each yield so internal RNG starts clean.
+            for swap in (False, True):
+                pair = [
+                    _instantiate(arm_spec),
+                    MCTSStrategy(params=ref_params, seed=trial_seed),
+                ]
+                yield (pair[::-1] if swap else pair), game_seed
 
 
 def get_generator(config: dict) -> Iterator[tuple[list[Strategy], int]]:
@@ -93,6 +132,8 @@ def get_generator(config: dict) -> Iterator[tuple[list[Strategy], int]]:
 
     if mode == "paired":
         return paired_generator(config)
+    elif mode == "vs_reference":
+        return vs_reference_generator(config)
     elif mode == "continuous":
         return continuous_generator(config)
     else:
@@ -108,5 +149,10 @@ def count_games(config: dict) -> int | None:
         seed_count = config["seeds"]["count"]
         num_pairs = len(list(itertools.combinations(param_values, 2)))
         return num_pairs * seed_count * 2  # 2 games per seed (position swap)
+
+    if mode == "vs_reference":
+        param_values = config["compare"]["values"]
+        seed_count = config["seeds"]["count"]
+        return len(param_values) * seed_count * 2  # 2 games per seed (position swap)
 
     return None  # Continuous runs forever
