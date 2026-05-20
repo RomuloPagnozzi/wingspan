@@ -27,7 +27,7 @@ def play_game():
     )
     state = initiate_state(N_PLAYERS, seed=GAME_SEED)
 
-    with MCTSStrategy(config=config, seed=MCTS_SEED) as strategy:
+    with MCTSStrategy(params=config, seed=MCTS_SEED) as strategy:
         move_count = 0
 
         while actions := get_actions(state):

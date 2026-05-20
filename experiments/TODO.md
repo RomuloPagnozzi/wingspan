@@ -40,7 +40,7 @@ score_breakdown(df[df.game_id.isin(games_with_bird)])
 
 Expand `decisions.parquet` so each row captures the full agent observation at the decision point, not just the chosen action. Today's schema records *what was chosen* (`action_taken`, `legal_actions`, `visit_counts`) and a sliver of *when* (`round`, `game_phase`, `player_position`) — but almost none of *what the agent could see when choosing*. The central strategic drivers (bonus card, active round goal, hand, board) are absent. As-is, the data is not trainable for any NN that needs to map (observation → policy / value).
 
-Three classes of fields to add. Categories 1–2 are observable-state; category 3 is free MCTS signal.
+Two classes of fields to add: observable state and turn-cascade context.
 
 ### 1. Observable state snapshot at decision time
 
@@ -61,21 +61,11 @@ The "where in the turn am I" signal that's currently invisible — without it th
 - `turn_decision_idx` — counter that resets when this player re-enters `MAIN_TURN`. Tells the NN whether the current decision starts a strategic action or continues a cascade.
 - `cascade_origin` — what triggered the current sub-cascade: the main action that started the turn (`play_bird` / `lay_eggs` / `draw_cards` / `gain_food`), and if applicable the `power_id` + `bird_id` of the power being resolved. Mostly reconstructable from `state.action_data.execution_stack` / `powers_queue` at the decision point; easier to capture once than re-derive.
 
-### 3. MCTS metadata (free training signal)
-
-Beyond the visit counts already captured:
-
-- `mcts_root_value` — value MCTS converged to at the root. Direct critic-head target, complements the +1/0/−1 game outcome.
-- `mcts_action_values` — per-legal-action mean value (Q-value of each child). Tells the NN not just *which* action MCTS preferred but by *how much*. Richer than visit counts.
-
-Optional fields, populated alongside `visit_counts` when the strategy is MCTS.
-
 ### Implementation notes
 
 - Schema change in `lab/data.py:DECISIONS_SCHEMA` — add new fields, keep existing ones.
 - Capture point is `lab/simulation.py:simulate_game`, inside the `if game_decisions is not None and len(actions) > 1:` block — that's where the state object is in hand right before the action is applied.
 - Serialize state to compact columnar form (nested structs / lists in Arrow), not pickled blobs. Pickled blobs in parquet are an anti-pattern (opaque, unqueryable, version-coupled).
-- Add a `schema_version` field. When the engine changes (PIMC, action canonicalization, etc.), bumping the version lets older datasets remain usable.
 - Order of operations: do this **before** the NN encoder work — encoder design is downstream of what raw fields are available.
 
 ### Prerequisite for

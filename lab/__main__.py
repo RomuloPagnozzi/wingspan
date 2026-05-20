@@ -111,8 +111,8 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
                     pair = pairs[current_pair_idx]
                     winner = next((p for p in result.players if p.is_winner), None)
                     if winner:
-                        winner_value = getattr(winner, param_name)
-                        if winner_value == pair[0]:
+                        winner_value = winner.strategy_config.get(param_name)
+                        if winner_value == str(pair[0]):
                             results[pair]["A_wins"] += 1
                         else:
                             results[pair]["B_wins"] += 1

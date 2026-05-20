@@ -53,14 +53,13 @@ def simulate_game(
         action = strategy.select_action(state, actions)
 
         if game_decisions is not None and len(actions) > 1:
-            config = strategy.config_for_storage
             visit_counts = strategy.get_last_visit_counts()
             root_value = strategy.get_last_root_value()
             action_values = strategy.get_last_action_values()
             game_decisions.add_decision(
                 DecisionRecord(
                     player_position=player_idx + 1,
-                    strategy_seed=config.get("strategy_seed", 0),
+                    strategy_seed=strategy.seed,
                     round=state.round,
                     game_phase=state.game_phase.value,
                     action_taken=str(action),
@@ -94,17 +93,14 @@ def simulate_game(
 
     players = []
     for i, player in enumerate(state.players):
-        config = strategies[i].config_for_storage
         players.append(
             PlayerResult(
                 player_position=i + 1,
                 is_first_player=(i == first_player_idx),
                 is_winner=(i == winner_idx),
                 strategy_name=strategies[i].name,
-                simulations=config.get("simulations"),
-                exploration_constant=config.get("exploration_constant"),
-                value_function=config.get("value_function"),
-                strategy_seed=config.get("strategy_seed"),
+                strategy_seed=strategies[i].seed,
+                strategy_config={k: str(v) for k, v in strategies[i].config.items()},
                 total_score=player.score.total,
                 bird_points=player.score.bird_points,
                 egg_points=player.score.egg_points,

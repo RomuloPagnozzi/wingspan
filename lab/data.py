@@ -17,10 +17,8 @@ class PlayerResult:
     is_first_player: bool
     is_winner: bool
     strategy_name: str
-    simulations: int | None
-    exploration_constant: float | None
-    value_function: str | None
-    strategy_seed: int | None
+    strategy_seed: int
+    strategy_config: dict[str, str]
     total_score: int
     bird_points: int
     egg_points: int
@@ -86,10 +84,8 @@ def game_result_to_rows(result: GameResult) -> list[dict]:
                 "is_first_player": player.is_first_player,
                 "is_winner": player.is_winner,
                 "strategy_name": player.strategy_name,
-                "simulations": player.simulations,
-                "exploration_constant": player.exploration_constant,
-                "value_function": player.value_function,
                 "strategy_seed": player.strategy_seed,
+                "strategy_config": player.strategy_config,
                 "total_score": player.total_score,
                 "bird_points": player.bird_points,
                 "egg_points": player.egg_points,
@@ -139,10 +135,8 @@ GAMES_SCHEMA = pa.schema(
         ("is_first_player", pa.bool_()),
         ("is_winner", pa.bool_()),
         ("strategy_name", pa.string()),
-        ("simulations", pa.int32()),
-        ("exploration_constant", pa.float64()),
-        ("value_function", pa.string()),
         ("strategy_seed", pa.int64()),
+        ("strategy_config", pa.map_(pa.string(), pa.string())),
         ("total_score", pa.int32()),
         ("bird_points", pa.int32()),
         ("egg_points", pa.int32()),

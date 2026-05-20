@@ -24,16 +24,13 @@ Subtlety to keep in mind: ablations measure marginal contributions, but subset-s
 ## Phases
 
 ```
-Phase 0 — Commit and stabilize           [this week]
 Phase 1 — Foundation for ablations       [1–2 weeks]
 Phase 2 — MCTS strength frontier         [the main experimental work]
 Phase 3 — Mass game generation           [compute-bound, low-touch]
 Phase 4 — NN bootstrap and self-play     [the AlphaZero phase]
 ```
 
-**Phase 0 — Commit and stabilize.** Land everything uncommitted (`lab/`, `experiments/`, `CLAUDE.md`, READMEs, expanded `test_determinism.py`, dependency bumps). Establish the safety net.
-
-**Phase 1 — Foundation for ablations.** Do *not* run real experiments before this is done. Expand `decisions.parquet` to capture observable state + turn context + MCTS metadata (the "Generate training data for NN" TODO). Rewrite `analysis.py` for the parquet schema. Scaffold `MCTSConfig` with feature flags for every planned optimization (empty stubs are fine). Pick the reference opponent. The investment pays for itself the first time you re-run an experiment instead of re-collecting data.
+**Phase 1 — Foundation for ablations.** Do *not* run real experiments before this is done. Expand `decisions.parquet` to capture observable state + turn context (the "Generate training data for NN" TODO). Rewrite `analysis.py` for the parquet schema. Scaffold `MCTSConfig` with feature flags for every planned optimization (empty stubs are fine). Pick the reference opponent. The investment pays for itself the first time you re-run an experiment instead of re-collecting data.
 
 **Phase 2 — MCTS strength frontier.** Run EXP-001 through EXP-007 as an ablation matrix over the Phase 1 flags. Output: a quantified "what matters how much" table + the best-config MCTS player.
 
@@ -45,17 +42,15 @@ The boundary that matters: **do not cross Phase 1 → Phase 2** until the data i
 
 ---
 
-## Short-term — the next four things, in order
+## Short-term — the next three things, in order
 
-1. **Commit what's uncommitted.** `lab/`, `experiments/`, `CLAUDE.md`, the new READMEs, expanded `test_determinism.py`, `pyproject.toml` + `uv.lock`. Gitignore `experiments/data/*.parquet` — those are throwaway smoke-test outputs.
+1. **Expand `DECISIONS_SCHEMA`** in `lab/data.py` per the "Generate training data for NN" TODO. Surgical change; unblocks everything downstream.
 
-2. **Expand `DECISIONS_SCHEMA`** in `lab/data.py` per the "Generate training data for NN" TODO. Surgical change; unblocks everything downstream. Bump `schema_version` from day one.
+2. **Rewrite `analysis.py`** for the new parquet schema. Replaces the dead CSV-era code; targets the data you're about to start producing. Unblocks running *and interpreting* experiments.
 
-3. **Rewrite `analysis.py`** for the new parquet schema. Replaces the dead CSV-era code; targets the data you're about to start producing. Unblocks running *and interpreting* experiments.
+3. **Add a reference-opponent helper** in `lab/generators.py` — small `vs_reference` mode that pairs each strategy against a fixed baseline. This is what makes ablations comparable across runs.
 
-4. **Add a reference-opponent helper** in `lab/generators.py` — small `vs_reference` mode that pairs each strategy against a fixed baseline. This is what makes ablations comparable across runs.
-
-After those four: EXP-004 (first-player advantage) is a quick sanity check; EXP-001 (sim scaling) is the first real experiment.
+After those: EXP-004 (first-player advantage) is a quick sanity check; EXP-001 (sim scaling) is the first real experiment.
 
 ---
 

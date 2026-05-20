@@ -46,7 +46,7 @@ def benchmark_simulations(sim_counts: list[int], moves_per_count: int = 5):
     print("-" * 55)
 
     for sims in sim_counts:
-        strategy = MCTSStrategy(config=MCTSConfig(simulations=sims), seed=123)
+        strategy = MCTSStrategy(params=MCTSConfig(simulations=sims), seed=123)
         times = []
 
         for i in range(moves_per_count):
@@ -70,7 +70,7 @@ def benchmark_simulations(sim_counts: list[int], moves_per_count: int = 5):
 
 def estimate_game_time(sims: int, moves_per_game: int = 200):
     """Estimate total time for one game at given simulation count."""
-    strategy = MCTSStrategy(config=MCTSConfig(simulations=sims), seed=123)
+    strategy = MCTSStrategy(params=MCTSConfig(simulations=sims), seed=123)
 
     state = initiate_state(2)
     state = advance_to_main_turn(state)
@@ -102,7 +102,7 @@ def benchmark_parallel(sims: int = 500, worker_counts: list[int] = []):
 
     for workers in worker_counts:
         config = MCTSConfig(simulations=sims, num_workers=workers)
-        strategy = MCTSStrategy(config=config, seed=42)
+        strategy = MCTSStrategy(params=config, seed=42)
 
         state = initiate_state(2)
         state = advance_to_main_turn(state)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import asdict
 from enum import Enum, unique
 from typing import Any, ClassVar, TypeVar
 
@@ -17,9 +18,16 @@ class ValueFunction(str, Enum):
 
 
 class Strategy(ABC):
-    """Abstract base for all game-playing strategies."""
+    """Abstract base for all game-playing strategies.
+
+    Concrete strategies must set `self.seed: int` in `__init__`. Strategies
+    with hyperparams should also set `self.params` to a frozen dataclass —
+    `config` then auto-serializes it for storage.
+    """
 
     name: ClassVar[str]
+    seed: int
+    params: Any = None
 
     @abstractmethod
     def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
@@ -27,9 +35,14 @@ class Strategy(ABC):
         pass
 
     @property
-    def config_for_storage(self) -> dict[str, Any]:
-        """Return config dict for parquet storage."""
-        return {}
+    def config(self) -> dict[str, Any]:
+        """Serializable hyperparams for storage. Auto-derived from self.params."""
+        if self.params is None:
+            return {}
+        return {
+            k: (v.value if isinstance(v, Enum) else v)
+            for k, v in asdict(self.params).items()
+        }
 
     def get_last_visit_counts(self) -> dict[Action, int] | None:
         """Return visit counts from the last select_action call, if available."""

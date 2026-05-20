@@ -199,36 +199,36 @@ class MCTSStrategy(Strategy):
     def __init__(
         self,
         *,
-        config: MCTSConfig | None = None,
+        params: MCTSConfig | None = None,
         seed: int | None = None,
         **kwargs,
     ):
-        if config is not None:
-            self.config = config
+        if params is not None:
+            self.params = params
         elif kwargs:
-            config_kwargs = {
+            params_kwargs = {
                 k: v for k, v in kwargs.items() if k in MCTSConfig.__dataclass_fields__
             }
-            if "value_function" in config_kwargs and isinstance(
-                config_kwargs["value_function"], str
+            if "value_function" in params_kwargs and isinstance(
+                params_kwargs["value_function"], str
             ):
-                config_kwargs["value_function"] = ValueFunction(
-                    config_kwargs["value_function"]
+                params_kwargs["value_function"] = ValueFunction(
+                    params_kwargs["value_function"]
                 )
-            self.config = MCTSConfig(**config_kwargs)
+            self.params = MCTSConfig(**params_kwargs)
         else:
-            self.config = MCTSConfig()
-        self._seed: int = seed if seed is not None else random.randint(0, 2**31)
-        self._rng = random.Random(self._seed)
+            self.params = MCTSConfig()
+        self.seed: int = seed if seed is not None else random.randint(0, 2**31)
+        self._rng = random.Random(self.seed)
         self._last_visit_counts: dict[Action, int] | None = None
         self._last_root_value: float | None = None
         self._last_action_values: dict[Action, float] | None = None
         self._pool: Pool | None = None
 
     def __enter__(self) -> MCTSStrategy:
-        if self.config.num_workers > 1 and self._pool is None:
+        if self.params.num_workers > 1 and self._pool is None:
             ctx = mp.get_context("spawn")
-            self._pool = ctx.Pool(self.config.num_workers, initializer=_worker_init)
+            self._pool = ctx.Pool(self.params.num_workers, initializer=_worker_init)
         return self
 
     def __exit__(
@@ -252,7 +252,7 @@ class MCTSStrategy(Strategy):
             self._last_action_values = None
             return legal_actions[0]
 
-        if self.config.num_workers > 1:
+        if self.params.num_workers > 1:
             return self._select_action_parallel(state)
         return self._select_action_sequential(state)
 
@@ -261,11 +261,11 @@ class MCTSStrategy(Strategy):
             state=copy_state(state), player_index=state.current_player_index
         )
 
-        for _ in range(self.config.simulations):
-            node = _select(root, self.config.exploration_constant)
+        for _ in range(self.params.simulations):
+            node = _select(root, self.params.exploration_constant)
             node = _expand(node, self._rng)
             value = _simulate(
-                node, root.player_index, self.config.value_function, self._rng
+                node, root.player_index, self.params.value_function, self._rng
             )
             _backpropagate(node, value)
 
@@ -281,9 +281,9 @@ class MCTSStrategy(Strategy):
         return max(root.children.items(), key=lambda x: x[1].visits)[0]
 
     def _select_action_parallel(self, state: GameState) -> Action:
-        num_workers = self.config.num_workers
-        base_sims = self.config.simulations // num_workers
-        remainder = self.config.simulations % num_workers
+        num_workers = self.params.num_workers
+        base_sims = self.params.simulations // num_workers
+        remainder = self.params.simulations % num_workers
         worker_seeds = [self._rng.randint(0, 2**31) for _ in range(num_workers)]
 
         worker_args = [
@@ -291,8 +291,8 @@ class MCTSStrategy(Strategy):
                 copy_state(state),
                 state.current_player_index,
                 base_sims + (1 if i < remainder else 0),
-                self.config.exploration_constant,
-                self.config.value_function,
+                self.params.exploration_constant,
+                self.params.value_function,
                 worker_seeds[i],
             )
             for i in range(num_workers)
@@ -322,16 +322,6 @@ class MCTSStrategy(Strategy):
         }
         return max(merged_visits.items(), key=lambda x: x[1])[0]
 
-    @property
-    def config_for_storage(self) -> dict[str, Any]:
-        return {
-            "simulations": self.config.simulations,
-            "value_function": self.config.value_function.value,
-            "exploration_constant": self.config.exploration_constant,
-            "num_workers": self.config.num_workers,
-            "strategy_seed": self._seed,
-        }
-
     def get_last_visit_counts(self) -> dict[Action, int] | None:
         return self._last_visit_counts
 
@@ -342,4 +332,4 @@ class MCTSStrategy(Strategy):
         return self._last_action_values
 
     def __str__(self) -> str:
-        return f"MCTS(n={self.config.simulations}, c={self.config.exploration_constant}, {self.config.value_function.value})"
+        return f"MCTS(n={self.params.simulations}, c={self.params.exploration_constant}, {self.params.value_function.value})"
