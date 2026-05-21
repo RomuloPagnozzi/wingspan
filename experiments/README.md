@@ -6,8 +6,10 @@ MCTS experiment configurations, results, and research notes. The runner lives in
 
 | File | Role |
 |------|------|
-| `EXPERIMENTS.md` | research philosophy, hypotheses, and the experiment queue |
-| `TODO.md` | engineering tasks (analysis toolkit rewrite, NN encoding, etc.) |
+| `ROADMAP.md` | big-picture project vision and phases |
+| `BACKLOG.md` | prioritized next-up work, with inline engineering specs |
+| `INBOX.md` | unprioritized idea capture |
+| `EXPERIMENTS.md` | research philosophy, hypotheses, experiment catalog, and results |
 
 ## Subfolders
 

@@ -33,6 +33,9 @@ Two run modes implement the paired-comparison machinery, each suited to a differ
 
 - **`vs_reference`** — every arm pitted against the fixed project-wide reference opponent (`REFERENCE_PARAMS` in `lab/generators.py`). Win rates for any arm in any vs_reference experiment live on the same scale and stack into a coherent ablation table. Linear scaling in number of values swept. **Use for**: sweeping multiple values of a parameter to find the best (best `c`, best sim count, best rollout policy).
 - **`paired`** — direct A vs B head-to-head with shared seeds. Highest statistical power per binary question. Pairwise combinatorial scaling — expensive at >2 values. **Use for**: specific A/B questions (peek-MCTS vs PIMC, score-aware vs random rollouts) or tiebreaking between two arms that came out close in a `vs_reference` sweep.
+- **`continuous`** — open-ended matchup runs (no fixed seeds, runs until Ctrl+C). **Use for**: exploratory data generation, smoke runs, or accumulating games for later analysis when statistical paired design isn't needed.
+
+**`REFERENCE_PARAMS` is provisional.** Today it's set to peek-MCTS at 500 sims because PIMC isn't implemented yet. EXP-006 will quantify the peek-vs-PIMC gap; the project's reference will likely switch to honest PIMC afterward. Pre-switch and post-switch win rates won't be directly comparable, so prefer deferring strength-sensitive experiments (EXP-001 onward) until the reference is finalized.
 
 **Recommended sequence for sweeps:** `vs_reference` coarse sweep → if top arms are within noise, `paired` tiebreak between the contenders.
 
@@ -49,112 +52,65 @@ Two run modes implement the paired-comparison machinery, each suited to a differ
 - **H7:** At our compute scale, an NN warm-started from MCTS-generated bootstrap data reaches a target strength level (e.g., beating reference MCTS at ≥55% win rate) using strictly less total compute than an NN trained from random init via pure self-play. AlphaZero showed bootstrap is *unnecessary* at massive compute; we expect it is *load-bearing* at our scale. Quantifying the speedup — and the crossover point where pure self-play catches up — is part of the compute-efficiency frontier the paper characterizes.
 - **Goal:** Find optimal MCTS configuration for competitive 2-player and 3-player games, and characterize the compute-efficiency frontier for NN bootstrap strategies.
 
-## Experiment Queue
+## Experiment Catalog
+
+Unordered. Scheduling lives in `BACKLOG.md`.
 
 ### EXP-001: Simulation budget scaling
-**Status:** pending
-**Hypothesis:** Win rate advantage of higher sims plateaus around 1000-1500
-**Config:**
-```yaml
-matchups:
-  - [mcts:500, mcts:1000]
-  - [mcts:1000, mcts:1500]
-  - [mcts:1500, mcts:2000]
-```
-**Games:** 500 per matchup
-**Reasoning:** Establish baseline scaling curve before tuning other params. Need to know where diminishing returns kick in.
+**Hypothesis:** Win rate advantage of higher sims plateaus around 1000–1500.
+**What it measures:** Strength as a function of simulation budget at otherwise fixed config.
+**Why:** Establish the baseline scaling curve before tuning other params. The knee of the curve sets the default sim count for every later experiment.
 
 ---
 
 ### EXP-002: Exploration constant coarse sweep
-**Status:** pending
-**Hypothesis:** Optimal c is game-specific; Wingspan's moderate branching may favor c < √2
-**Config:**
-```yaml
-defaults:
-  simulations: 500
-matchups:
-  - [c=0.5, c=1.0]
-  - [c=1.0, c=1.41]
-  - [c=1.41, c=2.0]
-```
-**Games:** 200 per matchup (fixed seeds for paired comparison)
-**Reasoning:** Literature shows c is the most impactful hyperparameter. Coarse sweep first, then refine.
-**Depends on:** EXP-001 (to pick appropriate simulation count)
+**Hypothesis (H2):** Optimal `c` is game-specific; Wingspan's moderate branching may favor `c < √2`.
+**What it measures:** Win rate as a function of `c` across a range that brackets the textbook default.
+**Why:** Literature shows `c` is the most impactful hyperparameter. Coarse sweep first; if two values come out close, paired tiebreak.
+**Depends on:** EXP-001 (to pick appropriate simulation count).
 
 ---
 
 ### EXP-003: Value function comparison
-**Status:** pending
-**Hypothesis:** score_delta outperforms win_loss due to richer signal
-**Config:**
-```yaml
-defaults:
-  simulations: 500
-matchups:
-  - [vf=score_delta, vf=win_loss]
-  - [vf=score_delta, vf=absolute_score]
-```
-**Games:** 300 per matchup
-**Reasoning:** Different value functions encode different objectives. Score delta encourages winning by large margins; win_loss only cares about winning.
+**Hypothesis (H3):** `score_delta` outperforms `win_loss` due to richer signal.
+**What it measures:** Win rate of each value function against the same reference.
+**Why:** Different value functions encode different objectives — `score_delta` rewards winning by margin, `win_loss` only the outcome, `absolute_score` ignores opponents. Effect on play style and strength is unknown.
 
 ---
 
 ### EXP-004: First player advantage quantification
-**Status:** pending
-**Hypothesis:** First player has measurable advantage (estimated 3-5%)
-**Config:** mcts:500 vs mcts:500 (symmetric)
-**Games:** 1000
-**Analysis:** Compare win rates by first_player flag
-**Reasoning:** Need to control for this in all other experiments
+**Hypothesis:** First player has measurable advantage (estimated 3–5%).
+**What it measures:** Win-rate split by `is_first_player` across symmetric self-play.
+**Why:** Needed to control for first-player effect when interpreting all other experiments. Quick sanity check; also validates the position-swap machinery works as intended.
 
 ---
 
 ### EXP-005: Selection policy comparison
-**Status:** pending
-**Hypothesis:** Alternative selection policies (UCB1-Tuned, PUCT) may outperform standard UCB1 for Wingspan's branching structure
-**Design idea:** Abstract the selection policy behind a protocol (e.g., `SelectionPolicy` with a `score(node, parent_visits) -> float` method) so `_select` becomes policy-agnostic. This enables clean A/B testing of:
-- **UCB1** (current) - classic exploration bonus
-- **UCB1-Tuned** - adds variance estimate for tighter bounds
-- **PUCT** - prior-weighted exploration (used by AlphaZero); could incorporate hand-crafted or learned priors
-- **Thompson Sampling** - Bayesian approach, samples from posterior
-**Depends on:** EXP-001, EXP-002 (establish baseline with UCB1 first)
-**Reasoning:** In MCTS literature, the selection policy (also called tree policy) governs how the already-built tree is traversed. Different policies trade off exploration vs exploitation differently, and the optimal choice is game-dependent.
+**Hypothesis:** Alternative selection policies (UCB1-Tuned, PUCT) may outperform standard UCB1 for Wingspan's branching structure.
+**What it measures:** Win rate of each selection policy at fixed sim budget.
+**Design idea:** Abstract the selection policy behind a protocol (e.g., `SelectionPolicy` with a `score(node, parent_visits) -> float` method) so `_select` becomes policy-agnostic. Candidates: UCB1 (current), UCB1-Tuned (variance-aware), PUCT (prior-weighted; AlphaZero's choice), Thompson Sampling (posterior).
+**Why:** The selection policy governs how the tree is traversed; different policies trade exploration vs exploitation differently and the optimal choice is game-dependent.
+**Depends on:** EXP-001, EXP-002 (establish baseline with UCB1 first).
 
 ---
 
 ### EXP-006: Peek-MCTS vs PIMC (determinization)
-**Status:** pending
 **Hypothesis (H4):** Current MCTS implicitly exploits hidden info via `transition_state` determinism. PIMC (re-shuffle `bird_deck` / `bonus_deck` / opponent hidden hands and re-seed `state.rng` per simulation) plays measurably differently. The strength gap *in honest evaluation* is the cheat tax.
-**Config:** mcts:500 (peek) vs mcts:500 (PIMC), with eval performed under PIMC for both (honest play conditions).
-**Games:** 200 per matchup (paired). Run at both `num_workers=1` and `num_workers=2`.
+**What it measures:** Win rate of peek-MCTS vs honest PIMC, both evaluated under honest play conditions.
+**Why:** Quantifies how much of current MCTS's strength comes from exploiting engine-level observability that a real agent wouldn't have. Critical input to H6 — if peek's advantage is small, the bootstrap-data question becomes moot.
 **Depends on:** PIMC implementation in `game/` (see TODO).
-**Reasoning:** Quantifies how much of current MCTS's strength comes from exploiting engine-level observability that a real agent wouldn't have. Critical input to H6 — if peek's advantage is small, the bootstrap-data question becomes moot.
 
 ---
 
 ### EXP-007: Rollout policy comparison
-**Status:** pending
 **Hypothesis (H5):** Score-aware rollouts beat random rollouts at fixed sim budget by more than 2× sim count.
-**Config:**
-```yaml
-defaults:
-  simulations: 500
-matchups:
-  - [rollout:random, rollout:greedy_score]      # 1.0 mix
-  - [rollout:random, rollout:eps_greedy_0.3]    # ε=0.3
-  - [rollout:eps_greedy_0.3, rollout:eps_greedy_0.5]
-  - [rollout:random, rollout:k_step_heuristic]  # truncated rollout + leaf heuristic
-  - [rollout:random@1000, rollout:eps_greedy_0.3@500]  # 2× sim budget control
-```
-**Games:** 200 per matchup (paired).
+**What it measures:** Win rate of each rollout policy (random, greedy_score, eps_greedy at various ε, K-step + heuristic) at fixed sim budget; also a "2× sim budget control" run to confirm the win isn't just from extra compute.
+**Why:** Random rollouts in Wingspan are particularly noisy because games are long (~200 moves) and end-of-round/round-goal alignment requires coherent play. Highest expected ROI experiment for raw playing strength; also a clean ablation for the compute-efficiency paper angle.
 **Depends on:** pluggable rollout policy in `_simulate` (see TODO).
-**Reasoning:** Random rollouts in Wingspan are particularly noisy because games are long (~200 moves) and end-of-round/round-goal alignment requires coherent play. This is the highest expected ROI experiment for raw playing strength; also a clean ablation for the "compute efficiency" paper angle.
 
 ---
 
 ### EXP-008: Bootstrap data quality for NN training
-**Status:** pending
 **Hypothesis (H6):** At fixed total compute, peek-MCTS bootstrap data trains an NN that matches or beats PIMC-bootstrap, before self-play iteration takes over.
 **Config:** generate `N` games each from three data sources, train an identical NN architecture on each, evaluate all three against honest-PIMC opponent:
 - (a) Peek-MCTS (biased, strong)
@@ -169,7 +125,6 @@ matchups:
 ---
 
 ### EXP-009: Bootstrap vs from-scratch self-play
-**Status:** pending
 **Hypothesis (H7):** At fixed compute budget, NN warm-started from MCTS bootstrap data reaches target strength faster than NN trained from random init via pure self-play. Quantifying the speedup (and the crossover point where pure self-play catches up, if any) is a direct measurement of bootstrap's value at our compute scale.
 **Config:** train two NNs of identical architecture under matched total-compute budgets:
 - (a) **Bootstrap arm:** initial supervised training on N games of best-config MCTS, then iterative self-play.
@@ -192,8 +147,6 @@ _(none yet)_
 - 2024-02-04: **Determinism verified** - identical seeds produce identical MCTS trees and moves
 - 2026-05-11: **Cross-process determinism verified** — identical seeds produce identical moves across `PYTHONHASHSEED ∈ {0, 1, random}` × `num_workers ∈ {1, 2}` × `game_seed ∈ {1, 42, 999}`. The engine is `PYTHONHASHSEED`-invariant; no env wrapper needed for paired comparisons even at `num_workers > 1`. See `lab/benchmarks/test_determinism.py`.
 - **Paired-design variance reduction is reported as a byproduct of every paired EXP.** For each, compute `effective_n_multiplier = (Var(A) + Var(B)) / Var(A − B)` over the paired outcomes; record alongside the primary result. The methodology itself is textbook (paired t-test / McNemar / blocked designs) and needs no dedicated experiment to justify, but the realized multiplier is empirical and is expected to **vary across experiments**: large for small-effect comparisons (e.g. EXP-002 near-optimal `c` tuning), smaller for large-effect ones (e.g. EXP-001 sim-budget extremes). Paper methods section should report the range across all paired EXPs plus one representative anchor — not a single global number.
-- Random vs MCTS sanity check needed before serious experiments
-- Paired experiment framework: use `mode: paired` in config with `python -m lab -c <path>`
 
 ---
 
@@ -211,20 +164,12 @@ Ideas evaluated and explicitly *not* in the queue. Recorded with rationale so fu
 
 ---
 
-## Analysis Queries
+## Analysis goals
 
-Common pandas queries for analyzing results:
+What the analysis layer should be able to answer (implementation in `analysis.py`):
 
-```python
-import pandas as pd
-df = pd.read_parquet('experiments/data/games.parquet')
-
-# Win rate by strategy
-df.groupby(['simulations', 'exploration_constant'])['is_winner'].mean()
-
-# First player advantage
-df.groupby('is_first_player')['is_winner'].mean()
-
-# Score distribution
-df.groupby('strategy_name')['total_score'].describe()
-```
+- Win rate by hyperparameter value (groupby on any key inside `strategy_config`).
+- First-player advantage size and direction (split by `is_first_player`).
+- Score distribution and breakdown across strategies and configs.
+- Per-experiment paired-design variance reduction multiplier (the empirical complement to the textbook claim — see Notes & Observations).
+- Game closeness / round goal contribution / decision-point statistics from the joined `games` + `decisions` parquets.

@@ -1,6 +1,6 @@
 # Wingspan Project Roadmap
 
-Long-term plan for the project, from the current state (engine complete, experiment harness scaffolded) through the AlphaZero-style NN end state. Companion to `EXPERIMENTS.md` (research hypotheses & queue) and `TODO.md` (engineering items).
+Long-term plan for the project, from the current state (engine complete, experiment harness scaffolded) through the AlphaZero-style NN end state. Big-picture vision only — sprint-level work lives in `BACKLOG.md`; capture-only ideas live in `INBOX.md`; experiment definitions and results live in `EXPERIMENTS.md`.
 
 ## Project goal
 
@@ -15,7 +15,7 @@ All MCTS optimizations (PIMC, score-aware rollouts, K-step rollouts, PUCT, actio
 1. Any combination of flags can be run through the same code path, including the full factorial (2^N).
 2. The flag values auto-serialize into each row of `games.parquet`, so analysis is just *"group by config columns, win rate vs reference."*
 
-Every ablation experiment evaluates against the **same fixed reference opponent** (e.g., MCTS at default config / 500 sims / seed 0). This means win rates from different experiments live on a common scale and are directly comparable — necessary for stacking "A is worth +X%, B is worth +Y%" claims.
+Every ablation experiment evaluates against the **same fixed reference opponent** (`REFERENCE_PARAMS` in `lab/generators.py`). This means win rates from different experiments live on a common scale and are directly comparable — necessary for stacking "A is worth +X%, B is worth +Y%" claims. The current reference is *provisional* (peek-MCTS at 500 sims); the final choice depends on EXP-006's peek-vs-PIMC outcome.
 
 Subtlety to keep in mind: ablations measure marginal contributions, but subset-sums don't always equal the whole. Two optimizations can overlap (sum > whole) or synergize (whole > sum). The factorial design exposes this; per-optimization *"+N%"* numbers hide it. For the paper, report both the one-at-a-time marginal effects and the full subset matrix.
 
@@ -30,7 +30,7 @@ Phase 3 — Mass game generation           [compute-bound, low-touch]
 Phase 4 — NN bootstrap and self-play     [the AlphaZero phase]
 ```
 
-**Phase 1 — Foundation for ablations.** Do *not* run real experiments before this is done. Expand `decisions.parquet` to capture observable state + turn context (the "Generate training data for NN" TODO). Rewrite `analysis.py` for the parquet schema. Scaffold `MCTSConfig` with feature flags for every planned optimization (empty stubs are fine). Pick the reference opponent. The investment pays for itself the first time you re-run an experiment instead of re-collecting data.
+**Phase 1 — Foundation for ablations.** Do *not* run real strength-sensitive experiments before this is done. Rewrite `analysis.py` for the new parquet schema. PIMC needs to land (see `BACKLOG.md`) and EXP-006 (peek vs PIMC) needs to run before the project-wide reference is finalized — only then are cross-experiment win rates trustworthy. The experiment harness supports `vs_reference`, `paired`, and `continuous` modes; strategy hyperparams auto-serialize via the flexible `strategy_config` map so new MCTS flags need no schema work; observable game state at any decision is reconstructed by replaying the action log through the engine — no per-decision state snapshot to store. The investment pays for itself the first time you re-run an experiment instead of re-collecting data.
 
 **Phase 2 — MCTS strength frontier.** Run EXP-001 through EXP-007 as an ablation matrix over the Phase 1 flags. Output: a quantified "what matters how much" table + the best-config MCTS player.
 
@@ -39,25 +39,3 @@ Phase 4 — NN bootstrap and self-play     [the AlphaZero phase]
 **Phase 4 — NN bootstrap and self-play.** EXP-008 plus the NN architecture work, plus iterative self-play after the initial bootstrap. The eventual paper is written from results here.
 
 The boundary that matters: **do not cross Phase 1 → Phase 2** until the data infrastructure is right. Every experiment run before the schema is final is data you'll likely have to throw away.
-
----
-
-## Short-term — the next three things, in order
-
-1. **Expand `DECISIONS_SCHEMA`** in `lab/data.py` per the "Generate training data for NN" TODO. Surgical change; unblocks everything downstream.
-
-2. **Rewrite `analysis.py`** for the new parquet schema. Replaces the dead CSV-era code; targets the data you're about to start producing. Unblocks running *and interpreting* experiments.
-
-3. **Add a reference-opponent helper** in `lab/generators.py` — small `vs_reference` mode that pairs each strategy against a fixed baseline. This is what makes ablations comparable across runs.
-
-After those: EXP-004 (first-player advantage) is a quick sanity check; EXP-001 (sim scaling) is the first real experiment.
-
----
-
-## Status conventions
-
-When checking back into this file, the convention is:
-
-- A phase is **in progress** when its first task is started.
-- A phase is **complete** when every task it gates is checkable (e.g., Phase 1 is complete when `decisions.parquet` has the new schema, `analysis.py` works against it, `MCTSConfig` has the flags, and the reference opponent is picked).
-- Add dated notes under each phase as it progresses; promote completed items to `EXPERIMENTS.md` under "Completed Experiments" where applicable.
