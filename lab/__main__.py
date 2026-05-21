@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from tqdm import tqdm
 
 from lab.strategies import Strategy
 from lab.data import GamesWriter, DecisionsWriter
@@ -45,14 +46,19 @@ def _attribute_by_position(result, games_in_group: int) -> str:
 
 
 def _print_group(header: str, r: dict, a_label: str, b_label: str):
+    _print_group_via(print, header, r, a_label, b_label)
+
+
+def _print_group_via(write_fn, header: str, r: dict, a_label: str, b_label: str):
+    """Print group summary via a writer (use tqdm.write to avoid clobbering progress bar)."""
     total = sum(r.values())
     if total == 0:
         return
-    print(f"\n{header}:")
-    print(f"  {a_label}: {r['A']}/{total} ({r['A'] / total * 100:.1f}%)")
-    print(f"  {b_label}: {r['B']}/{total} ({r['B'] / total * 100:.1f}%)")
+    write_fn(f"\n{header}:")
+    write_fn(f"  {a_label}: {r['A']}/{total} ({r['A'] / total * 100:.1f}%)")
+    write_fn(f"  {b_label}: {r['B']}/{total} ({r['B'] / total * 100:.1f}%)")
     if r["ties"] > 0:
-        print(f"  ties: {r['ties']}")
+        write_fn(f"  ties: {r['ties']}")
 
 
 def print_config_summary(config: dict, data_dir: Path):
@@ -139,6 +145,13 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
         results = {g: {"A": 0, "B": 0, "ties": 0} for g in groups}
 
     games_played = 0
+    progress = tqdm(
+        total=total_games,
+        desc="games",
+        unit="game",
+        dynamic_ncols=True,
+        smoothing=0.1,
+    )
 
     with GamesWriter(data_dir) as games_writer:
         decisions_writer = DecisionsWriter(data_dir) if record_decisions else None
@@ -153,6 +166,7 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
                 )
                 games_writer.add_game(result)
                 games_played += 1
+                progress.update(1)
 
                 if decisions_writer and game_decisions:
                     decisions_writer.add_game_decisions(game_decisions)
@@ -163,18 +177,33 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
                     results[group][outcome] += 1
                     games_in_group += 1
 
+                    # Live A/B tally on the progress bar for the current group.
+                    a_label, b_label = labels_fn(group)
+                    r = results[group]
+                    completed = r["A"] + r["B"] + r["ties"]
+                    progress.set_postfix_str(
+                        f"{header_fn(group)} | "
+                        f"{a_label}:{r['A']} {b_label}:{r['B']} ties:{r['ties']} "
+                        f"({completed}/{games_per_group})"
+                    )
+
                     if games_in_group >= games_per_group:
-                        a_label, b_label = labels_fn(group)
-                        _print_group(header_fn(group), results[group], a_label, b_label)
+                        progress.write("")
+                        _print_group_via(
+                            progress.write,
+                            header_fn(group),
+                            results[group],
+                            a_label,
+                            b_label,
+                        )
                         current_group_idx += 1
                         games_in_group = 0
-                elif games_played % 10 == 0:
-                    print(f"Games played: {games_played}")
 
                 if total_games and games_played >= total_games:
                     break
 
         finally:
+            progress.close()
             if decisions_writer:
                 decisions_writer.close()
 

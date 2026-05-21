@@ -34,6 +34,12 @@ class Strategy(ABC):
         """Select an action given game state and legal moves."""
         pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb) -> None:
+        pass
+
     @property
     def config(self) -> dict[str, Any]:
         """Serializable hyperparams for storage. Auto-derived from self.params."""

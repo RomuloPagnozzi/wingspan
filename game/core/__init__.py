@@ -29,6 +29,7 @@ from .game import (
     ActionData,
 )
 from .custom_copy import copy_state
+from .redeterminize import redeterminize
 from .action_types import (
     Action,
     SimpleAction,
@@ -88,4 +89,6 @@ __all__ = [
     "roll_feeder",
     # copy
     "copy_state",
+    # determinization
+    "redeterminize",
 ]

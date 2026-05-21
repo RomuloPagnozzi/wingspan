@@ -8,7 +8,7 @@ import signal
 from dataclasses import dataclass, field
 from typing import Any
 
-from game.core import GameState, Action, copy_state, init_registries
+from game.core import GameState, Action, copy_state, init_registries, redeterminize
 from game.actions import get_actions
 from game.engine import transition_state
 
@@ -27,11 +27,12 @@ class MCTSConfig:
     exploration_constant: float = 1.41
     value_function: ValueFunction = ValueFunction.SCORE_DELTA
     num_workers: int = 1
+    determinize: bool = False
 
 
 @dataclass(slots=True)
 class MCTSNode:
-    """A node in the MCTS tree."""
+    """Peek-mode MCTS node: caches state, tracks untried legal actions."""
 
     state: GameState
     player_index: int
@@ -66,44 +67,45 @@ class MCTSNode:
         return exploitation + exploration
 
 
+@dataclass(slots=True)
+class ISMCTSNode:
+    """IS-MCTS node: stateless. State is reconstructed per-simulation from a
+    freshly determinized root by replaying actions along the path.
+
+    `availability` counts how often this child was a legal candidate for
+    selection at its parent (across all sampled worlds). It replaces the
+    parent-visit count in the UCB exploration term per Cowling et al. 2012
+    so children that are only sometimes-legal aren't unfairly down-weighted.
+    """
+
+    parent: ISMCTSNode | None = None
+    action_taken: Action | None = None
+    children: dict[Action, ISMCTSNode] = field(default_factory=dict)
+    visits: int = 0
+    availability: int = 0
+    total_value: float = 0.0
+
+    def ucb1_ismcts(self, exploration_constant: float) -> float:
+        if self.visits == 0 or self.availability == 0:
+            return float("inf")
+        exploitation = self.total_value / self.visits
+        exploration = exploration_constant * math.sqrt(
+            math.log(self.availability) / self.visits
+        )
+        return exploitation + exploration
+
+
 # =============================================================================
-# MCTS algorithm
+# Shared helpers
 # =============================================================================
 
 
-def _select(node: MCTSNode, exploration_constant: float) -> MCTSNode:
-    while not node.is_terminal and node.is_fully_expanded:
-        node = max(node.children.values(), key=lambda n: n.ucb1(exploration_constant))
-    return node
-
-
-def _expand(node: MCTSNode, rng: random.Random) -> MCTSNode:
-    if node.is_terminal or not node.untried_actions:
-        return node
-
-    idx = rng.randrange(len(node.untried_actions))
-    action = node.untried_actions[idx]
-    node.untried_actions[idx] = node.untried_actions[-1]
-    node.untried_actions.pop()
-
-    new_state = transition_state(node.state, action)
-    child = MCTSNode(
-        state=new_state,
-        player_index=new_state.current_player_index,
-        parent=node,
-        action_taken=action,
-    )
-    node.children[action] = child
-    return child
-
-
-def _simulate(
-    node: MCTSNode,
+def _simulate_from_state(
+    state: GameState,
     root_player_index: int,
     value_function: ValueFunction,
     rng: random.Random,
 ) -> float:
-    state = node.state
     while actions := get_actions(state):
         action = rng.choice(actions)
         state = transition_state(state, action)
@@ -150,11 +152,102 @@ def _compute_value(
             raise ValueError(f"Unknown value function: {value_function}")
 
 
-def _backpropagate(node: MCTSNode | None, value: float) -> None:
+def _backpropagate(node: MCTSNode | ISMCTSNode | None, value: float) -> None:
     while node is not None:
         node.visits += 1
         node.total_value += value
         node = node.parent
+
+
+# =============================================================================
+# Peek MCTS algorithm
+# =============================================================================
+
+
+def _select(node: MCTSNode, exploration_constant: float) -> MCTSNode:
+    while not node.is_terminal and node.is_fully_expanded:
+        node = max(node.children.values(), key=lambda n: n.ucb1(exploration_constant))
+    return node
+
+
+def _expand(node: MCTSNode, rng: random.Random) -> MCTSNode:
+    if node.is_terminal or not node.untried_actions:
+        return node
+
+    idx = rng.randrange(len(node.untried_actions))
+    action = node.untried_actions[idx]
+    node.untried_actions[idx] = node.untried_actions[-1]
+    node.untried_actions.pop()
+
+    new_state = transition_state(node.state, action)
+    child = MCTSNode(
+        state=new_state,
+        player_index=new_state.current_player_index,
+        parent=node,
+        action_taken=action,
+    )
+    node.children[action] = child
+    return child
+
+
+def _peek_iteration(
+    root: MCTSNode,
+    exploration_constant: float,
+    value_function: ValueFunction,
+    rng: random.Random,
+) -> None:
+    node = _select(root, exploration_constant)
+    node = _expand(node, rng)
+    value = _simulate_from_state(node.state, root.player_index, value_function, rng)
+    _backpropagate(node, value)
+
+
+# =============================================================================
+# IS-MCTS algorithm (per-simulation determinization, SO-ISMCTS)
+# =============================================================================
+
+
+def _ismcts_iteration(
+    root: ISMCTSNode,
+    root_state: GameState,
+    perspective_player: int,
+    exploration_constant: float,
+    value_function: ValueFunction,
+    rng: random.Random,
+) -> None:
+    state = redeterminize(root_state, perspective_player, rng)
+    node = root
+
+    while True:
+        legal = get_actions(state)
+        if not legal:
+            value = _compute_value(state, perspective_player, value_function)
+            _backpropagate(node, value)
+            return
+
+        legal_set = set(legal)
+        untried = [a for a in legal if a not in node.children]
+
+        if untried:
+            idx = rng.randrange(len(untried))
+            action = untried[idx]
+            state = transition_state(state, action)
+            child = ISMCTSNode(parent=node, action_taken=action)
+            node.children[action] = child
+            value = _simulate_from_state(state, perspective_player, value_function, rng)
+            _backpropagate(child, value)
+            return
+
+        # All legal actions have a child. Increment availability for every
+        # compatible child (per IS-MCTS), then UCB-select among them.
+        compatible = [(a, c) for a, c in node.children.items() if a in legal_set]
+        for _, c in compatible:
+            c.availability += 1
+        action, child = max(
+            compatible, key=lambda ac: ac[1].ucb1_ismcts(exploration_constant)
+        )
+        state = transition_state(state, action)
+        node = child
 
 
 # =============================================================================
@@ -168,20 +261,39 @@ def _worker_init():
 
 
 def _run_mcts_worker(args: tuple) -> dict[Action, tuple[int, float]]:
-    state, player_index, simulations, exploration_constant, value_function, seed = args
+    (
+        state,
+        player_index,
+        simulations,
+        exploration_constant,
+        value_function,
+        seed,
+        determinize,
+    ) = args
     rng = random.Random(seed)
 
-    root = MCTSNode(state=state, player_index=player_index)
+    if determinize:
+        root: ISMCTSNode = ISMCTSNode()
+        for _ in range(simulations):
+            _ismcts_iteration(
+                root,
+                state,
+                player_index,
+                exploration_constant,
+                value_function,
+                rng,
+            )
+        return {
+            action: (child.visits, child.total_value)
+            for action, child in root.children.items()
+        }
 
+    peek_root = MCTSNode(state=state, player_index=player_index)
     for _ in range(simulations):
-        node = _select(root, exploration_constant)
-        node = _expand(node, rng)
-        value = _simulate(node, player_index, value_function, rng)
-        _backpropagate(node, value)
-
+        _peek_iteration(peek_root, exploration_constant, value_function, rng)
     return {
         action: (child.visits, child.total_value)
-        for action, child in root.children.items()
+        for action, child in peek_root.children.items()
     }
 
 
@@ -257,28 +369,44 @@ class MCTSStrategy(Strategy):
         return self._select_action_sequential(state)
 
     def _select_action_sequential(self, state: GameState) -> Action:
-        root = MCTSNode(
-            state=copy_state(state), player_index=state.current_player_index
-        )
+        perspective = state.current_player_index
+        root_state = copy_state(state)
 
-        for _ in range(self.params.simulations):
-            node = _select(root, self.params.exploration_constant)
-            node = _expand(node, self._rng)
-            value = _simulate(
-                node, root.player_index, self.params.value_function, self._rng
-            )
-            _backpropagate(node, value)
+        if self.params.determinize:
+            ismcts_root = ISMCTSNode()
+            for _ in range(self.params.simulations):
+                _ismcts_iteration(
+                    ismcts_root,
+                    root_state,
+                    perspective,
+                    self.params.exploration_constant,
+                    self.params.value_function,
+                    self._rng,
+                )
+            children = ismcts_root.children
+            root_visits = ismcts_root.visits
+            root_total_value = ismcts_root.total_value
+        else:
+            peek_root = MCTSNode(state=root_state, player_index=perspective)
+            for _ in range(self.params.simulations):
+                _peek_iteration(
+                    peek_root,
+                    self.params.exploration_constant,
+                    self.params.value_function,
+                    self._rng,
+                )
+            children = peek_root.children
+            root_visits = peek_root.visits
+            root_total_value = peek_root.total_value
 
-        self._last_visit_counts = {
-            action: child.visits for action, child in root.children.items()
-        }
-        self._last_root_value = root.total_value / root.visits if root.visits else None
+        self._last_visit_counts = {action: c.visits for action, c in children.items()}
+        self._last_root_value = root_total_value / root_visits if root_visits else None
         self._last_action_values = {
-            action: child.total_value / child.visits
-            for action, child in root.children.items()
-            if child.visits > 0
+            action: c.total_value / c.visits
+            for action, c in children.items()
+            if c.visits > 0
         }
-        return max(root.children.items(), key=lambda x: x[1].visits)[0]
+        return max(children.items(), key=lambda x: x[1].visits)[0]
 
     def _select_action_parallel(self, state: GameState) -> Action:
         num_workers = self.params.num_workers
@@ -294,6 +422,7 @@ class MCTSStrategy(Strategy):
                 self.params.exploration_constant,
                 self.params.value_function,
                 worker_seeds[i],
+                self.params.determinize,
             )
             for i in range(num_workers)
         ]
@@ -332,4 +461,8 @@ class MCTSStrategy(Strategy):
         return self._last_action_values
 
     def __str__(self) -> str:
-        return f"MCTS(n={self.params.simulations}, c={self.params.exploration_constant}, {self.params.value_function.value})"
+        mode = "ismcts" if self.params.determinize else "peek"
+        return (
+            f"MCTS(n={self.params.simulations}, c={self.params.exploration_constant}, "
+            f"{self.params.value_function.value}, {mode})"
+        )
