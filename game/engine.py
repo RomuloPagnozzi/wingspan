@@ -25,25 +25,35 @@ from .power import get_power_handler
 
 
 def transition_state(state: GameState, action: Action) -> GameState:
-    """Return new state after applying an action."""
+    """Apply an action and return a new state. Input state is not mutated."""
+    return transition_state_inplace(copy_state(state), action)
+
+
+def transition_state_inplace(state: GameState, action: Action) -> GameState:
+    """Apply an action by mutating `state` in place. The caller must own the
+    state (no aliasing). Returns the same `state` object for convenience.
+
+    Use only when the state's lifetime is confined to the call chain
+    (e.g. IS-MCTS per-simulation walk + rollout, where the redeterminized
+    state has a single owner). Peek-MCTS tree nodes alias their states
+    across simulations and must continue to use `transition_state`.
+    """
     from .phase_handlers import get_phase_handler
 
-    new_state = copy_state(state)
-
-    handler = get_phase_handler(new_state.game_phase)
+    handler = get_phase_handler(state.game_phase)
     if not handler:
-        raise NotImplementedError(f"No handler for: {new_state.game_phase}")
-    new_state = handler(new_state, action)
+        raise NotImplementedError(f"No handler for: {state.game_phase}")
+    state = handler(state, action)
 
-    while new_state.action_data.pending_callback:
-        callback_phase, callback_action = new_state.action_data.pending_callback
-        new_state.action_data.pending_callback = None
+    while state.action_data.pending_callback:
+        callback_phase, callback_action = state.action_data.pending_callback
+        state.action_data.pending_callback = None
         handler = get_phase_handler(callback_phase)
         if not handler:
             raise NotImplementedError(f"No handler for callback: {callback_phase}")
-        new_state = handler(new_state, callback_action)
+        state = handler(state, callback_action)
 
-    return new_state
+    return state
 
 
 def finish_main_action(

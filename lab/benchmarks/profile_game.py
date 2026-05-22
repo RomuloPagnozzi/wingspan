@@ -29,16 +29,15 @@ def play_game():
         determinize=DETERMINIZE,
     )
     state = initiate_state(N_PLAYERS, seed=GAME_SEED)
+    strategy = MCTSStrategy(params=config, seed=MCTS_SEED)
 
-    with MCTSStrategy(params=config, seed=MCTS_SEED) as strategy:
-        move_count = 0
+    move_count = 0
+    while actions := get_actions(state):
+        action = strategy.select_action(state, actions)
+        state = transition_state(state, action)
+        move_count += 1
 
-        while actions := get_actions(state):
-            action = strategy.select_action(state, actions)
-            state = transition_state(state, action)
-            move_count += 1
-
-        scores = [p.score.total for p in state.players]
+    scores = [p.score.total for p in state.players]
 
     print(f"Game over after {move_count} moves")
     for i, score in enumerate(scores):

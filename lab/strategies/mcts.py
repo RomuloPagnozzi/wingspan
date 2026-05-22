@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from game.core import GameState, Action, copy_state, redeterminize
 from game.actions import get_actions
-from game.engine import transition_state
+from game.engine import transition_state, transition_state_inplace
 
 from .base import Strategy, ValueFunction, register_strategy
 
@@ -104,6 +104,19 @@ def _simulate_from_state(
     while actions := get_actions(state):
         action = rng.choice(actions)
         state = transition_state(state, action)
+    return _compute_value(state, root_player_index, value_function)
+
+
+def _rollout_inplace(
+    state: GameState,
+    root_player_index: int,
+    value_function: ValueFunction,
+    rng: random.Random,
+) -> float:
+    """Mutating rollout for IS-MCTS. Caller must own `state`."""
+    while actions := get_actions(state):
+        action = rng.choice(actions)
+        state = transition_state_inplace(state, action)
     return _compute_value(state, root_player_index, value_function)
 
 
@@ -226,10 +239,10 @@ def _ismcts_iteration(
         if untried:
             idx = rng.randrange(len(untried))
             action = untried[idx]
-            state = transition_state(state, action)
+            state = transition_state_inplace(state, action)
             child = ISMCTSNode(parent=node, action_taken=action)
             node.children[action] = child
-            value = _simulate_from_state(state, perspective_player, value_function, rng)
+            value = _rollout_inplace(state, perspective_player, value_function, rng)
             _backpropagate(child, value)
             return
 
@@ -241,7 +254,7 @@ def _ismcts_iteration(
         action, child = max(
             compatible, key=lambda ac: ac[1].ucb1_ismcts(exploration_constant)
         )
-        state = transition_state(state, action)
+        state = transition_state_inplace(state, action)
         node = child
 
 

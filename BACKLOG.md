@@ -4,8 +4,8 @@ Prioritized work, top = next. Each item has a design vision and is one refinemen
 
 ## Sprint order
 
-1. In-place `transition_state` for IS-MCTS rewalk
-2. IS-MCTS (opt-in determinization) — implementation done; remaining: `REFERENCE_PARAMS` decision after EXP-006
+1. IS-MCTS (opt-in determinization) — implementation done; remaining: `REFERENCE_PARAMS` decision after EXP-006
+2. ~~In-place `transition_state` for IS-MCTS rewalk~~ — done (3.3× per-sim speedup)
 3. ~~Game-level parallelism in the experiment harness~~ — done
 
 ---
@@ -46,7 +46,7 @@ Prioritized work, top = next. Each item has a design vision and is one refinemen
 
 ---
 
-### In-place `transition_state` for IS-MCTS rewalk
+### In-place `transition_state` for IS-MCTS rewalk ✅ DONE
 
 **What**: Add `transition_state_inplace(state, action) -> state` that applies the same phase/power/effect logic as `transition_state` but **mutates** the input state instead of copying it first. Use the in-place variant inside the IS-MCTS tree walk and rollout. Peek-MCTS continues to use the copying `transition_state` (its node states are cached and aliased).
 
@@ -91,10 +91,11 @@ def transition_state_inplace(state, action):
 
 #### Sequencing
 
-- [ ] Refactor `transition_state` into wrapper + `transition_state_inplace`
-- [ ] Swap IS-MCTS to in-place variant (walk + rollout)
-- [ ] Byte-equivalence check against pre-change IS-MCTS moves
-- [ ] Re-run `benchmark_ismcts.py` to confirm speedup
+- [x] Refactored `transition_state` into thin wrapper + `transition_state_inplace`; peek path untouched
+- [x] Added `_rollout_inplace` for IS-MCTS rollouts; swapped IS-MCTS walk + rollout to in-place
+- [x] Byte-equivalence check: `(game_seed=1, mcts_seed=11, 30 sims)` produced identical SHA256 of move sequence before/after
+- [x] 201/201 unit tests pass; `test_parallel_equivalence.py` still passes for both modes
+- [x] `benchmark_ismcts.py`: ~4.8 µs → ~1.45 µs per sim — **3.3× per-sim speedup**. IS-MCTS now faster than peek (peek pays per-step copy in rollout; IS-MCTS pays one copy at redeterminize entry then mutates).
 
 ---
 
