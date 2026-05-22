@@ -1,20 +1,17 @@
 """Test that identical seeds produce identical MCTS behavior.
 
-Has two regimes:
+Two regimes:
 
 1. Same-process determinism — runs two games back-to-back in this process.
-   Fails if `random.Random(seed)` plumbing is broken, but cannot detect
-   hash-seed-sensitive iteration because PYTHONHASHSEED is constant within
-   a single process.
+   Catches broken `random.Random(seed)` plumbing but cannot detect
+   hash-seed-sensitive iteration (PYTHONHASHSEED is constant within a process).
 
 2. Cross-process determinism — re-launches this file as a subprocess with
    several distinct `PYTHONHASHSEED` values and compares the move streams,
-   across multiple `(game_seed, num_workers)` configurations. Catches:
+   across `(game_seed, determinize)` configurations. Catches:
      - hidden `set()` / `dict[str, …]` iteration leaks (varies hashseed),
-     - per-worker hash-seed drift in parallel MCTS (varies num_workers),
-     - power code paths exercised only on certain seeds (varies game_seed).
-   Required for paired-comparison validity when `num_workers > 1` (each
-   MCTS worker is a separate spawned interpreter).
+     - power code paths exercised only on certain seeds (varies game_seed),
+     - IS-MCTS redeterminization order leaks (varies determinize).
 """
 
 import itertools
@@ -30,7 +27,7 @@ if str(REPO_ROOT) not in sys.path:
 from game.core import initiate_state
 from game.actions import get_actions
 from game.engine import transition_state
-from lab.strategies import create_strategy, MCTSStrategy
+from lab.strategies import create_strategy
 
 
 def play_game(
@@ -38,7 +35,6 @@ def play_game(
     mcts_seed: int,
     simulations: int,
     exploration_constant: float,
-    num_workers: int = 1,
     determinize: bool = False,
 ):
     """Play a full game and return (moves_made, final_scores)."""
@@ -46,7 +42,6 @@ def play_game(
         "mcts",
         simulations=simulations,
         exploration_constant=exploration_constant,
-        num_workers=num_workers,
         seed=mcts_seed,
         determinize=determinize,
     )
@@ -54,12 +49,10 @@ def play_game(
     state = initiate_state(2, seed=game_seed)
     moves: list = []
 
-    assert isinstance(strategy, MCTSStrategy)
-    with strategy:
-        while actions := get_actions(state):
-            action = strategy.select_action(state, actions)
-            moves.append(action)
-            state = transition_state(state, action)
+    while actions := get_actions(state):
+        action = strategy.select_action(state, actions)
+        moves.append(action)
+        state = transition_state(state, action)
 
     scores = [p.score.total for p in state.players]
     return moves, scores
@@ -83,7 +76,7 @@ def test_same_process() -> bool:
         label = "ismcts" if determinize else "peek"
         print(
             f"\n[{label}] Parameters: game_seed={game_seed}, mcts_seed={mcts_seed}, "
-            f"sims={simulations}, c={exploration_constant}, num_workers=1"
+            f"sims={simulations}, c={exploration_constant}"
         )
 
         print(f"  Run 1...")
@@ -136,7 +129,7 @@ def test_same_process() -> bool:
 
 
 # =============================================================================
-# Cross-process test (PYTHONHASHSEED × game_seed × num_workers)
+# Cross-process test (PYTHONHASHSEED × game_seed × determinize)
 # =============================================================================
 
 _CHILD_BEGIN = "===CHILD_BEGIN==="
@@ -148,13 +141,10 @@ def _child_run(
     mcts_seed: int,
     simulations: int,
     c: float,
-    num_workers: int,
     determinize: bool,
 ) -> None:
     """Subprocess entry point. Prints moves and scores between markers."""
-    moves, scores = play_game(
-        game_seed, mcts_seed, simulations, c, num_workers, determinize
-    )
+    moves, scores = play_game(game_seed, mcts_seed, simulations, c, determinize)
     print(_CHILD_BEGIN)
     for m in moves:
         print(repr(m))
@@ -168,7 +158,6 @@ def _run_subprocess(
     mcts_seed: int,
     simulations: int,
     c: float,
-    num_workers: int,
     determinize: bool,
 ) -> tuple[list[str], str]:
     """Re-launch this file with PYTHONHASHSEED=hashseed and capture moves+scores."""
@@ -181,7 +170,6 @@ def _run_subprocess(
         str(mcts_seed),
         str(simulations),
         str(c),
-        str(num_workers),
         str(int(determinize)),
     ]
     result = subprocess.run(
@@ -194,7 +182,7 @@ def _run_subprocess(
     except ValueError:
         raise RuntimeError(
             f"Child output malformed for PYTHONHASHSEED={hashseed}, "
-            f"game_seed={game_seed}, num_workers={num_workers}:\n"
+            f"game_seed={game_seed}, determinize={determinize}:\n"
             f"--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"
         )
     payload = lines[start:end]
@@ -238,32 +226,28 @@ def _compare_results(
 def test_cross_process(
     hashseeds: list[str] | None = None,
     game_seeds: list[int] | None = None,
-    worker_counts: list[int] | None = None,
     determinize_values: list[bool] | None = None,
     simulations: int = 100,
     exploration_constant: float = 1.41,
     mcts_seed: int = 123,
 ) -> bool:
-    """Sweep (game_seed × num_workers × determinize × PYTHONHASHSEED). Identical
-    (game_seed, num_workers, determinize) must produce identical moves across all
+    """Sweep (game_seed × determinize × PYTHONHASHSEED). Identical
+    (game_seed, determinize) must produce identical moves across all
     PYTHONHASHSEED values."""
     if hashseeds is None:
         hashseeds = ["0", "1", "random"]
     if game_seeds is None:
         game_seeds = [1, 42, 999]
-    if worker_counts is None:
-        worker_counts = [1, 2]
     if determinize_values is None:
         determinize_values = [False, True]
 
-    n_configs = len(game_seeds) * len(worker_counts) * len(determinize_values)
+    n_configs = len(game_seeds) * len(determinize_values)
     n_runs = n_configs * len(hashseeds)
 
     print("\n" + "=" * 60)
     print("Testing cross-process determinism (PYTHONHASHSEED sweep)...")
     print("=" * 60)
     print(f"  game_seeds:   {game_seeds}")
-    print(f"  num_workers:  {worker_counts}")
     print(f"  determinize:  {determinize_values}")
     print(f"  hashseeds:    {hashseeds}")
     print(
@@ -275,14 +259,11 @@ def test_cross_process(
 
     overall_ok = True
     config_idx = 0
-    for game_seed, num_workers, determinize in itertools.product(
-        game_seeds, worker_counts, determinize_values
-    ):
+    for game_seed, determinize in itertools.product(game_seeds, determinize_values):
         config_idx += 1
         print(
             f"[config {config_idx}/{n_configs}] "
-            f"game_seed={game_seed}, num_workers={num_workers}, "
-            f"determinize={determinize}"
+            f"game_seed={game_seed}, determinize={determinize}"
         )
 
         results: list[tuple[str, list[str], str]] = []
@@ -293,7 +274,6 @@ def test_cross_process(
                 mcts_seed,
                 simulations,
                 exploration_constant,
-                num_workers,
                 determinize,
             )
             print(f"    PYTHONHASHSEED={hs:>6}  →  {len(moves)} moves, {scores}")
@@ -307,13 +287,13 @@ def test_cross_process(
     print("=" * 60)
     if overall_ok:
         print(
-            "✓ Cross-process determinism HOLDS across every (game_seed, num_workers, hashseed)."
+            "✓ Cross-process determinism HOLDS across every (game_seed, determinize, hashseed)."
         )
     else:
         print(
             "✗ Cross-process determinism BROKEN in at least one configuration.\n"
-            "  Iteration order of a string-hashing set/dict is leaking into game logic\n"
-            "  or per-worker behavior. See divergence details above."
+            "  Iteration order of a string-hashing set/dict is leaking into game logic.\n"
+            "  See divergence details above."
         )
     return overall_ok
 
@@ -325,13 +305,12 @@ def test_cross_process(
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--child":
-        _, _, game_seed, mcts_seed, simulations, c, num_workers, determinize = sys.argv
+        _, _, game_seed, mcts_seed, simulations, c, determinize = sys.argv
         _child_run(
             int(game_seed),
             int(mcts_seed),
             int(simulations),
             float(c),
-            int(num_workers),
             bool(int(determinize)),
         )
         return

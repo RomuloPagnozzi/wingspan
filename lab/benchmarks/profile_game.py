@@ -3,8 +3,8 @@
 Usage:
     pyinstrument -r html -o profile.html -m lab.benchmarks.profile_game
 
-Set DETERMINIZE=True to profile IS-MCTS. Keep NUM_WORKERS=1 — pyinstrument
-only sees the main thread, so worker subprocess time is invisible.
+Set DETERMINIZE=True to profile IS-MCTS. MCTS itself is single-threaded;
+experiment-level (game-level) parallelism lives in the harness.
 """
 
 from game.core import initiate_state
@@ -16,7 +16,6 @@ from lab.strategies import MCTSStrategy, MCTSConfig
 N_PLAYERS = 2
 SIMULATIONS = 100
 EXPLORATION_CONSTANT = 1.41
-NUM_WORKERS = 1
 DETERMINIZE = True
 GAME_SEED = 42
 MCTS_SEED = 123
@@ -27,7 +26,6 @@ def play_game():
     config = MCTSConfig(
         simulations=SIMULATIONS,
         exploration_constant=EXPLORATION_CONSTANT,
-        num_workers=NUM_WORKERS,
         determinize=DETERMINIZE,
     )
     state = initiate_state(N_PLAYERS, seed=GAME_SEED)

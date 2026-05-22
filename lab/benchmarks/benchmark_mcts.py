@@ -87,44 +87,9 @@ def estimate_game_time(sims: int, moves_per_game: int = 200):
     )
 
 
-def benchmark_parallel(sims: int = 500, worker_counts: list[int] = []):
-    """Benchmark parallelization speedup."""
-    if not worker_counts:
-        worker_counts = [1, 2, 4]
-
-    print(f"\n{'='*60}")
-    print(f"Parallelization Benchmark ({sims} simulations/move)")
-    print("=" * 60)
-    print(f"{'Workers':>8} | {'Time (s)':>10} | {'Speedup':>10}")
-    print("-" * 35)
-
-    baseline_time = None
-
-    for workers in worker_counts:
-        config = MCTSConfig(simulations=sims, num_workers=workers)
-        strategy = MCTSStrategy(params=config, seed=42)
-
-        state = initiate_state(2)
-        state = advance_to_main_turn(state)
-
-        if state is None:
-            continue
-
-        elapsed = benchmark_single_move(state, strategy)
-
-        if baseline_time is None:
-            baseline_time = elapsed
-            speedup = 1.0
-        else:
-            speedup = baseline_time / elapsed
-
-        print(f"{workers:>8} | {elapsed:>10.3f} | {speedup:>10.2f}x")
-
-
 if __name__ == "__main__":
     sim_counts = [10, 50, 100, 250, 500, 1000]
 
     benchmark_simulations(sim_counts, moves_per_count=3)
     estimate_game_time(100)
     estimate_game_time(500)
-    benchmark_parallel(sims=500, worker_counts=[1, 2, 4])

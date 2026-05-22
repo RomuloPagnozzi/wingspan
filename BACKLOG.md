@@ -4,15 +4,15 @@ Prioritized work, top = next. Each item has a design vision and is one refinemen
 
 ## Sprint order
 
-1. Game-level parallelism in the experiment harness
-2. In-place `transition_state` for IS-MCTS rewalk
-3. IS-MCTS (opt-in determinization) — implementation done; remaining: `REFERENCE_PARAMS` decision after EXP-006
+1. In-place `transition_state` for IS-MCTS rewalk
+2. IS-MCTS (opt-in determinization) — implementation done; remaining: `REFERENCE_PARAMS` decision after EXP-006
+3. ~~Game-level parallelism in the experiment harness~~ — done
 
 ---
 
 ## Specs
 
-### Game-level parallelism in the experiment harness
+### Game-level parallelism in the experiment harness ✅ DONE
 
 **What**: Switch experiment parallelism from sim-level (one game, N workers split the sims inside it) to game-level (N workers, each running an entire game single-threaded). Inside each game `MCTSConfig.num_workers = 1`; the harness owns the pool that distributes games across cores.
 
@@ -38,10 +38,11 @@ Prioritized work, top = next. Each item has a design vision and is one refinemen
 
 #### Sequencing
 
-- [ ] Harness refactor: extract `_run_one_game`, pool wiring
-- [ ] Config plumbing (`game_parallelism`) + mutual-exclusion guard
-- [ ] Smoke + benchmark
-- [ ] Re-run EXP-006 config under game-level parallelism
+- [x] Removed sim-level parallelism from `MCTSStrategy` (no more pool, `__enter__`/`__exit__`, `MCTSConfig.num_workers`)
+- [x] Harness refactor: `_iter_results` branches on `num_workers`; `run_one_game` worker in `lab/simulation.py`; per-game metadata `(game_idx)` round-trips through the pool so attribution survives `imap_unordered` reordering
+- [x] Migrated `num_workers` from `base`/`defaults` → top-level config key in YAMLs
+- [x] Parallel-equivalence test (`lab/benchmarks/test_parallel_equivalence.py`) — byte-identical per-game results for both peek and IS-MCTS across `num_workers=1` vs `num_workers=2`
+- [x] Smoke test confirmed end-to-end with tqdm streaming live A/B tallies
 
 ---
 

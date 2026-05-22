@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 import math
-import multiprocessing as mp
-from multiprocessing.pool import Pool
 import random
-import signal
 from dataclasses import dataclass, field
-from typing import Any
 
-from game.core import GameState, Action, copy_state, init_registries, redeterminize
+from game.core import GameState, Action, copy_state, redeterminize
 from game.actions import get_actions
 from game.engine import transition_state
 
@@ -26,7 +22,6 @@ class MCTSConfig:
     simulations: int = 1000
     exploration_constant: float = 1.41
     value_function: ValueFunction = ValueFunction.SCORE_DELTA
-    num_workers: int = 1
     determinize: bool = False
 
 
@@ -251,60 +246,17 @@ def _ismcts_iteration(
 
 
 # =============================================================================
-# Parallel worker infrastructure
-# =============================================================================
-
-
-def _worker_init():
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    init_registries()
-
-
-def _run_mcts_worker(args: tuple) -> dict[Action, tuple[int, float]]:
-    (
-        state,
-        player_index,
-        simulations,
-        exploration_constant,
-        value_function,
-        seed,
-        determinize,
-    ) = args
-    rng = random.Random(seed)
-
-    if determinize:
-        root: ISMCTSNode = ISMCTSNode()
-        for _ in range(simulations):
-            _ismcts_iteration(
-                root,
-                state,
-                player_index,
-                exploration_constant,
-                value_function,
-                rng,
-            )
-        return {
-            action: (child.visits, child.total_value)
-            for action, child in root.children.items()
-        }
-
-    peek_root = MCTSNode(state=state, player_index=player_index)
-    for _ in range(simulations):
-        _peek_iteration(peek_root, exploration_constant, value_function, rng)
-    return {
-        action: (child.visits, child.total_value)
-        for action, child in peek_root.children.items()
-    }
-
-
-# =============================================================================
 # Strategy
 # =============================================================================
 
 
 @register_strategy
 class MCTSStrategy(Strategy):
-    """Monte Carlo Tree Search strategy."""
+    """Monte Carlo Tree Search strategy.
+
+    Single-threaded. Experiment-level parallelism (running multiple games
+    concurrently) is owned by the harness, not by the strategy.
+    """
 
     name = "mcts"
 
@@ -335,27 +287,6 @@ class MCTSStrategy(Strategy):
         self._last_visit_counts: dict[Action, int] | None = None
         self._last_root_value: float | None = None
         self._last_action_values: dict[Action, float] | None = None
-        self._pool: Pool | None = None
-
-    def __enter__(self) -> MCTSStrategy:
-        if self.params.num_workers > 1 and self._pool is None:
-            ctx = mp.get_context("spawn")
-            self._pool = ctx.Pool(self.params.num_workers, initializer=_worker_init)
-        return self
-
-    def __exit__(
-        self,
-        _exc_type: type[BaseException] | None,
-        _exc_val: BaseException | None,
-        _exc_tb: object,
-    ) -> None:
-        self.close()
-
-    def close(self) -> None:
-        if self._pool is not None:
-            self._pool.terminate()
-            self._pool.join()
-            self._pool = None
 
     def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
         if len(legal_actions) == 1:
@@ -364,11 +295,6 @@ class MCTSStrategy(Strategy):
             self._last_action_values = None
             return legal_actions[0]
 
-        if self.params.num_workers > 1:
-            return self._select_action_parallel(state)
-        return self._select_action_sequential(state)
-
-    def _select_action_sequential(self, state: GameState) -> Action:
         perspective = state.current_player_index
         root_state = copy_state(state)
 
@@ -407,49 +333,6 @@ class MCTSStrategy(Strategy):
             if c.visits > 0
         }
         return max(children.items(), key=lambda x: x[1].visits)[0]
-
-    def _select_action_parallel(self, state: GameState) -> Action:
-        num_workers = self.params.num_workers
-        base_sims = self.params.simulations // num_workers
-        remainder = self.params.simulations % num_workers
-        worker_seeds = [self._rng.randint(0, 2**31) for _ in range(num_workers)]
-
-        worker_args = [
-            (
-                copy_state(state),
-                state.current_player_index,
-                base_sims + (1 if i < remainder else 0),
-                self.params.exploration_constant,
-                self.params.value_function,
-                worker_seeds[i],
-                self.params.determinize,
-            )
-            for i in range(num_workers)
-        ]
-
-        if self._pool is None:
-            ctx = mp.get_context("spawn")
-            self._pool = ctx.Pool(num_workers, initializer=_worker_init)
-
-        results = self._pool.map(_run_mcts_worker, worker_args)
-
-        merged_visits: dict[Action, int] = {}
-        merged_values: dict[Action, float] = {}
-        for worker_result in results:
-            for action, (visits, total_value) in worker_result.items():
-                merged_visits[action] = merged_visits.get(action, 0) + visits
-                merged_values[action] = merged_values.get(action, 0.0) + total_value
-
-        self._last_visit_counts = merged_visits
-        total_visits = sum(merged_visits.values())
-        total_value = sum(merged_values.values())
-        self._last_root_value = total_value / total_visits if total_visits else None
-        self._last_action_values = {
-            action: merged_values[action] / merged_visits[action]
-            for action in merged_visits
-            if merged_visits[action] > 0
-        }
-        return max(merged_visits.items(), key=lambda x: x[1])[0]
 
     def get_last_visit_counts(self) -> dict[Action, int] | None:
         return self._last_visit_counts

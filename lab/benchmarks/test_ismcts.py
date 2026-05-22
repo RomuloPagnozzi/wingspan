@@ -24,17 +24,15 @@ def _play(
         simulations=simulations,
         exploration_constant=1.41,
         value_function=ValueFunction.SCORE_DELTA,
-        num_workers=1,
         determinize=determinize,
     )
     strategy = MCTSStrategy(params=params, seed=mcts_seed)
     state = initiate_state(n_players, seed=game_seed)
     moves: list = []
-    with strategy:
-        while actions := get_actions(state):
-            action = strategy.select_action(state, actions)
-            moves.append(action)
-            state = transition_state(state, action)
+    while actions := get_actions(state):
+        action = strategy.select_action(state, actions)
+        moves.append(action)
+        state = transition_state(state, action)
     return moves
 
 

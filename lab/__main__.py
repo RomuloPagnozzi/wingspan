@@ -2,16 +2,18 @@
 
 import argparse
 import itertools
+import multiprocessing as mp
 import signal
 import sys
 from pathlib import Path
+from typing import Iterable, Iterator
 
 import yaml
 from tqdm import tqdm
 
 from lab.strategies import Strategy
-from lab.data import GamesWriter, DecisionsWriter
-from lab.simulation import simulate_game
+from lab.data import GameResult, GameDecisions, GamesWriter, DecisionsWriter
+from lab.simulation import game_worker_init, run_one_game
 from lab.generators import REFERENCE_PARAMS, build_strategy, count_games, get_generator
 
 _shutdown_requested = False
@@ -21,7 +23,7 @@ def _signal_handler(signum, frame):
     global _shutdown_requested
     if _shutdown_requested:
         sys.exit(1)
-    print("\nShutdown requested. Finishing current game...")
+    print("\nShutdown requested. Finishing in-flight games...")
     _shutdown_requested = True
 
 
@@ -29,24 +31,20 @@ def format_matchup(strategies: list[Strategy]) -> str:
     return " vs ".join(str(s) for s in strategies)
 
 
-def _attribute_by_position(result, games_in_group: int) -> str:
+def _attribute_by_position(result, in_group_idx: int) -> str:
     """Attribute a game result to arm A, arm B, or ties.
 
-    Arm A occupies player position 0 on even games (game_in_group % 2 == 0)
-    and position 1 on odd games (position swap). Identical attribution
-    rule for both paired and vs_reference modes — they only differ in
-    what A and B *are*, not where they sit in the player list.
+    Arm A occupies player position 0 on even in-group games, position 1 on
+    odd ones (position swap). Identical attribution rule for both paired and
+    vs_reference modes — they only differ in what A and B *are*, not where
+    they sit in the player list.
     """
-    a_idx = 0 if games_in_group % 2 == 0 else 1
+    a_idx = 0 if in_group_idx % 2 == 0 else 1
     if result.players[a_idx].is_winner:
         return "A"
     if any(p.is_winner for p in result.players):
         return "B"
     return "ties"
-
-
-def _print_group(header: str, r: dict, a_label: str, b_label: str):
-    _print_group_via(print, header, r, a_label, b_label)
 
 
 def _print_group_via(write_fn, header: str, r: dict, a_label: str, b_label: str):
@@ -65,9 +63,11 @@ def print_config_summary(config: dict, data_dir: Path):
     """Print experiment configuration summary."""
     mode = config.get("mode", "continuous")
     total_games = count_games(config)
+    num_workers = int(config.get("num_workers", 1))
 
     print(f"Experiment Mode: {mode}")
     print(f"Output: {data_dir}")
+    print(f"Workers: {num_workers}  (games run concurrently)")
 
     if mode == "paired":
         compare = config["compare"]
@@ -111,11 +111,56 @@ def print_config_summary(config: dict, data_dir: Path):
     print("-" * 60)
 
 
-def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False):
-    global _shutdown_requested
+def _work_iter(
+    generator: Iterator[tuple[list[Strategy], int]],
+    total_games: int | None,
+    record_decisions: bool,
+) -> Iterator[tuple[list[Strategy], int, int, bool]]:
+    """Yield work items `(strategies, game_seed, game_idx, record_decisions)`,
+    halting on shutdown or when total_games is reached.
 
+    `game_idx` is the 0-based global index; the receiver derives
+    `(group_idx, in_group_idx)` from it.
+    """
+    for game_idx, (strategies, game_seed) in enumerate(generator):
+        if _shutdown_requested:
+            return
+        if total_games is not None and game_idx >= total_games:
+            return
+        yield (strategies, game_seed, game_idx, record_decisions)
+
+
+def _iter_results(
+    work: Iterable[tuple[list[Strategy], int, int, bool]],
+    num_workers: int,
+) -> Iterator[tuple[GameResult, GameDecisions | None, int]]:
+    """Dispatch `work` items to either an in-process loop (num_workers == 1)
+    or a spawn-based Pool (num_workers > 1) and yield result triples
+    `(result, decisions, game_idx)`.
+
+    Process pool (not thread pool): CPython's GIL serializes pure-Python
+    threads, and free-threaded 3.13t was empirically slower for this
+    workload due to atomic-refcount overhead on shared registry lookups.
+    """
+    if num_workers <= 1:
+        for item in work:
+            yield run_one_game(item)
+        return
+
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(num_workers, initializer=game_worker_init) as pool:
+        # chunksize=1 → each item submitted individually; shutdown can drain
+        # in-flight without buffered work piling up in worker queues.
+        for result, decisions, meta in pool.imap_unordered(
+            run_one_game, work, chunksize=1
+        ):
+            yield result, decisions, meta
+
+
+def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False):
     mode = config.get("mode", "continuous")
     total_games = count_games(config)
+    num_workers = int(config.get("num_workers", 1))
     generator = get_generator(config)
 
     # Group-based modes (paired, vs_reference) share tracking machinery.
@@ -125,8 +170,6 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
     labels_fn = None
     results: dict = {}
     games_per_group = 0
-    current_group_idx = 0
-    games_in_group = 0
 
     if mode in ("paired", "vs_reference"):
         compare = config["compare"]
@@ -145,6 +188,8 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
         results = {g: {"A": 0, "B": 0, "ties": 0} for g in groups}
 
     games_played = 0
+    group_completed: dict = {g: 0 for g in groups}
+    group_done_printed: set = set()
     progress = tqdm(
         total=total_games,
         desc="games",
@@ -157,13 +202,8 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
         decisions_writer = DecisionsWriter(data_dir) if record_decisions else None
 
         try:
-            for strategies, game_seed in generator:
-                if _shutdown_requested:
-                    break
-
-                result, game_decisions = simulate_game(
-                    strategies, game_seed, record_decisions=record_decisions
-                )
+            work = _work_iter(generator, total_games, record_decisions)
+            for result, game_decisions, game_idx in _iter_results(work, num_workers):
                 games_writer.add_game(result)
                 games_played += 1
                 progress.update(1)
@@ -172,35 +212,33 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
                     decisions_writer.add_game_decisions(game_decisions)
 
                 if groups:
-                    group = groups[current_group_idx]
-                    outcome = _attribute_by_position(result, games_in_group)
+                    group_idx = game_idx // games_per_group
+                    in_group_idx = game_idx % games_per_group
+                    group = groups[group_idx]
+                    outcome = _attribute_by_position(result, in_group_idx)
                     results[group][outcome] += 1
-                    games_in_group += 1
+                    group_completed[group] += 1
 
-                    # Live A/B tally on the progress bar for the current group.
+                    # Live A/B tally on the progress bar for the most-recent group.
                     a_label, b_label = labels_fn(group)
                     r = results[group]
-                    completed = r["A"] + r["B"] + r["ties"]
+                    completed = group_completed[group]
                     progress.set_postfix_str(
                         f"{header_fn(group)} | "
                         f"{a_label}:{r['A']} {b_label}:{r['B']} ties:{r['ties']} "
                         f"({completed}/{games_per_group})"
                     )
 
-                    if games_in_group >= games_per_group:
+                    if completed >= games_per_group and group not in group_done_printed:
+                        group_done_printed.add(group)
                         progress.write("")
                         _print_group_via(
                             progress.write,
                             header_fn(group),
-                            results[group],
+                            r,
                             a_label,
                             b_label,
                         )
-                        current_group_idx += 1
-                        games_in_group = 0
-
-                if total_games and games_played >= total_games:
-                    break
 
         finally:
             progress.close()
@@ -215,7 +253,7 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
     if groups:
         for group, r in results.items():
             a_label, b_label = labels_fn(group)
-            _print_group(header_fn(group), r, a_label, b_label)
+            _print_group_via(print, header_fn(group), r, a_label, b_label)
 
 
 def load_config(config_path: Path) -> dict:

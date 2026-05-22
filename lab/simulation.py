@@ -1,8 +1,10 @@
 """Shared game simulation logic."""
 
+import signal
 from datetime import datetime
+from typing import Any
 
-from game.core import initiate_state
+from game.core import initiate_state, init_registries
 from game.actions import get_actions
 from game.engine import transition_state
 from lab.strategies import Strategy
@@ -132,3 +134,31 @@ def simulate_game(
         ),
         game_decisions,
     )
+
+
+# =============================================================================
+# Game-level parallelism: worker entry points
+# =============================================================================
+
+
+def game_worker_init() -> None:
+    """Pool initializer: workers ignore SIGINT (main owns shutdown) and warm
+    the card registries once per worker process."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    init_registries()
+
+
+def run_one_game(
+    args: tuple[list[Strategy], int, Any, bool],
+) -> tuple[GameResult, GameDecisions | None, Any]:
+    """Worker entry point for game-level parallelism.
+
+    `metadata` is opaque to the worker and round-tripped back so the main
+    process can reattach a result to its (group, position) slot regardless
+    of completion order.
+    """
+    strategies, game_seed, metadata, record_decisions = args
+    result, decisions = simulate_game(
+        strategies, game_seed, record_decisions=record_decisions
+    )
+    return result, decisions, metadata

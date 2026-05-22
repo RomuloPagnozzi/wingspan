@@ -2,7 +2,6 @@
 
 import itertools
 import random
-from dataclasses import replace
 from typing import Iterator
 
 from lab.strategies import (
@@ -13,10 +12,9 @@ from lab.strategies import (
     create_strategy,
 )
 
-# Project-wide fixed reference opponent. Locked strategic params; num_workers
-# is overridden per-run. Changing these constants invalidates cross-experiment
-# comparability — pre-change and post-change win rates do not live on the same
-# scale.
+# Project-wide fixed reference opponent. Locked strategic params. Changing
+# these constants invalidates cross-experiment comparability — pre-change
+# and post-change win rates do not live on the same scale.
 REFERENCE_PARAMS = MCTSConfig(
     simulations=500,
     exploration_constant=1.41,
@@ -109,7 +107,6 @@ def vs_reference_generator(
     param_values = compare["values"]
     seed_count = seeds_config["count"]
     seed_start = seeds_config.get("start", 1)
-    ref_params = replace(REFERENCE_PARAMS, num_workers=base.get("num_workers", 1))
 
     for val in param_values:
         for seed_idx in range(seed_count):
@@ -121,7 +118,7 @@ def vs_reference_generator(
             for swap in (False, True):
                 pair = [
                     _instantiate(arm_spec),
-                    MCTSStrategy(params=ref_params, seed=trial_seed),
+                    MCTSStrategy(params=REFERENCE_PARAMS, seed=trial_seed),
                 ]
                 yield (pair[::-1] if swap else pair), game_seed
 
