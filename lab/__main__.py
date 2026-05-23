@@ -14,7 +14,14 @@ from tqdm import tqdm
 from lab.strategies import Strategy
 from lab.data import GameResult, GameDecisions, GamesWriter, DecisionsWriter
 from lab.simulation import game_worker_init, run_one_game
-from lab.generators import REFERENCE_PARAMS, build_strategy, count_games, get_generator
+from lab.generators import (
+    REFERENCE_PARAMS,
+    ConfigError,
+    build_strategy,
+    count_games,
+    get_generator,
+    validate_config,
+)
 
 _shutdown_requested = False
 
@@ -25,10 +32,6 @@ def _signal_handler(signum, frame):
         sys.exit(1)
     print("\nShutdown requested. Finishing in-flight games...")
     _shutdown_requested = True
-
-
-def format_matchup(strategies: list[Strategy]) -> str:
-    return " vs ".join(str(s) for s in strategies)
 
 
 def _attribute_by_position(result, in_group_idx: int) -> str:
@@ -73,11 +76,13 @@ def print_config_summary(config: dict, data_dir: Path):
         compare = config["compare"]
         seeds_config = config["seeds"]
         param_name = compare["parameter"]
-        param_values = compare["values"]
-        pairs = list(itertools.combinations(param_values, 2))
+        arms = compare["values"]
+        pairs = list(itertools.combinations(arms, 2))
 
         print(f"Parameter: {param_name}")
-        print(f"Values: {param_values}")
+        print("Arms:")
+        for arm in arms:
+            print(f"  - {arm['label']} ({param_name}={arm['value']})")
         print(f"Pairs: {len(pairs)}")
         print(
             f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
@@ -87,11 +92,14 @@ def print_config_summary(config: dict, data_dir: Path):
         compare = config["compare"]
         seeds_config = config["seeds"]
         print(
-            f"Reference: MCTS(sims={REFERENCE_PARAMS.simulations}, "
+            f"Reference ({compare['reference_label']}): MCTS("
+            f"sims={REFERENCE_PARAMS.simulations}, "
             f"c={REFERENCE_PARAMS.exploration_constant}, "
             f"vf={REFERENCE_PARAMS.value_function.value})"
         )
-        print(f"Sweep: {compare['parameter']} = {compare['values']}")
+        print(f"Sweep: {compare['parameter']}")
+        for arm in compare["values"]:
+            print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
         print(
             f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
         )
@@ -104,7 +112,11 @@ def print_config_summary(config: dict, data_dir: Path):
         print(f"Matchups: {len(matchup_specs)}")
         for i, spec_list in enumerate(matchup_specs, 1):
             strategies = [build_strategy(spec, defaults) for spec in spec_list]
-            print(f"  {i}. {format_matchup(strategies)}")
+            labels = [spec["label"] for spec in spec_list]
+            named = " vs ".join(
+                f"{label} ({s})" for label, s in zip(labels, strategies)
+            )
+            print(f"  {i}. {named}")
         print(f"Games per round: {games_per_round}")
         print("Total games: infinite (Ctrl+C to stop)")
 
@@ -112,26 +124,26 @@ def print_config_summary(config: dict, data_dir: Path):
 
 
 def _work_iter(
-    generator: Iterator[tuple[list[Strategy], int]],
+    generator: Iterator[tuple[list[Strategy], int, list[str]]],
     total_games: int | None,
     record_decisions: bool,
-) -> Iterator[tuple[list[Strategy], int, int, bool]]:
-    """Yield work items `(strategies, game_seed, game_idx, record_decisions)`,
+) -> Iterator[tuple[list[Strategy], int, list[str], int, bool]]:
+    """Yield work items `(strategies, game_seed, arm_labels, game_idx, record_decisions)`,
     halting on shutdown or when total_games is reached.
 
     `game_idx` is the 0-based global index; the receiver derives
     `(group_idx, in_group_idx)` from it.
     """
-    for game_idx, (strategies, game_seed) in enumerate(generator):
+    for game_idx, (strategies, game_seed, arm_labels) in enumerate(generator):
         if _shutdown_requested:
             return
         if total_games is not None and game_idx >= total_games:
             return
-        yield (strategies, game_seed, game_idx, record_decisions)
+        yield (strategies, game_seed, arm_labels, game_idx, record_decisions)
 
 
 def _iter_results(
-    work: Iterable[tuple[list[Strategy], int, int, bool]],
+    work: Iterable[tuple[list[Strategy], int, list[str], int, bool]],
     num_workers: int,
 ) -> Iterator[tuple[GameResult, GameDecisions | None, int]]:
     """Dispatch `work` items to either an in-process loop (num_workers == 1)
@@ -173,18 +185,21 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
 
     if mode in ("paired", "vs_reference"):
         compare = config["compare"]
-        param_name = compare["parameter"]
         games_per_group = config["seeds"]["count"] * 2  # ×2 for position swap
 
         if mode == "paired":
-            groups = list(itertools.combinations(compare["values"], 2))
-            header_fn = lambda g: f"{param_name}={g[0]} vs {param_name}={g[1]}"
-            labels_fn = lambda g: (str(g[0]), str(g[1]))
+            # Each group is the (label_A, label_B) pair from compare.values.
+            groups = [
+                (a["label"], b["label"])
+                for a, b in itertools.combinations(compare["values"], 2)
+            ]
         else:  # vs_reference
-            groups = list(compare["values"])
-            header_fn = lambda g: f"{param_name}={g} vs reference"
-            labels_fn = lambda g: ("arm", "reference")
+            # Each group is (arm_label, reference_label).
+            ref_label = compare["reference_label"]
+            groups = [(a["label"], ref_label) for a in compare["values"]]
 
+        header_fn = lambda g: f"{g[0]} vs {g[1]}"
+        labels_fn = lambda g: g
         results = {g: {"A": 0, "B": 0, "ties": 0} for g in groups}
 
     games_played = 0
@@ -288,6 +303,12 @@ def main():
 
     config = load_config(config_path)
 
+    try:
+        validate_config(config)
+    except ConfigError as e:
+        print(f"Config error: {e}", file=sys.stderr)
+        sys.exit(1)
+
     if args.list:
         mode = config.get("mode", "continuous")
         if mode == "continuous":
@@ -295,15 +316,22 @@ def main():
             print("Configured matchups:")
             for i, spec_list in enumerate(config["matchups"], 1):
                 strategies = [build_strategy(spec, defaults) for spec in spec_list]
-                print(f"  {i}. {format_matchup(strategies)}")
+                labels = [spec["label"] for spec in spec_list]
+                named = " vs ".join(
+                    f"{label} ({s})" for label, s in zip(labels, strategies)
+                )
+                print(f"  {i}. {named}")
         elif mode == "paired":
             compare = config["compare"]
             print(f"Paired comparison: {compare['parameter']}")
-            print(f"Values: {compare['values']}")
+            for arm in compare["values"]:
+                print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
         elif mode == "vs_reference":
             compare = config["compare"]
             print(f"vs_reference sweep: {compare['parameter']}")
-            print(f"Values: {compare['values']}")
+            print(f"  reference: {compare['reference_label']}")
+            for arm in compare["values"]:
+                print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
         return
 
     data_dir = (

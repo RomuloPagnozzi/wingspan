@@ -21,6 +21,7 @@ from lab.data import (
 def simulate_game(
     strategies: list[Strategy],
     game_seed: int,
+    arm_labels: list[str],
     record_decisions: bool = False,
 ) -> tuple[GameResult, GameDecisions | None]:
     """Run a single game and return the result.
@@ -28,11 +29,14 @@ def simulate_game(
     Args:
         strategies: List of strategies, one per player
         game_seed: Seed for game state (cards, dice, etc.)
+        arm_labels: Per-player arm identifier, aligned to `strategies`.
+            This is the label that groups results across position swaps.
         record_decisions: Whether to record per-decision data for RL training
 
     Returns:
         Tuple of (GameResult, optional GameDecisions)
     """
+    assert len(arm_labels) == len(strategies)
     game_id = generate_game_id()
     state = initiate_state(len(strategies), seed=game_seed)
 
@@ -100,6 +104,7 @@ def simulate_game(
                 player_position=i + 1,
                 is_first_player=(i == first_player_idx),
                 is_winner=(i == winner_idx),
+                arm_label=arm_labels[i],
                 strategy_name=strategies[i].name,
                 strategy_seed=strategies[i].seed,
                 strategy_config={k: str(v) for k, v in strategies[i].config.items()},
@@ -149,7 +154,7 @@ def game_worker_init() -> None:
 
 
 def run_one_game(
-    args: tuple[list[Strategy], int, Any, bool],
+    args: tuple[list[Strategy], int, list[str], Any, bool],
 ) -> tuple[GameResult, GameDecisions | None, Any]:
     """Worker entry point for game-level parallelism.
 
@@ -157,8 +162,8 @@ def run_one_game(
     process can reattach a result to its (group, position) slot regardless
     of completion order.
     """
-    strategies, game_seed, metadata, record_decisions = args
+    strategies, game_seed, arm_labels, metadata, record_decisions = args
     result, decisions = simulate_game(
-        strategies, game_seed, record_decisions=record_decisions
+        strategies, game_seed, arm_labels, record_decisions=record_decisions
     )
     return result, decisions, metadata

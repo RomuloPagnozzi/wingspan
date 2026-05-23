@@ -16,6 +16,7 @@ class PlayerResult:
     player_position: int
     is_first_player: bool
     is_winner: bool
+    arm_label: str
     strategy_name: str
     strategy_seed: int
     strategy_config: dict[str, str]
@@ -83,6 +84,7 @@ def game_result_to_rows(result: GameResult) -> list[dict]:
                 "player_position": player.player_position,
                 "is_first_player": player.is_first_player,
                 "is_winner": player.is_winner,
+                "arm_label": player.arm_label,
                 "strategy_name": player.strategy_name,
                 "strategy_seed": player.strategy_seed,
                 "strategy_config": player.strategy_config,
@@ -134,6 +136,7 @@ GAMES_SCHEMA = pa.schema(
         ("player_position", pa.int32()),
         ("is_first_player", pa.bool_()),
         ("is_winner", pa.bool_()),
+        ("arm_label", pa.string()),
         ("strategy_name", pa.string()),
         ("strategy_seed", pa.int64()),
         ("strategy_config", pa.map_(pa.string(), pa.string())),
