@@ -12,7 +12,13 @@ import yaml
 from tqdm import tqdm
 
 from lab.strategies import Strategy
-from lab.data import GameResult, GameDecisions, GamesWriter, DecisionsWriter
+from lab.data import (
+    GameResult,
+    GameDecisions,
+    GamesWriter,
+    DecisionsWriter,
+    generate_run_id,
+)
 from lab.simulation import game_worker_init, run_one_game
 from lab.generators import (
     REFERENCE_PARAMS,
@@ -169,7 +175,12 @@ def _iter_results(
             yield result, decisions, meta
 
 
-def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False):
+def run_experiments(
+    config: dict,
+    data_dir: Path,
+    run_id: str,
+    record_decisions: bool = False,
+):
     mode = config.get("mode", "continuous")
     total_games = count_games(config)
     num_workers = int(config.get("num_workers", 1))
@@ -213,8 +224,10 @@ def run_experiments(config: dict, data_dir: Path, record_decisions: bool = False
         smoothing=0.1,
     )
 
-    with GamesWriter(data_dir) as games_writer:
-        decisions_writer = DecisionsWriter(data_dir) if record_decisions else None
+    with GamesWriter(data_dir, run_id) as games_writer:
+        decisions_writer = (
+            DecisionsWriter(data_dir, run_id) if record_decisions else None
+        )
 
         try:
             work = _work_iter(generator, total_games, record_decisions)
@@ -276,10 +289,72 @@ def load_config(config_path: Path) -> dict:
         return yaml.safe_load(f)
 
 
+def _print_config_listing(config: dict) -> None:
+    mode = config.get("mode", "continuous")
+    if mode == "continuous":
+        defaults = config.get("defaults", {})
+        print("Configured matchups:")
+        for i, spec_list in enumerate(config["matchups"], 1):
+            strategies = [build_strategy(spec, defaults) for spec in spec_list]
+            labels = [spec["label"] for spec in spec_list]
+            named = " vs ".join(
+                f"{label} ({s})" for label, s in zip(labels, strategies)
+            )
+            print(f"  {i}. {named}")
+    elif mode == "paired":
+        compare = config["compare"]
+        print(f"Paired comparison: {compare['parameter']}")
+        for arm in compare["values"]:
+            print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
+    elif mode == "vs_reference":
+        compare = config["compare"]
+        print(f"vs_reference sweep: {compare['parameter']}")
+        print(f"  reference: {compare['reference_label']}")
+        for arm in compare["values"]:
+            print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
+
+
+def _run_one_config(
+    config_path: Path,
+    data_dir: Path,
+    record_decisions: bool,
+    list_only: bool,
+) -> None:
+    config = load_config(config_path)
+
+    try:
+        validate_config(config)
+    except ConfigError as e:
+        print(f"Config error in {config_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if list_only:
+        _print_config_listing(config)
+        return
+
+    run_id = generate_run_id()
+
+    # Each run gets its own folder containing games, decisions, and config.
+    # Copy the source YAML into it so the run is fully self-contained.
+    # Ad-hoc/non-CLI runs have no YAML and skip this — the `run_id` column
+    # still groups rows.
+    run_dir = data_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "config.yaml").write_bytes(config_path.read_bytes())
+
+    print(f"\nRun ID: {run_id}  (config: {config_path})")
+    print_config_summary(config, data_dir)
+    run_experiments(config, data_dir, run_id, record_decisions)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run Wingspan experiments")
     parser.add_argument(
-        "-c", "--config", type=str, default=None, help="Config file path"
+        "-c",
+        "--config",
+        action="append",
+        default=None,
+        help="Config file path. Repeat to queue multiple configs (run sequentially).",
     )
     parser.add_argument(
         "-o", "--output-dir", type=str, default=None, help="Output directory"
@@ -292,47 +367,18 @@ def main():
     parser.add_argument("--list", action="store_true", help="List config and exit")
     args = parser.parse_args()
 
-    config_path = (
-        Path(args.config)
-        if args.config
-        else Path(__file__).parent.parent / "experiments" / "configs" / "config.yaml"
-    )
-    if not config_path.exists():
-        print(f"Config not found: {config_path}")
+    if args.config:
+        config_paths = [Path(c) for c in args.config]
+    else:
+        config_paths = [
+            Path(__file__).parent.parent / "experiments" / "configs" / "config.yaml"
+        ]
+
+    missing = [p for p in config_paths if not p.exists()]
+    if missing:
+        for p in missing:
+            print(f"Config not found: {p}", file=sys.stderr)
         sys.exit(1)
-
-    config = load_config(config_path)
-
-    try:
-        validate_config(config)
-    except ConfigError as e:
-        print(f"Config error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    if args.list:
-        mode = config.get("mode", "continuous")
-        if mode == "continuous":
-            defaults = config.get("defaults", {})
-            print("Configured matchups:")
-            for i, spec_list in enumerate(config["matchups"], 1):
-                strategies = [build_strategy(spec, defaults) for spec in spec_list]
-                labels = [spec["label"] for spec in spec_list]
-                named = " vs ".join(
-                    f"{label} ({s})" for label, s in zip(labels, strategies)
-                )
-                print(f"  {i}. {named}")
-        elif mode == "paired":
-            compare = config["compare"]
-            print(f"Paired comparison: {compare['parameter']}")
-            for arm in compare["values"]:
-                print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
-        elif mode == "vs_reference":
-            compare = config["compare"]
-            print(f"vs_reference sweep: {compare['parameter']}")
-            print(f"  reference: {compare['reference_label']}")
-            for arm in compare["values"]:
-                print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
-        return
 
     data_dir = (
         Path(args.output_dir)
@@ -341,8 +387,15 @@ def main():
     )
     signal.signal(signal.SIGINT, _signal_handler)
 
-    print_config_summary(config, data_dir)
-    run_experiments(config, data_dir, args.record_decisions)
+    for i, cfg_path in enumerate(config_paths, 1):
+        if len(config_paths) > 1 and not args.list:
+            print(f"\n{'#' * 60}")
+            print(f"# [{i}/{len(config_paths)}] {cfg_path}")
+            print(f"{'#' * 60}")
+        _run_one_config(cfg_path, data_dir, args.record_decisions, args.list)
+        if _shutdown_requested:
+            print("Shutdown requested — skipping remaining configs.")
+            break
 
 
 if __name__ == "__main__":

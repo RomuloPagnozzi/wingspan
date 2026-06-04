@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from game.core import GameState, Action, copy_state, redeterminize
 from game.actions import get_actions
 from game.engine import transition_state, transition_state_inplace
+from game.scoring import update_player_scores
 
 from .base import Strategy, ValueFunction, register_strategy
 
@@ -23,6 +24,7 @@ class MCTSConfig:
     exploration_constant: float = 1.41
     value_function: ValueFunction = ValueFunction.SCORE_DELTA
     determinize: bool = False
+    rollout_depth: int | None = None
 
 
 @dataclass(slots=True)
@@ -100,10 +102,17 @@ def _simulate_from_state(
     root_player_index: int,
     value_function: ValueFunction,
     rng: random.Random,
+    max_depth: int | None = None,
 ) -> float:
+    depth = 0
     while actions := get_actions(state):
+        if max_depth is not None and depth >= max_depth:
+            for p in state.players:
+                update_player_scores(p)
+            break
         action = rng.choice(actions)
         state = transition_state(state, action)
+        depth += 1
     return _compute_value(state, root_player_index, value_function)
 
 
@@ -112,11 +121,18 @@ def _rollout_inplace(
     root_player_index: int,
     value_function: ValueFunction,
     rng: random.Random,
+    max_depth: int | None = None,
 ) -> float:
     """Mutating rollout for IS-MCTS. Caller must own `state`."""
+    depth = 0
     while actions := get_actions(state):
+        if max_depth is not None and depth >= max_depth:
+            for p in state.players:
+                update_player_scores(p)
+            break
         action = rng.choice(actions)
         state = transition_state_inplace(state, action)
+        depth += 1
     return _compute_value(state, root_player_index, value_function)
 
 
@@ -203,10 +219,13 @@ def _peek_iteration(
     exploration_constant: float,
     value_function: ValueFunction,
     rng: random.Random,
+    rollout_depth: int | None = None,
 ) -> None:
     node = _select(root, exploration_constant)
     node = _expand(node, rng)
-    value = _simulate_from_state(node.state, root.player_index, value_function, rng)
+    value = _simulate_from_state(
+        node.state, root.player_index, value_function, rng, max_depth=rollout_depth
+    )
     _backpropagate(node, value)
 
 
@@ -222,6 +241,7 @@ def _ismcts_iteration(
     exploration_constant: float,
     value_function: ValueFunction,
     rng: random.Random,
+    rollout_depth: int | None = None,
 ) -> None:
     state = redeterminize(root_state, perspective_player, rng)
     node = root
@@ -242,7 +262,9 @@ def _ismcts_iteration(
             state = transition_state_inplace(state, action)
             child = ISMCTSNode(parent=node, action_taken=action)
             node.children[action] = child
-            value = _rollout_inplace(state, perspective_player, value_function, rng)
+            value = _rollout_inplace(
+                state, perspective_player, value_function, rng, max_depth=rollout_depth
+            )
             _backpropagate(child, value)
             return
 
@@ -321,6 +343,7 @@ class MCTSStrategy(Strategy):
                     self.params.exploration_constant,
                     self.params.value_function,
                     self._rng,
+                    rollout_depth=self.params.rollout_depth,
                 )
             children = ismcts_root.children
             root_visits = ismcts_root.visits
@@ -333,6 +356,7 @@ class MCTSStrategy(Strategy):
                     self.params.exploration_constant,
                     self.params.value_function,
                     self._rng,
+                    rollout_depth=self.params.rollout_depth,
                 )
             children = peek_root.children
             root_visits = peek_root.visits
@@ -345,7 +369,19 @@ class MCTSStrategy(Strategy):
             for action, c in children.items()
             if c.visits > 0
         }
-        return max(children.items(), key=lambda x: x[1].visits)[0]
+        # IS-MCTS may expand root children for actions that are legal in
+        # some determinized world but not in the real one (e.g. tucking a
+        # card that, after re-shuffling opponent hands, ended up in the
+        # acting player's hand). Filter to actions legal in the real state
+        # before taking the argmax. Peek-MCTS root children are always
+        # legal in the real state, so this is a no-op there.
+        legal_set = set(legal_actions)
+        legal_children = {a: c for a, c in children.items() if a in legal_set}
+        if legal_children:
+            return max(legal_children.items(), key=lambda x: x[1].visits)[0]
+        # No tree child is legal in the real state (extreme early-search
+        # case). Fall back to a uniform draw from legal actions.
+        return self._rng.choice(legal_actions)
 
     def get_last_visit_counts(self) -> dict[Action, int] | None:
         return self._last_visit_counts

@@ -16,12 +16,6 @@ The paired-comparison methodology currently assumes 2-player matchups. Extending
 
 ---
 
-### Rewrite analysis.py
-
-The current analysis script was written for an obsolete wide-format CSV schema (one row per game with separate per-player columns). The harness now produces long-format parquet (one row per player per game), and the existing code can't read it. The idea is to replace the script with a small library of composable plotting helpers that operate on filtered DataFrames, intended to be called from notebooks where the user brings their own pandas query. A separate exploratory layer using gradient-boosted models and SHAP could surface unexpected hyperparameter interactions for hypothesis generation — but any "finding" from that layer must be validated by a fresh paired experiment before it counts as a result.
-
----
-
 ### Explicit chance nodes
 
 IS-MCTS handles future chance (dice rolls, feeder re-rolls, deck draws under a fresh determinization) by reseeding `state.rng` per simulation — each sim draws one fresh sample of the entire trajectory's chance vector, and Monte Carlo over N sims integrates over the distribution. Mathematically converges to the right answer. The alternative is **explicit chance nodes**: insert a chance node between an action and its stochastic resolution, with children = possible outcomes selected by *probability-weighted sampling* (not UCB — UCB at chance nodes biases value backprop). Advantage: each visit through a chance point samples an outcome independently, so chance-heavy paths converge to true EV faster at low sim counts; IS-MCTS couples all chance events within one sim to a single seed. Cost: identify stochastic transitions in the engine, expose pre-/post-roll boundaries, add progressive widening for large outcome spaces (the feeder roll alone has 7776 outcomes), and a separate selection + weighted-average backprop rule for chance nodes. Substantially more engineering than IS-MCTS for a variance-reduction benefit that may or may not be material. Only worth pursuing if a future experiment shows IS-MCTS reaches stable strength but converges slowly on chance-heavy decisions.

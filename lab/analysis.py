@@ -1,8 +1,8 @@
 """HTML report builder for parquet game results.
 
 Usage:
-    uv run python -m lab.analysis                                  # experiments/data/games.parquet → report.html
-    uv run python -m lab.analysis path/to/games.parquet            # explicit path
+    uv run python -m lab.analysis                                  # scan experiments/data/, build per-run reports + analysis.html index
+    uv run python -m lab.analysis path/to/games.parquet            # one-off: single report.html for a parquet
     uv run python -m lab.analysis path/to/games.parquet -o out.html
 
 All aggregations key on `arm_label` — the human-chosen identifier stamped at
@@ -34,7 +34,8 @@ def get_colors(n: int, palette: str = "mako") -> list[str]:
 PALETTE = "mako"
 
 
-def generate_report(parquet_path: str, output_path: str = "report.html"):
+def generate_report(parquet_path: str, output_path: str | None = "report.html") -> str:
+    """Build the per-run HTML report. Writes to `output_path` if given, returns the HTML string."""
     df = pd.read_parquet(parquet_path)
     plots = []
 
@@ -334,10 +335,101 @@ def generate_report(parquet_path: str, output_path: str = "report.html"):
 
     html += "</body>\n</html>\n"
 
-    with open(output_path, "w") as f:
-        f.write(html)
+    if output_path is not None:
+        with open(output_path, "w") as f:
+            f.write(html)
+        print(f"Report generated: {output_path}")
 
-    print(f"Report generated: {output_path}")
+    return html
+
+
+def _config_label(config_path) -> str:
+    """First non-empty `#`-comment line of a config.yaml, stripped of leading `#`/whitespace."""
+    try:
+        with open(config_path) as f:
+            for line in f:
+                s = line.strip()
+                if s.startswith("#"):
+                    label = s.lstrip("#").strip().rstrip(".")
+                    if label:
+                        return label
+                elif s:
+                    break
+    except OSError:
+        pass
+    return ""
+
+
+def build_index(
+    data_dir: str = "experiments/data", output_path: str | None = None
+) -> str:
+    """Scan run dirs under `data_dir`, generate per-run report.html, write an analysis.html index.
+
+    A run dir is any subdir containing both `config.yaml` and `games.parquet`.
+    Dropdown labels come from the first comment line of each config; runs are
+    sorted newest-first by mtime of games.parquet.
+    """
+    from pathlib import Path
+
+    root = Path(data_dir)
+    runs = []
+    for sub in sorted(root.iterdir()):
+        if not sub.is_dir():
+            continue
+        cfg = sub / "config.yaml"
+        parquet = sub / "games.parquet"
+        if not (cfg.exists() and parquet.exists()):
+            continue
+        label = _config_label(cfg) or sub.name
+        runs.append((sub, label, parquet.stat().st_mtime))
+
+    runs.sort(key=lambda r: r[2], reverse=True)
+
+    options = []
+    for sub, label, _ in runs:
+        report = sub / "report.html"
+        generate_report(str(sub / "games.parquet"), str(report))
+        rel = f"{sub.name}/report.html"
+        options.append((rel, label, sub.name))
+
+    if not options:
+        print(f"No runs found under {root}")
+        return ""
+
+    opts_html = "\n".join(
+        f'        <option value="{rel}">{label} &mdash; <small>{run_id}</small></option>'
+        for rel, label, run_id in options
+    )
+    first_src = options[0][0]
+
+    index_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Wingspan Analysis</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }}
+        header {{ padding: 16px 24px; border-bottom: 1px solid #ddd; background: #fafafa; position: sticky; top: 0; z-index: 10; }}
+        header label {{ font-weight: 600; margin-right: 12px; }}
+        header select {{ font-size: 1em; padding: 6px 10px; min-width: 480px; }}
+        iframe {{ width: 100%; height: calc(100vh - 70px); border: none; }}
+    </style>
+</head>
+<body>
+    <header>
+        <label for="run">Run:</label>
+        <select id="run" onchange="document.getElementById('view').src = this.value">
+{opts_html}
+        </select>
+    </header>
+    <iframe id="view" src="{first_src}"></iframe>
+</body>
+</html>
+"""
+
+    out = Path(output_path) if output_path else (root / "analysis.html")
+    out.write_text(index_html)
+    print(f"Index generated: {out} ({len(options)} runs)")
+    return index_html
 
 
 if __name__ == "__main__":
@@ -345,19 +437,17 @@ if __name__ == "__main__":
     from pathlib import Path
 
     parser = argparse.ArgumentParser(
-        description="Generate analysis report from game results"
+        description="Generate analysis reports. No args: scan experiments/data/ and build analysis.html index."
     )
     parser.add_argument(
         "parquet_path",
         nargs="?",
-        default="experiments/data/games.parquet",
-        help="Path to games.parquet file",
+        help="Optional parquet path for a single-report build",
     )
-    parser.add_argument(
-        "-o", "--output", help="Output HTML path (default: report.html)"
-    )
+    parser.add_argument("-o", "--output", help="Output HTML path")
     args = parser.parse_args()
 
-    parquet_path = Path(args.parquet_path)
-    output_path = args.output or "report.html"
-    generate_report(str(parquet_path), output_path)
+    if args.parquet_path:
+        generate_report(args.parquet_path, args.output or "report.html")
+    else:
+        build_index("experiments/data", args.output)

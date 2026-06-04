@@ -19,6 +19,7 @@ REFERENCE_PARAMS = MCTSConfig(
     simulations=500,
     exploration_constant=1.41,
     value_function=ValueFunction.SCORE_DELTA,
+    determinize=True,
 )
 
 
@@ -212,9 +213,11 @@ def validate_config(config: dict) -> None:
             "parameter" in compare, f"mode={mode}: `compare.parameter` is required"
         )
         arms = compare.get("values")
+        min_arms = 1 if mode == "vs_reference" else 2
         _require(
-            isinstance(arms, list) and len(arms) >= 2,
-            f"mode={mode}: `compare.values` must be a list of at least 2 arms",
+            isinstance(arms, list) and len(arms) >= min_arms,
+            f"mode={mode}: `compare.values` must be a list of at least {min_arms} "
+            f"arm{'s' if min_arms > 1 else ''}",
         )
         for i, arm in enumerate(arms):
             _validate_arm(arm, i, f"compare.values")

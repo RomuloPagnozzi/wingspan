@@ -70,12 +70,13 @@ class GameDecisions:
         self.decisions.append(record)
 
 
-def game_result_to_rows(result: GameResult) -> list[dict]:
+def game_result_to_rows(result: GameResult, run_id: str) -> list[dict]:
     """Convert GameResult to list of row dicts (one per player)."""
     rows = []
     for player in result.players:
         rows.append(
             {
+                "run_id": run_id,
                 "game_id": result.game_id,
                 "timestamp": result.timestamp,
                 "game_seed": result.game_seed,
@@ -101,13 +102,14 @@ def game_result_to_rows(result: GameResult) -> list[dict]:
     return rows
 
 
-def decisions_to_rows(game_decisions: GameDecisions) -> list[dict]:
+def decisions_to_rows(game_decisions: GameDecisions, run_id: str) -> list[dict]:
     """Convert GameDecisions to list of row dicts (one per decision)."""
     rows = []
     for idx, decision in enumerate(game_decisions.decisions):
         outcome = game_decisions.player_outcomes.get(decision.player_position, 0.0)
         rows.append(
             {
+                "run_id": run_id,
                 "game_id": game_decisions.game_id,
                 "decision_idx": idx,
                 "player_position": decision.player_position,
@@ -128,6 +130,7 @@ def decisions_to_rows(game_decisions: GameDecisions) -> list[dict]:
 
 GAMES_SCHEMA = pa.schema(
     [
+        ("run_id", pa.string()),
         ("game_id", pa.string()),
         ("timestamp", pa.timestamp("us")),
         ("game_seed", pa.int64()),
@@ -153,6 +156,7 @@ GAMES_SCHEMA = pa.schema(
 
 DECISIONS_SCHEMA = pa.schema(
     [
+        ("run_id", pa.string()),
         ("game_id", pa.string()),
         ("decision_idx", pa.int32()),
         ("player_position", pa.int32()),
@@ -171,11 +175,17 @@ DECISIONS_SCHEMA = pa.schema(
 
 
 class GamesWriter:
-    """Incremental parquet writer for game results."""
+    """Append-only parquet writer for game results.
 
-    def __init__(self, data_dir: Path):
-        self.path = data_dir / "games.parquet"
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    Each run gets its own folder `data_dir/<run_id>/` containing the run's
+    games, decisions, and config. The games go into `games.parquet`.
+    """
+
+    def __init__(self, data_dir: Path, run_id: str):
+        self.run_id = run_id
+        self.dir = data_dir / run_id
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.path = self.dir / "games.parquet"
         self._writer: pq.ParquetWriter | None = None
 
     def _ensure_writer(self):
@@ -187,7 +197,7 @@ class GamesWriter:
     def add_game(self, result: GameResult):
         self._ensure_writer()
         assert self._writer is not None
-        rows = game_result_to_rows(result)
+        rows = game_result_to_rows(result, self.run_id)
         table = pa.Table.from_pylist(rows, schema=GAMES_SCHEMA)
         self._writer.write_table(table)
 
@@ -204,11 +214,17 @@ class GamesWriter:
 
 
 class DecisionsWriter:
-    """Incremental parquet writer for per-decision RL training data."""
+    """Append-only parquet writer for per-decision RL training data.
 
-    def __init__(self, data_dir: Path):
-        self.path = data_dir / "decisions.parquet"
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    Each run gets its own folder `data_dir/<run_id>/`; decisions go into
+    `decisions.parquet` inside it.
+    """
+
+    def __init__(self, data_dir: Path, run_id: str):
+        self.run_id = run_id
+        self.dir = data_dir / run_id
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.path = self.dir / "decisions.parquet"
         self._writer: pq.ParquetWriter | None = None
 
     def _ensure_writer(self):
@@ -222,7 +238,7 @@ class DecisionsWriter:
             return
         self._ensure_writer()
         assert self._writer is not None
-        rows = decisions_to_rows(game_decisions)
+        rows = decisions_to_rows(game_decisions, self.run_id)
         table = pa.Table.from_pylist(rows, schema=DECISIONS_SCHEMA)
         self._writer.write_table(table)
 
@@ -238,6 +254,27 @@ class DecisionsWriter:
         self.close()
 
 
+def generate_run_id() -> str:
+    """Generate a unique run ID using UUID7 (time-ordered)."""
+    return str(uuid7())
+
+
 def generate_game_id() -> str:
     """Generate a unique game ID using UUID7 (time-ordered)."""
     return str(uuid7())
+
+
+def read_runs(data_dir: Path | str, kind: str):
+    """Concat one parquet kind (\"games\" or \"decisions\") across every run.
+
+    Layout: `data_dir/<run_id>/<kind>.parquet`. This wraps a per-file
+    `pd.read_parquet` loop because `pd.read_parquet(<dir>)` goes through
+    `pyarrow.dataset`, which currently refuses to merge files containing
+    `map` columns (`strategy_config`, `visit_counts`, `mcts_action_values`).
+    """
+    import pandas as pd
+
+    files = sorted(Path(data_dir).glob(f"*/{kind}.parquet"))
+    if not files:
+        raise FileNotFoundError(f"No {kind}.parquet files under {data_dir}")
+    return pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
