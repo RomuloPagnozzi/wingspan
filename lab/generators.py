@@ -16,10 +16,12 @@ from lab.strategies import (
 # these constants invalidates cross-experiment comparability — pre-change
 # and post-change win rates do not live on the same scale.
 REFERENCE_PARAMS = MCTSConfig(
-    simulations=500,
-    exploration_constant=1.41,
-    value_function=ValueFunction.SCORE_DELTA,
+    simulations=1500,
+    exploration_constant=2.27,
+    value_function=ValueFunction.ABSOLUTE_SCORE,
     determinize=True,
+    widening_alpha=0.83,
+    widening_k=1.7,
 )
 
 
@@ -62,6 +64,18 @@ def continuous_generator(
                 yield strategies, game_seed, labels
 
 
+def _arm_overrides(arm: dict, param_name: str | None) -> dict:
+    """Return the dict of MCTSConfig fields this arm overrides on top of base.
+
+    Supports two shapes:
+    - {label, value}            paired with compare.parameter (single-field sweep)
+    - {label, overrides: {...}} arbitrary multi-field override (no parameter needed)
+    """
+    if "overrides" in arm:
+        return arm["overrides"] or {}
+    return {param_name: arm["value"]}
+
+
 def paired_generator(
     config: dict,
 ) -> Iterator[tuple[list[Strategy], int, list[str]]]:
@@ -75,8 +89,8 @@ def paired_generator(
     compare = config["compare"]
     seeds_config = config["seeds"]
 
-    param_name = compare["parameter"]
-    arms = compare["values"]  # each: {"value": ..., "label": ...}
+    param_name = compare.get("parameter")
+    arms = compare["values"]
     seed_count = seeds_config["count"]
     seed_start = seeds_config.get("start", 1)
 
@@ -84,8 +98,8 @@ def paired_generator(
         for seed_idx in range(seed_count):
             game_seed = trial_seed = seed_start + seed_idx
 
-            config_a = {**base, param_name: arm_a["value"], "seed": trial_seed}
-            config_b = {**base, param_name: arm_b["value"], "seed": trial_seed}
+            config_a = {**base, **_arm_overrides(arm_a, param_name), "seed": trial_seed}
+            config_b = {**base, **_arm_overrides(arm_b, param_name), "seed": trial_seed}
             labels = [arm_a["label"], arm_b["label"]]
 
             # Two games per pair: A as P1, then B as P1 (position swap).
@@ -111,8 +125,8 @@ def vs_reference_generator(
     compare = config["compare"]
     seeds_config = config["seeds"]
 
-    param_name = compare["parameter"]
-    arms = compare["values"]  # each: {"value": ..., "label": ...}
+    param_name = compare.get("parameter")
+    arms = compare["values"]
     reference_label = compare["reference_label"]
     seed_count = seeds_config["count"]
     seed_start = seeds_config.get("start", 1)
@@ -120,7 +134,7 @@ def vs_reference_generator(
     for arm in arms:
         for seed_idx in range(seed_count):
             game_seed = trial_seed = seed_start + seed_idx
-            arm_spec = {**base, param_name: arm["value"], "seed": trial_seed}
+            arm_spec = {**base, **_arm_overrides(arm, param_name), "seed": trial_seed}
             labels = [arm["label"], reference_label]
 
             for swap in (False, True):
@@ -182,14 +196,22 @@ def _require(cond: bool, msg: str) -> None:
 
 def _validate_arm(arm, idx: int, where: str) -> None:
     _require(
-        isinstance(arm, dict) and "value" in arm and "label" in arm,
-        f"{where}: arm #{idx} must be a mapping with both `value` and `label` "
-        f"(got {arm!r})",
+        isinstance(arm, dict)
+        and "label" in arm
+        and ("value" in arm or "overrides" in arm),
+        f"{where}: arm #{idx} must be a mapping with `label` and either "
+        f"`value` (single-field sweep) or `overrides` (multi-field) (got {arm!r})",
     )
     _require(
         isinstance(arm["label"], str) and arm["label"],
         f"{where}: arm #{idx} `label` must be a non-empty string (got {arm['label']!r})",
     )
+    if "overrides" in arm:
+        _require(
+            isinstance(arm["overrides"], dict) and arm["overrides"],
+            f"{where}: arm #{idx} `overrides` must be a non-empty mapping "
+            f"(got {arm['overrides']!r})",
+        )
 
 
 def _validate_unique_labels(labels: list[str], where: str) -> None:
@@ -209,10 +231,15 @@ def validate_config(config: dict) -> None:
     if mode in ("paired", "vs_reference"):
         compare = config.get("compare")
         _require(isinstance(compare, dict), f"mode={mode}: missing `compare` block")
-        _require(
-            "parameter" in compare, f"mode={mode}: `compare.parameter` is required"
-        )
         arms = compare.get("values")
+        # `parameter` is required only when at least one arm uses {value: ...}.
+        if isinstance(arms, list) and any(
+            isinstance(a, dict) and "overrides" not in a for a in arms
+        ):
+            _require(
+                "parameter" in compare,
+                f"mode={mode}: `compare.parameter` is required when arms use `value`",
+            )
         min_arms = 1 if mode == "vs_reference" else 2
         _require(
             isinstance(arms, list) and len(arms) >= min_arms,

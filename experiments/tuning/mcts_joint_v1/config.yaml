@@ -1,0 +1,45 @@
+study_name: mcts_joint_v1
+
+n_trials: 75
+num_workers: 4
+
+sampler:
+  name: tpe
+  seed: 42
+
+# Median pruner: drop trials whose running win-rate is below median of past
+# trials at the same seed step. Cheap, no ladder to tune. Switch to `asha`
+# for aggressive halving once n_trials is large.
+pruner:
+  name: median
+  n_startup_trials: 10
+  n_warmup_steps: 5
+
+seeds:
+  count: 20
+  start: 1
+
+# Fixed MCTSConfig values (anything not in `space:`). Mirror REFERENCE_PARAMS
+# defaults unless you intend a different ablation axis.
+base:
+  determinize: true
+  simulations: 1500
+
+# What to search. Each entry → one trial.suggest_*(...) call.
+space:
+  - name: exploration_constant
+    type: float
+    low: 0.3
+    high: 8
+    log: true
+  - name: value_function
+    type: categorical
+    choices: [score_delta, win_loss, absolute_score]
+  - name: widening_alpha
+    type: float
+    low: 0.3
+    high: 0.9
+  - name: widening_k
+    type: float
+    low: 0.5
+    high: 2.0

@@ -32,6 +32,13 @@ from lab.generators import (
 _shutdown_requested = False
 
 
+def _arm_desc(arm: dict, param_name: str | None) -> str:
+    """Short human-readable description of one paired/vs_reference arm."""
+    if "overrides" in arm:
+        return ", ".join(f"{k}={v}" for k, v in arm["overrides"].items())
+    return f"{param_name}={arm['value']}"
+
+
 def _signal_handler(signum, frame):
     global _shutdown_requested
     if _shutdown_requested:
@@ -81,14 +88,15 @@ def print_config_summary(config: dict, data_dir: Path):
     if mode == "paired":
         compare = config["compare"]
         seeds_config = config["seeds"]
-        param_name = compare["parameter"]
+        param_name = compare.get("parameter")
         arms = compare["values"]
         pairs = list(itertools.combinations(arms, 2))
 
-        print(f"Parameter: {param_name}")
+        if param_name:
+            print(f"Parameter: {param_name}")
         print("Arms:")
         for arm in arms:
-            print(f"  - {arm['label']} ({param_name}={arm['value']})")
+            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
         print(f"Pairs: {len(pairs)}")
         print(
             f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
@@ -103,9 +111,11 @@ def print_config_summary(config: dict, data_dir: Path):
             f"c={REFERENCE_PARAMS.exploration_constant}, "
             f"vf={REFERENCE_PARAMS.value_function.value})"
         )
-        print(f"Sweep: {compare['parameter']}")
+        param_name = compare.get("parameter")
+        if param_name:
+            print(f"Sweep: {param_name}")
         for arm in compare["values"]:
-            print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
+            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
         print(
             f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
         )
@@ -303,15 +313,17 @@ def _print_config_listing(config: dict) -> None:
             print(f"  {i}. {named}")
     elif mode == "paired":
         compare = config["compare"]
-        print(f"Paired comparison: {compare['parameter']}")
+        param_name = compare.get("parameter")
+        print(f"Paired comparison{f': {param_name}' if param_name else ''}")
         for arm in compare["values"]:
-            print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
+            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
     elif mode == "vs_reference":
         compare = config["compare"]
-        print(f"vs_reference sweep: {compare['parameter']}")
+        param_name = compare.get("parameter")
+        print(f"vs_reference sweep{f': {param_name}' if param_name else ''}")
         print(f"  reference: {compare['reference_label']}")
         for arm in compare["values"]:
-            print(f"  - {arm['label']} ({compare['parameter']}={arm['value']})")
+            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
 
 
 def _run_one_config(

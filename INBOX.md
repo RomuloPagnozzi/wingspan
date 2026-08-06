@@ -4,39 +4,27 @@ Unprioritized ideas to revisit when relevant. Add freely; nothing leaves until p
 
 ---
 
-### vs_reference: factorial sweeps
+### Rollout truncation + heuristic eval
 
-Today the vs_reference framework varies one hyperparameter at a time. Real strength gains often come from interactions (e.g. a higher exploration constant only helps at large sim budgets), and single-parameter sweeps can't see those. The idea is to let a single experiment sweep multiple parameters jointly and analyze the resulting grid, so synergies and conflicts become visible. Until we have a concrete reason to need this, sequential single-parameter runs cover the same ground.
+**Status: not implemented.**
 
----
-
-### vs_reference: 3+ player games
-
-The paired-comparison methodology currently assumes 2-player matchups. Extending it to 3+ players raises real design questions: how many slots get the reference opponent, how wins are attributed when there are multiple losers, and how to rotate positions cleanly. Worth thinking through only once a concrete multi-player question shows up — Wingspan plays the same rules across player counts so most insights transfer from 2-player work.
+By far the highest-ROI lever on IS-MCTS wall clock. Random rollouts to terminal are mostly wasted compute — the late-game tail adds noise, not signal. Two compounding wins: truncate at fixed depth and substitute a cheap eval (current score delta is a strong baseline; NN value head later); separately, bias action choice toward immediately-scoring moves to sharpen the estimate at equal sims. Truncation is the bigger compute win and the cleaner experiment.
 
 ---
 
-### Explicit chance nodes
+### Engine refactor toward SoA-hybrid tensor state
 
-IS-MCTS handles future chance (dice rolls, feeder re-rolls, deck draws under a fresh determinization) by reseeding `state.rng` per simulation — each sim draws one fresh sample of the entire trajectory's chance vector, and Monte Carlo over N sims integrates over the distribution. Mathematically converges to the right answer. The alternative is **explicit chance nodes**: insert a chance node between an action and its stochastic resolution, with children = possible outcomes selected by *probability-weighted sampling* (not UCB — UCB at chance nodes biases value backprop). Advantage: each visit through a chance point samples an outcome independently, so chance-heavy paths converge to true EV faster at low sim counts; IS-MCTS couples all chance events within one sim to a single seed. Cost: identify stochastic transitions in the engine, expose pre-/post-roll boundaries, add progressive widening for large outcome spaces (the feeder roll alone has 7776 outcomes), and a separate selection + weighted-average backprop rule for chance nodes. Substantially more engineering than IS-MCTS for a variance-reduction benefit that may or may not be material. Only worth pursuing if a future experiment shows IS-MCTS reaches stable strength but converges slowly on chance-heavy decisions.
+**Status: not implemented.**
 
----
+Bigger structural rewrite of `game/` away from `dataclass`/`Spot`-per-cell Python objects toward a struct-of-arrays tensor backbone (`board_bird_id[P,3,5]`, `hand_mask[P,N_CARDS]`, food/scores as small int arrays, decks as int16 arrays) plus a thin Python sidecar for irregular state (power execution stack, end-turn effects, action_data). Mutate tensor parts in-place with an `(field, index, old_value)` undo log; sidecar copy-on-write since it's small.
 
-### Single-determinization MCTS vs IS-MCTS
+The real wins are three orthogonal ones:
 
-Once IS-MCTS lands, a useful follow-up baseline is **single-determinization MCTS**: determinize the hidden state *once* at the root of each MCTS call, then run normal peek-MCTS in that one locked world. This isn't PIMC (no voting across multiple trees) and it isn't IS-MCTS (no per-sim re-determinization). The gap between this and IS-MCTS isolates the value of cross-world statistic merging — i.e. quantifies the cost of strategy fusion *within* a single search. Different and more interesting question than the peek-vs-honest one EXP-006 answers. Only worth running if EXP-006 motivates digging into *why* IS-MCTS wins.
+- **Bitset redeterminize.** Currently a measurable share of IS-MCTS budget; with a `hand_mask` bitset over all cards, "what's still unknown" becomes one XOR.
+- **NN-ready state.** Stacked arrays *are* the observation tensor. No separate featurizer to build, debug, or keep in sync with the engine.
+- **Vectorized action masks.** Legal-play-bird mask = `(hand_mask & habitat_match[habitat] & cost_payable_mask)`. Required for any NN policy head; replaces nested Python loops in `game/utils.py`.
 
----
-
-### Score-aware rollout policies
-
-MCTS today plays random moves during the rollout phase. Random play is unbiased but very high-variance, so most of the simulation budget goes to estimating noise rather than signal. Two related ideas to fix this. First: bias rollout action choice toward moves that score well immediately (greedy or ε-greedy), which sharpens the value estimate at the same sim count. Second: truncate the rollout after a fixed number of moves and replace the unplayed tail with a cheap heuristic evaluation (e.g. score margin). Truncation is the bigger compute win because each simulation finishes much faster, letting MCTS spend the saved budget on more sims at the root. Among the rollout-side optimizations, this is the highest-expected-ROI lever for raw playing strength.
-
----
-
-### Action canonicalization
-
-Several game phases — paying egg/food costs, distributing eggs across the board — let the engine enumerate every legal assignment, even when many of those assignments are mechanically indistinguishable (e.g. paying one egg from bird A vs bird B at the same column when no power cares which bird paid). This inflates the branching factor with choices that carry no decision-theoretic content, and MCTS wastes simulations distinguishing them. The idea is to recognize mechanical equivalence per phase, collapse equivalent actions into a single canonical representative before MCTS sees them, and re-expand to a concrete assignment only at apply time if the engine needs it. Expected effect: meaningfully smaller search space → more sims per real choice → strict strength improvement at equal compute. Likely shifts the diminishing-returns threshold on sim-count scaling, so it's worth doing before strength experiments are run on the un-canonicalized engine.
+Order: do **rollout truncation first** — it changes the cost mix and may make this less urgent. Do the **NN encoder/value head before this** if possible (the rewrite is much more painful without a clear NN spec to target).
 
 ---
 
@@ -58,30 +46,30 @@ A standalone characterization of Wingspan's game-tree complexity — average and
 
 ---
 
-### EXP-004: first-player advantage quantification
+### vs_reference: factorial sweeps
 
-Sanity-check on the magnitude of first-player advantage in 2-player games. The paired-comparison harness already neutralizes FPA via position swapping for every other experiment, so this is a standalone measurement, not a dependency. See `EXPERIMENTS.md`.
-
----
-
-### EXP-006: peek-MCTS vs PIMC determinization
-
-Measures the "cheat tax" — how much weaker MCTS becomes once it can no longer see hidden information. The outcome decides whether the project's reference opponent stays as peek-MCTS or switches to honest PIMC, which in turn affects whether any prior strength numbers are still comparable. See `EXPERIMENTS.md`.
+Today the vs_reference framework varies one hyperparameter at a time. Real strength gains often come from interactions (e.g. a higher exploration constant only helps at large sim budgets), and single-parameter sweeps can't see those. The idea is to let a single experiment sweep multiple parameters jointly and analyze the resulting grid, so synergies and conflicts become visible. Until we have a concrete reason to need this, sequential single-parameter runs cover the same ground.
 
 ---
 
-### EXP-001, EXP-002, EXP-003, EXP-005, EXP-007
+### vs_reference: 3+ player games
 
-Strength-sensitive sweeps over simulation budget, exploration constant, value function, selection policy, and rollout policy — all evaluated against the same fixed reference so the results can be stacked into a single ablation table. Should only run after the reference is finalized. See `EXPERIMENTS.md`.
-
----
-
-### EXP-008: bootstrap data quality for NN training
-
-Tests whether a NN trained on MCTS-generated games inherits the biases of the data-generating MCTS, and how much that matters for downstream self-play. Depends on PIMC, the NN encoder, and the training-data pipeline being in place. See `EXPERIMENTS.md`.
+The paired-comparison methodology currently assumes 2-player matchups. Extending it to 3+ players raises real design questions: how many slots get the reference opponent, how wins are attributed when there are multiple losers, and how to rotate positions cleanly. Worth thinking through only once a concrete multi-player question shows up — Wingspan plays the same rules across player counts so most insights transfer from 2-player work.
 
 ---
 
-### EXP-009: bootstrap vs from-scratch self-play
+### Explicit chance nodes
 
-Compares starting NN self-play from MCTS-bootstrapped weights versus from scratch — the question of whether the bootstrap is a real shortcut or a local-minimum trap. Follow-up to EXP-008. See `EXPERIMENTS.md`.
+IS-MCTS handles future chance (dice rolls, feeder re-rolls, deck draws under a fresh determinization) by reseeding `state.rng` per simulation — each sim draws one fresh sample of the entire trajectory's chance vector, and Monte Carlo over N sims integrates over the distribution. Mathematically converges to the right answer. The alternative is **explicit chance nodes**: insert a chance node between an action and its stochastic resolution, with children = possible outcomes selected by *probability-weighted sampling* (not UCB — UCB at chance nodes biases value backprop). Substantially more engineering than IS-MCTS for a variance-reduction benefit that may or may not be material. Only worth pursuing if a future experiment shows IS-MCTS reaches stable strength but converges slowly on chance-heavy decisions.
+
+---
+
+### Single-determinization MCTS vs IS-MCTS
+
+A useful follow-up baseline: determinize the hidden state *once* at the root of each MCTS call, then run normal peek-MCTS in that one locked world. This isn't PIMC (no voting across multiple trees) and it isn't IS-MCTS (no per-sim re-determinization). The gap between this and IS-MCTS isolates the value of cross-world statistic merging — i.e. quantifies the cost of strategy fusion *within* a single search. Only worth running if we want to dig into *why* IS-MCTS performs as it does.
+
+---
+
+### Action canonicalization
+
+Several game phases — paying egg/food costs, distributing eggs across the board — let the engine enumerate every legal assignment, even when many of those assignments are mechanically indistinguishable (e.g. paying one egg from bird A vs bird B at the same column when no power cares which bird paid). This inflates the branching factor with choices that carry no decision-theoretic content, and MCTS wastes simulations distinguishing them. The idea is to recognize mechanical equivalence per phase, collapse equivalent actions into a single canonical representative before MCTS sees them, and re-expand to a concrete assignment only at apply time if the engine needs it. Likely shifts the diminishing-returns threshold on sim-count scaling, so it's worth doing before strength experiments are run on the un-canonicalized engine.

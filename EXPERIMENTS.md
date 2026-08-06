@@ -35,7 +35,7 @@ Two run modes implement the paired-comparison machinery, each suited to a differ
 - **`paired`** — direct A vs B head-to-head with shared seeds. Highest statistical power per binary question. Pairwise combinatorial scaling — expensive at >2 values. **Use for**: specific A/B questions (peek-MCTS vs PIMC, score-aware vs random rollouts) or tiebreaking between two arms that came out close in a `vs_reference` sweep.
 - **`continuous`** — open-ended matchup runs (no fixed seeds, runs until Ctrl+C). **Use for**: exploratory data generation, smoke runs, or accumulating games for later analysis when statistical paired design isn't needed.
 
-**`REFERENCE_PARAMS` is provisional.** Today it's set to peek-MCTS at 500 sims because PIMC isn't implemented yet. EXP-006 will quantify the peek-vs-PIMC gap; the project's reference will likely switch to honest PIMC afterward. Pre-switch and post-switch win rates won't be directly comparable, so prefer deferring strength-sensitive experiments (EXP-001 onward) until the reference is finalized.
+**`REFERENCE_PARAMS` is a determinized PIMC opponent.** IS-MCTS/PIMC is implemented in `game/core/redeterminize.py` and exposed via `MCTSConfig.determinize`. Empirically, PIMC matches or beats the wall-clock throughput of peek-MCTS because per-simulation redeterminization is cheaper than peek-MCTS's cached-node state copying. The project has adopted PIMC as the fixed reference. Win rates from experiments run against this reference are on a common scale; any pre-PIMC data is no longer comparable.
 
 **Recommended sequence for sweeps:** `vs_reference` coarse sweep → if top arms are within noise, `paired` tiebreak between the contenders.
 
@@ -95,10 +95,11 @@ Unordered. Scheduling lives in `BACKLOG.md`.
 ---
 
 ### EXP-006: Peek-MCTS vs PIMC (determinization)
+**Status: implementation complete; reference decision settled outside this experiment.**
 **Hypothesis (H4):** Current MCTS implicitly exploits hidden info via `transition_state` determinism. PIMC (re-shuffle `bird_deck` / `bonus_deck` / opponent hidden hands and re-seed `state.rng` per simulation) plays measurably differently. The strength gap *in honest evaluation* is the cheat tax.
 **What it measures:** Win rate of peek-MCTS vs honest PIMC, both evaluated under honest play conditions.
-**Why:** Quantifies how much of current MCTS's strength comes from exploiting engine-level observability that a real agent wouldn't have. Critical input to H6 — if peek's advantage is small, the bootstrap-data question becomes moot.
-**Depends on:** PIMC implementation in `game/` (see TODO).
+**Why:** Quantifies how much of current MCTS's strength comes from exploiting engine-level observability that a real agent wouldn't have.
+**Note:** PIMC/IS-MCTS was implemented and the project reference was switched to determinized MCTS after wall-clock and early-strength data showed it was the better standard. The experiment can still be run as a historical A/B, but it is no longer a gating decision for the reference.
 
 ---
 
@@ -119,7 +120,7 @@ Unordered. Scheduling lives in `BACKLOG.md`.
 - (d) Curriculum: bootstrap on (a), fine-tune on (b)
 **Games:** TBD — needs cost-of-PIMC numbers from EXP-006 first.
 **Eval:** Head-to-head paired games against honest-PIMC reference player.
-**Depends on:** EXP-006 (PIMC working), NN training pipeline, observable-only state encoder (see TODO).
+**Depends on:** NN training pipeline, observable-only state encoder (see TODO).
 **Reasoning:** AlphaZero went from expert data to pure self-play because they had the compute. We don't. The empirical question — "is biased-but-cheap bootstrap data a compute-efficient shortcut at our scale?" — is the central result the paper hinges on. Negative result is also publishable.
 
 ---
@@ -139,13 +140,19 @@ At checkpoints along the compute axis, evaluate each NN against the same referen
 
 ## Completed Experiments
 
-_(none yet)_
+- **2026-05-11:** Cross-process determinism verified across `PYTHONHASHSEED` / worker count / game seed for both peek and IS-MCTS (`lab/benchmarks/test_determinism.py`).
+- **2026-06:** IS-MCTS/PIMC determinization implemented and adopted as the project reference.
+- **2026-06:** Optuna joint hyperparameter search (`mcts_joint_v1`) completed 75 trials × 20 seeds. Best config beat the PIMC reference at 77.5% win rate (`simulations=1500`, `exploration_constant≈2.27`, `value_function=absolute_score`, `widening_alpha≈0.83`, `widening_k≈1.70`).
 
 ## Notes & Observations
 
 - 2024-02-04: Infrastructure ready - parquet storage, YAML configs, configurable exploration_constant
 - 2024-02-04: **Determinism verified** - identical seeds produce identical MCTS trees and moves
+- 2024-02-04: Infrastructure ready - parquet storage, YAML configs, configurable exploration_constant.
+- 2024-02-04: **Determinism verified** - identical seeds produce identical MCTS trees and moves.
 - 2026-05-11: **Cross-process determinism verified** — identical seeds produce identical moves across `PYTHONHASHSEED ∈ {0, 1, random}` × `num_workers ∈ {1, 2}` × `game_seed ∈ {1, 42, 999}`. The engine is `PYTHONHASHSEED`-invariant; no env wrapper needed for paired comparisons even at `num_workers > 1`. See `lab/benchmarks/test_determinism.py`.
+- 2026-06: PIMC/IS-MCTS determinization implemented in `game/core/redeterminize.py` and adopted as the project-wide reference.
+- 2026-06: Optuna joint search (`mcts_joint_v1`, 75 trials) completed; best configuration recorded under Completed Experiments.
 - **Paired-design variance reduction is reported as a byproduct of every paired EXP.** For each, compute `effective_n_multiplier = (Var(A) + Var(B)) / Var(A − B)` over the paired outcomes; record alongside the primary result. The methodology itself is textbook (paired t-test / McNemar / blocked designs) and needs no dedicated experiment to justify, but the realized multiplier is empirical and is expected to **vary across experiments**: large for small-effect comparisons (e.g. EXP-002 near-optimal `c` tuning), smaller for large-effect ones (e.g. EXP-001 sim-budget extremes). Paper methods section should report the range across all paired EXPs plus one representative anchor — not a single global number.
 
 ---

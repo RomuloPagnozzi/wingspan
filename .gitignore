@@ -5,3 +5,6 @@ __pycache__
 .DS_Store
 .pytest_cache
 experiments/data/
+*.parquet
+*.db
+*.csv

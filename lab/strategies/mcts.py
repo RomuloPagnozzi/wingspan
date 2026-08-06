@@ -25,6 +25,8 @@ class MCTSConfig:
     value_function: ValueFunction = ValueFunction.SCORE_DELTA
     determinize: bool = False
     rollout_depth: int | None = None
+    widening_k: float | None = None
+    widening_alpha: float = 0.5
 
 
 @dataclass(slots=True)
@@ -183,19 +185,49 @@ def _backpropagate(node: MCTSNode | ISMCTSNode | None, value: float) -> None:
         node = node.parent
 
 
+def _can_expand(
+    node: MCTSNode | ISMCTSNode,
+    untried_count: int,
+    widening_k: float | None,
+    widening_alpha: float,
+) -> bool:
+    if untried_count == 0:
+        return False
+    if widening_k is None:
+        return True
+    cap = max(1, math.floor(widening_k * (node.visits**widening_alpha)))
+    return len(node.children) < cap
+
+
 # =============================================================================
 # Peek MCTS algorithm
 # =============================================================================
 
 
-def _select(node: MCTSNode, exploration_constant: float) -> MCTSNode:
-    while not node.is_terminal and node.is_fully_expanded:
+def _select(
+    node: MCTSNode,
+    exploration_constant: float,
+    widening_k: float | None,
+    widening_alpha: float,
+) -> MCTSNode:
+    while not node.is_terminal and not _can_expand(
+        node, len(node.untried_actions), widening_k, widening_alpha
+    ):
+        if not node.children:
+            return node
         node = max(node.children.values(), key=lambda n: n.ucb1(exploration_constant))
     return node
 
 
-def _expand(node: MCTSNode, rng: random.Random) -> MCTSNode:
-    if node.is_terminal or not node.untried_actions:
+def _expand(
+    node: MCTSNode,
+    rng: random.Random,
+    widening_k: float | None,
+    widening_alpha: float,
+) -> MCTSNode:
+    if node.is_terminal or not _can_expand(
+        node, len(node.untried_actions), widening_k, widening_alpha
+    ):
         return node
 
     idx = rng.randrange(len(node.untried_actions))
@@ -220,9 +252,11 @@ def _peek_iteration(
     value_function: ValueFunction,
     rng: random.Random,
     rollout_depth: int | None = None,
+    widening_k: float | None = None,
+    widening_alpha: float = 0.5,
 ) -> None:
-    node = _select(root, exploration_constant)
-    node = _expand(node, rng)
+    node = _select(root, exploration_constant, widening_k, widening_alpha)
+    node = _expand(node, rng, widening_k, widening_alpha)
     value = _simulate_from_state(
         node.state, root.player_index, value_function, rng, max_depth=rollout_depth
     )
@@ -242,6 +276,8 @@ def _ismcts_iteration(
     value_function: ValueFunction,
     rng: random.Random,
     rollout_depth: int | None = None,
+    widening_k: float | None = None,
+    widening_alpha: float = 0.5,
 ) -> None:
     state = redeterminize(root_state, perspective_player, rng)
     node = root
@@ -255,8 +291,12 @@ def _ismcts_iteration(
 
         legal_set = set(legal)
         untried = [a for a in legal if a not in node.children]
+        has_compatible_child = any(a in legal_set for a in node.children)
 
-        if untried:
+        if untried and (
+            not has_compatible_child
+            or _can_expand(node, len(untried), widening_k, widening_alpha)
+        ):
             idx = rng.randrange(len(untried))
             action = untried[idx]
             state = transition_state_inplace(state, action)
@@ -344,6 +384,8 @@ class MCTSStrategy(Strategy):
                     self.params.value_function,
                     self._rng,
                     rollout_depth=self.params.rollout_depth,
+                    widening_k=self.params.widening_k,
+                    widening_alpha=self.params.widening_alpha,
                 )
             children = ismcts_root.children
             root_visits = ismcts_root.visits
@@ -357,6 +399,8 @@ class MCTSStrategy(Strategy):
                     self.params.value_function,
                     self._rng,
                     rollout_depth=self.params.rollout_depth,
+                    widening_k=self.params.widening_k,
+                    widening_alpha=self.params.widening_alpha,
                 )
             children = peek_root.children
             root_visits = peek_root.visits
