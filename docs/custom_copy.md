@@ -18,6 +18,7 @@ Custom state copy functions in `game/core/custom_copy.py` provide ~20x performan
   - [_copy_player](#_copy_player)
   - [_copy_queued_power](#_copy_queued_power)
   - [_copy_cost_payment](#_copy_cost_payment)
+  - [_copy_power_execution](#_copy_power_execution)
   - [_copy_action_data](#_copy_action_data)
   - [copy_state](#copy_state)
 
@@ -106,27 +107,17 @@ Handles `None` because a `Spot` may or may not have a bird placed on it.
 ```python
 @dataclass(slots=True)
 class Spot:
-    row: int
-    col: int
-    habitat: str
-    resource: str
-    resource_amount: int
-    extra_resource: bool
-    egg_cost: int
+    config: SpotConfig
     bird: PlacedBird | None = None
 ```
+
+`SpotConfig` is a frozen dataclass containing all immutable board position data (`row`, `col`, `habitat`, `resource`, `resource_amount`, `extra_resource`, `egg_cost`). A shared `BOARD_LAYOUT` constant holds all `SpotConfig` instances, built once at module load. This separation follows the same pattern as `BirdCard`/`BIRD_REGISTRY` — immutable definitions are shared by reference, only mutable state is copied.
 
 **Copy implementation:**
 ```python
 def _copy_spot(spot: Spot) -> Spot:
     new_spot = object.__new__(Spot)
-    new_spot.row = spot.row
-    new_spot.col = spot.col
-    new_spot.habitat = spot.habitat
-    new_spot.resource = spot.resource
-    new_spot.resource_amount = spot.resource_amount
-    new_spot.extra_resource = spot.extra_resource
-    new_spot.egg_cost = spot.egg_cost
+    new_spot.config = spot.config
     if spot.bird is None:
         new_spot.bird = None
     else:
@@ -138,13 +129,7 @@ def _copy_spot(spot: Spot) -> Spot:
 
 | Field | Type | Copy Strategy | Rationale |
 |-------|------|---------------|-----------|
-| `row` | `int` | Direct assignment | Immutable |
-| `col` | `int` | Direct assignment | Immutable |
-| `habitat` | `str` | Direct assignment | Immutable (interned string) |
-| `resource` | `str` | Direct assignment | Immutable (interned string) |
-| `resource_amount` | `int` | Direct assignment | Immutable |
-| `extra_resource` | `bool` | Direct assignment | Immutable |
-| `egg_cost` | `int` | Direct assignment | Immutable |
+| `config` | `SpotConfig` | Direct assignment | Frozen dataclass, shared by reference |
 | `bird` | `PlacedBird \| None` | `_copy_placed_bird()` | Mutable |
 
 ---
@@ -329,6 +314,59 @@ def _copy_cost_payment(cp: CostPayment | None) -> CostPayment | None:
 
 ---
 
+### `_copy_power_execution`
+
+**Source class: `PowerExecution`**
+```python
+@dataclass(slots=True)
+class PowerExecution:
+    power_id: int
+    bird_id: int
+    spot_row: int
+    spot_col: int
+    player_index: int
+    phase: str | None
+    context: dict[str, Any] = field(default_factory=dict)
+```
+
+**Copy implementation:**
+```python
+def _copy_power_execution(pe: PowerExecution) -> PowerExecution:
+    new_pe = object.__new__(PowerExecution)
+    new_pe.power_id = pe.power_id
+    new_pe.bird_id = pe.bird_id
+    new_pe.spot_row = pe.spot_row
+    new_pe.spot_col = pe.spot_col
+    new_pe.player_index = pe.player_index
+    new_pe.phase = pe.phase
+    new_ctx = {}
+    for k, v in pe.context.items():
+        if isinstance(v, list):
+            new_ctx[k] = list(v)
+        elif isinstance(v, dict):
+            new_ctx[k] = dict(v)
+        else:
+            new_ctx[k] = v
+    new_pe.context = new_ctx
+    return new_pe
+```
+
+**Field analysis:**
+
+| Field | Type | Copy Strategy | Rationale |
+|-------|------|---------------|-----------|
+| `power_id` | `int` | Direct assignment | Immutable |
+| `bird_id` | `int` | Direct assignment | Immutable |
+| `spot_row` | `int` | Direct assignment | Immutable |
+| `spot_col` | `int` | Direct assignment | Immutable |
+| `player_index` | `int` | Direct assignment | Immutable |
+| `phase` | `str \| None` | Direct assignment | Immutable |
+| `context` | `dict[str, Any]` | One-level-deep copy | Values are primitives, flat lists, or flat dicts |
+
+`context` values are copied one level deep: `list()` for lists, `dict()` for dicts, direct assignment for primitives. This is sufficient because context values are always primitives (`int`, `str`, `bool`), flat lists of primitives, or flat dicts with primitive values.
+
+---
+
 ### `_copy_action_data`
 
 **Source class: `ActionData`**
@@ -357,7 +395,7 @@ def _copy_action_data(ad: ActionData) -> ActionData:
     new_ad.powers_queue = [_copy_queued_power(qp) for qp in ad.powers_queue]
     new_ad.current_power_index = ad.current_power_index
     new_ad.action_player_index = ad.action_player_index
-    new_ad.execution_stack = [copy.deepcopy(pe) for pe in ad.execution_stack]
+    new_ad.execution_stack = [_copy_power_execution(pe) for pe in ad.execution_stack]
     new_ad.pending_cost = _copy_cost_payment(ad.pending_cost)
     new_ad.end_turn_effects = list(ad.end_turn_effects)
     new_ad.food_needed = ad.food_needed
@@ -377,7 +415,7 @@ def _copy_action_data(ad: ActionData) -> ActionData:
 | `powers_queue` | `list[QueuedPower]` | List comp with `_copy_queued_power()` | Mutable elements |
 | `current_power_index` | `int` | Direct assignment | Immutable |
 | `action_player_index` | `int \| None` | Direct assignment | Immutable |
-| `execution_stack` | `list[PowerExecution]` | `copy.deepcopy()` | Mutable context dict; small objects, rare |
+| `execution_stack` | `list[PowerExecution]` | List comp with `_copy_power_execution()` | Mutable context dict |
 | `pending_cost` | `CostPayment \| None` | `_copy_cost_payment()` | Mutable if not None |
 | `end_turn_effects` | `list[EndTurnEffect]` | `list()` shallow copy | Elements have only immutable fields |
 | `food_needed` | `int` | Direct assignment | Immutable |
@@ -427,7 +465,7 @@ def copy_state(state: GameState) -> GameState:
     new_state.game_phase = state.game_phase
     new_state.action_data = _copy_action_data(state.action_data)
     new_state.round_goal_config = state.round_goal_config
-    new_state.rng = random.Random()
+    new_state.rng = random.Random.__new__(random.Random)
     new_state.rng.setstate(state.rng.getstate())
     return new_state
 ```
@@ -448,6 +486,8 @@ def copy_state(state: GameState) -> GameState:
 | `game_phase` | `GamePhase` | Direct assignment | Enum, immutable |
 | `action_data` | `ActionData` | `_copy_action_data()` | Mutable dataclass |
 | `round_goal_config` | `RoundGoalConfig \| None` | Direct assignment | Set once at game init, never modified |
-| `rng` | `random.Random` | New instance with copied state | Mutable; `getstate()`/`setstate()` preserves exact PRNG position |
+| `rng` | `random.Random` | `Random.__new__()` + `setstate()` | Mutable; skips `__init__` seeding, `setstate()` restores exact PRNG position |
 
 **Note on `round_goal_config`:** This is assigned directly without copying because `RoundGoalConfig` contains a `ScoringMode` enum and a `list[str]` of goal names. Both are set once during game initialization and never modified during gameplay.
+
+**Note on `rng`:** Uses `Random.__new__(Random)` instead of `Random()` to skip `__init__`, which would seed the Mersenne Twister (625 integers) only to have it immediately overwritten by `setstate()`.

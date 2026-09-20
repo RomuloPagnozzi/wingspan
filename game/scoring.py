@@ -24,7 +24,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
                     for row in player.board
                     for spot in row
                     if spot.bird
-                    if spot.habitat == "forest"
+                    if spot.config.habitat == "forest"
                 ]
             )
             grassland_birds = len(
@@ -33,7 +33,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
                     for row in player.board
                     for spot in row
                     if spot.bird
-                    if spot.habitat == "grassland"
+                    if spot.config.habitat == "grassland"
                 ]
             )
             wetland_birds = len(
@@ -42,7 +42,7 @@ def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
                     for row in player.board
                     for spot in row
                     if spot.bird
-                    if spot.habitat == "wetland"
+                    if spot.config.habitat == "wetland"
                 ]
             )
             return min(forest_birds, grassland_birds, wetland_birds)

@@ -494,10 +494,12 @@ def _power_8_activate(state: GameState, stack: list[PowerExecution], _) -> GameS
 
         if len(food_types) > 1 and len(available_foods) > 1:
             current.phase = "select_food_type"
-            current.context["available_foods"] = list(available_foods)
+            current.context["available_foods"] = sorted(available_foods)
             return state
 
-        food_type = food_types[0] if len(food_types) == 1 else list(available_foods)[0]
+        food_type = (
+            food_types[0] if len(food_types) == 1 else sorted(available_foods)[0]
+        )
         current.context["food_type"] = food_type
 
         matching_dice = [
@@ -632,7 +634,7 @@ def _power_9_activate(state: GameState, stack: list[PowerExecution], _) -> GameS
     spot = current.get_spot(state)
     bird = spot.bird
     assert bird
-    current_habitat = spot.habitat
+    current_habitat = spot.config.habitat
 
     habitat_map = {"forest": 0, "grassland": 1, "wetland": 2}
     player = state.players[current.player_index]
@@ -790,8 +792,8 @@ def _power_11_activate(state: GameState, stack: list[PowerExecution], _) -> Game
                 queued = QueuedPower(
                     power_id=pp["power_data"]["data"]["id"],
                     bird_id=pp["bird_id"],
-                    spot_row=pp["spot"].row,
-                    spot_col=pp["spot"].col,
+                    spot_row=pp["spot"].config.row,
+                    spot_col=pp["spot"].config.col,
                     player_index=pp["player_index"],
                     power_data=pp["power_data"],
                 )
@@ -818,7 +820,7 @@ def _power_12_activate(state: GameState, stack: list[PowerExecution], _) -> Game
 
     if habitat_spec == "this":
         spot = current.get_spot(state)
-        target_habitat = spot.habitat
+        target_habitat = spot.config.habitat
     else:
         target_habitat = habitat_spec
 
@@ -932,7 +934,7 @@ def _power_14_activate(state: GameState, stack: list[PowerExecution], _) -> Game
 
     spot = current.get_spot(state)
     player = state.players[current.player_index]
-    habitat_row = player.board[spot.row]
+    habitat_row = player.board[spot.config.row]
 
     eligible_birds = []
 
@@ -951,8 +953,8 @@ def _power_14_activate(state: GameState, stack: list[PowerExecution], _) -> Game
                 eligible_birds.append(
                     {
                         "bird_id": other_spot.bird.id,
-                        "spot_row": other_spot.row,
-                        "spot_col": other_spot.col,
+                        "spot_row": other_spot.config.row,
+                        "spot_col": other_spot.config.col,
                         "power_data": other_power,
                     }
                 )
@@ -971,8 +973,8 @@ def _power_14_activate(state: GameState, stack: list[PowerExecution], _) -> Game
                     eligible_birds.append(
                         {
                             "bird_id": other_spot.bird.id,
-                            "spot_row": other_spot.row,
-                            "spot_col": other_spot.col,
+                            "spot_row": other_spot.config.row,
+                            "spot_col": other_spot.config.col,
                             "power_data": other_power,
                         }
                     )

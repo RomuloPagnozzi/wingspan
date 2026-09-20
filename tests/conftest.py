@@ -110,8 +110,8 @@ def setup_power_queue(state, power_entries):
             QueuedPower(
                 power_id=entry.get("power_id", entry["power_data"]["data"]["id"]),
                 bird_id=entry["bird_id"],
-                spot_row=spot.row if spot else 0,
-                spot_col=spot.col if spot else 0,
+                spot_row=spot.config.row if spot else 0,
+                spot_col=spot.config.col if spot else 0,
                 player_index=entry.get("player_index", state.current_player_index),
                 power_data=entry["power_data"],
             )
@@ -149,8 +149,8 @@ def setup_power_execution(
         QueuedPower(
             power_id=power_id,
             bird_id=bird_id,
-            spot_row=spot.row if spot else 0,
-            spot_col=spot.col if spot else 0,
+            spot_row=spot.config.row if spot else 0,
+            spot_col=spot.config.col if spot else 0,
             player_index=player_index,
             power_data=power_data,
         )

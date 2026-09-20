@@ -225,10 +225,12 @@ def _get_play_bird_actions(state: GameState) -> list[Action]:
     actions = []
     for bird_id, spot in generate_playable_bird_spots(current_player):
         if target_habitat:
-            if spot.habitat == target_habitat:
-                actions.append(PlayBirdAction(bird_id, spot.row, spot.col))
+            if spot.config.habitat == target_habitat:
+                actions.append(
+                    PlayBirdAction(bird_id, spot.config.row, spot.config.col)
+                )
         else:
-            actions.append(PlayBirdAction(bird_id, spot.row, spot.col))
+            actions.append(PlayBirdAction(bird_id, spot.config.row, spot.config.col))
 
     return actions
 

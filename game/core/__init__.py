@@ -7,9 +7,11 @@ from .models import (
     Player,
     BirdState,
     PlacedBird,
+    SpotConfig,
     Spot,
     BIRD_REGISTRY,
     BONUS_REGISTRY,
+    BOARD_LAYOUT,
     init_registries,
     load_deck,
     get_bird_card,
@@ -27,6 +29,7 @@ from .game import (
     ActionData,
 )
 from .custom_copy import copy_state
+from .redeterminize import redeterminize
 from .action_types import (
     Action,
     SimpleAction,
@@ -51,10 +54,12 @@ __all__ = [
     "Bonus",
     "BirdState",
     "PlacedBird",
+    "SpotConfig",
     "Spot",
     "Player",
     "BIRD_REGISTRY",
     "BONUS_REGISTRY",
+    "BOARD_LAYOUT",
     "init_registries",
     "load_deck",
     "get_bird_card",
@@ -84,4 +89,6 @@ __all__ = [
     "roll_feeder",
     # copy
     "copy_state",
+    # determinization
+    "redeterminize",
 ]

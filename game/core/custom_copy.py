@@ -1,8 +1,7 @@
-import copy
 import random
 
 from .models import Player, ScoreState, BirdState, PlacedBird, Spot
-from .game import QueuedPower, CostPayment, ActionData, GameState
+from .game import QueuedPower, CostPayment, PowerExecution, ActionData, GameState
 
 
 def _copy_bird_state(bs: BirdState) -> BirdState:
@@ -18,15 +17,9 @@ def _copy_placed_bird(pb: PlacedBird | None) -> PlacedBird | None:
 
 
 def _copy_spot(spot: Spot) -> Spot:
-    """Copy a Spot with its bird."""
+    """Copy a Spot - shares frozen config, copies only mutable bird."""
     new_spot = object.__new__(Spot)
-    new_spot.row = spot.row
-    new_spot.col = spot.col
-    new_spot.habitat = spot.habitat
-    new_spot.resource = spot.resource
-    new_spot.resource_amount = spot.resource_amount
-    new_spot.extra_resource = spot.extra_resource
-    new_spot.egg_cost = spot.egg_cost
+    new_spot.config = spot.config
     if spot.bird is None:
         new_spot.bird = None
     else:
@@ -91,13 +84,34 @@ def _copy_cost_payment(cp: CostPayment | None) -> CostPayment | None:
     )
 
 
+def _copy_power_execution(pe: PowerExecution) -> PowerExecution:
+    """Copy a PowerExecution with its context dict."""
+    new_pe = object.__new__(PowerExecution)
+    new_pe.power_id = pe.power_id
+    new_pe.bird_id = pe.bird_id
+    new_pe.spot_row = pe.spot_row
+    new_pe.spot_col = pe.spot_col
+    new_pe.player_index = pe.player_index
+    new_pe.phase = pe.phase
+    new_ctx = {}
+    for k, v in pe.context.items():
+        if isinstance(v, list):
+            new_ctx[k] = list(v)
+        elif isinstance(v, dict):
+            new_ctx[k] = dict(v)
+        else:
+            new_ctx[k] = v
+    new_pe.context = new_ctx
+    return new_pe
+
+
 def _copy_action_data(ad: ActionData) -> ActionData:
     """Copy ActionData with all nested structures."""
     new_ad = object.__new__(ActionData)
     new_ad.powers_queue = [_copy_queued_power(qp) for qp in ad.powers_queue]
     new_ad.current_power_index = ad.current_power_index
     new_ad.action_player_index = ad.action_player_index
-    new_ad.execution_stack = [copy.deepcopy(pe) for pe in ad.execution_stack]
+    new_ad.execution_stack = [_copy_power_execution(pe) for pe in ad.execution_stack]
     new_ad.pending_cost = _copy_cost_payment(ad.pending_cost)
     new_ad.end_turn_effects = list(ad.end_turn_effects)
     new_ad.food_needed = ad.food_needed
@@ -125,6 +139,6 @@ def copy_state(state: GameState) -> GameState:
     new_state.game_phase = state.game_phase
     new_state.action_data = _copy_action_data(state.action_data)
     new_state.round_goal_config = state.round_goal_config
-    new_state.rng = random.Random()
+    new_state.rng = random.Random.__new__(random.Random)
     new_state.rng.setstate(state.rng.getstate())
     return new_state

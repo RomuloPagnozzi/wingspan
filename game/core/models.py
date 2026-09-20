@@ -150,9 +150,9 @@ class BirdState:
     tucked_cards: int = 0
 
 
-@dataclass(slots=True)
-class Spot:
-    """A single spot on the player's board."""
+@dataclass(frozen=True, slots=True)
+class SpotConfig:
+    """Immutable spot configuration - shared across all game states."""
 
     row: int
     col: int
@@ -161,6 +161,13 @@ class Spot:
     resource_amount: int
     extra_resource: bool
     egg_cost: int
+
+
+@dataclass(slots=True)
+class Spot:
+    """A single spot on the player's board."""
+
+    config: SpotConfig
     bird: PlacedBird | None = None
 
 
@@ -187,6 +194,44 @@ class PlacedBird:
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+
+def _build_board_layout() -> tuple[tuple[SpotConfig, ...], ...]:
+    """Build the immutable 3x5 board layout (called once at module load)."""
+    habitats = {0: "forest", 1: "grassland", 2: "wetland"}
+    resources = {0: "food", 1: "egg", 2: "card"}
+    resource_amount = {0: 1, 1: 1, 2: 2, 3: 2, 4: 3}
+    extra = {0: False, 1: True, 2: False, 3: True, 4: True}
+    egg_cost = {0: 0, 1: 1, 2: 1, 3: 2, 4: 2}
+    rows = []
+    for line in range(3):
+        cols = []
+        for column in range(5):
+            cols.append(
+                SpotConfig(
+                    row=line,
+                    col=column,
+                    habitat=habitats[line],
+                    resource=resources[line],
+                    resource_amount=(
+                        resource_amount[column]
+                        if habitats[line] != "grassland"
+                        else resource_amount[column] + 1
+                    ),
+                    extra_resource=extra[column],
+                    egg_cost=egg_cost[column],
+                )
+            )
+        rows.append(tuple(cols))
+    return tuple(rows)
+
+
+BOARD_LAYOUT: tuple[tuple[SpotConfig, ...], ...] = _build_board_layout()
+
+
+def build_board() -> list[list[Spot]]:
+    """Create an empty 3x5 player board referencing shared SpotConfig."""
+    return [[Spot(config=cfg) for cfg in row] for row in BOARD_LAYOUT]
 
 
 # =============================================================================
@@ -221,36 +266,6 @@ def init_food() -> dict[str, int]:
     """Create initial food supply with 1 of each type."""
     food_types = ["invertebrate", "seed", "fish", "fruit", "rodent"]
     return {food: 1 for food in food_types}
-
-
-def build_board() -> list[list[Spot]]:
-    """Create an empty 3x5 player board with habitat spots."""
-    board = []
-    habitats = {0: "forest", 1: "grassland", 2: "wetland"}
-    resources = {0: "food", 1: "egg", 2: "card"}
-    resource_amount = {0: 1, 1: 1, 2: 2, 3: 2, 4: 3}
-    extra = {0: False, 1: True, 2: False, 3: True, 4: True}
-    egg_cost = {0: 0, 1: 1, 2: 1, 3: 2, 4: 2}
-    for line in range(3):
-        line_data = []
-        for column in range(5):
-            line_data.append(
-                Spot(
-                    line,
-                    column,
-                    habitats[line],
-                    resources[line],
-                    (
-                        resource_amount[column]
-                        if habitats[line] != "grassland"
-                        else resource_amount[column] + 1
-                    ),
-                    extra[column],
-                    egg_cost[column],
-                )
-            )
-        board.append(line_data)
-    return board
 
 
 @dataclass(slots=True)

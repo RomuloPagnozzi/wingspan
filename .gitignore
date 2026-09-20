@@ -4,3 +4,7 @@ __pycache__
 *.ipynb
 .DS_Store
 .pytest_cache
+experiments/data/
+*.parquet
+*.db
+*.csv

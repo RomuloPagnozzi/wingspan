@@ -55,8 +55,8 @@ def test_power_9_bird_solo_in_row():
     )
 
     # Record initial position
-    initial_col = activating_spot.col
-    initial_row = activating_spot.row
+    initial_col = activating_spot.config.col
+    initial_row = activating_spot.config.row
 
     # Verify can activate
     actions = get_actions(state)

@@ -106,7 +106,9 @@ def generate_playable_bird_spots(
         sum(bird.state.eggs for bird in played_birds) if played_birds else 0
     )
 
-    available_spots = [spot for spot in empty_spots if spot.egg_cost <= available_eggs]
+    available_spots = [
+        spot for spot in empty_spots if spot.config.egg_cost <= available_eggs
+    ]
 
     if not available_spots:
         return
@@ -119,7 +121,7 @@ def generate_playable_bird_spots(
             continue
 
         for spot in available_spots:
-            if spot.habitat in bird_card.habitats:
+            if spot.config.habitat in bird_card.habitats:
                 yield (bird_id, spot)
 
 
@@ -135,27 +137,39 @@ def get_egg_payment_combinations(
     if not birds:
         raise ValueError("No birds with eggs available to pay egg cost.")
 
-    if sum(birds.values()) < egg_cost:
-        raise ValueError(
-            f"Not enough eggs available. Need {egg_cost}, have {sum(birds.values())}"
-        )
+    items = list(birds.items())
+    total = sum(amount for _, amount in items)
 
-    combinations = []
+    if total < egg_cost:
+        raise ValueError(f"Not enough eggs available. Need {egg_cost}, have {total}")
 
-    def find_combinations(remaining, combination, index):
+    n = len(items)
+    suffix_capacity = [0] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        suffix_capacity[i] = suffix_capacity[i + 1] + items[i][1]
+
+    results: list[dict[int, int]] = []
+    current: dict[int, int] = {}
+
+    def dfs(index: int, remaining: int) -> None:
         if remaining == 0:
-            combinations.append(combination.copy())
+            results.append(current.copy())
+            return
+        if remaining > suffix_capacity[index]:
             return
 
-        for i in range(index, len(birds)):
-            id, amount = list(birds.items())[i]
-            for count in range(1, amount + 1):
-                combination[id] = count
-                find_combinations(remaining - count, combination, i + 1)
-                del combination[id]
+        bird_id, max_eggs = items[index]
+        limit = min(max_eggs, remaining)
 
-    find_combinations(egg_cost, {}, 0)
-    return combinations
+        dfs(index + 1, remaining)
+
+        for count in range(1, limit + 1):
+            current[bird_id] = count
+            dfs(index + 1, remaining - count)
+        current.pop(bird_id, None)
+
+    dfs(0, egg_cost)
+    return results
 
 
 def get_egg_distribution_combinations(
@@ -172,64 +186,44 @@ def get_egg_distribution_combinations(
     if not birds_capacity:
         raise ValueError("No birds available to receive eggs.")
 
-    available_birds = {
-        bird_id: capacity
-        for bird_id, capacity in birds_capacity.items()
-        if capacity > 0
-    }
+    items = [(bird_id, cap) for bird_id, cap in birds_capacity.items() if cap > 0]
 
-    if not available_birds:
+    if not items:
         raise ValueError("No birds have available egg capacity.")
 
-    total_capacity = sum(available_birds.values())
+    total_capacity = sum(cap for _, cap in items)
 
     if eggs_to_distribute >= total_capacity:
-        return [dict(available_birds)]
+        return [{bird_id: cap for bird_id, cap in items}]
 
-    combinations = []
-    bird_ids = list(available_birds.keys())
+    n = len(items)
+    suffix_capacity = [0] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        suffix_capacity[i] = suffix_capacity[i + 1] + items[i][1]
 
-    def find_distributions(
-        remaining_eggs: int,
-        distribution: dict[int, int],
-        bird_index: int,
-    ) -> None:
-        if bird_index == len(bird_ids):
-            if remaining_eggs == 0:
-                combinations.append(dict(distribution))
+    results: list[dict[int, int]] = []
+    current: dict[int, int] = {}
+
+    def dfs(index: int, remaining: int) -> None:
+        if remaining == 0:
+            results.append(current.copy())
+            return
+        if remaining > suffix_capacity[index]:
             return
 
-        bird_id = bird_ids[bird_index]
-        capacity = available_birds[bird_id]
-        max_eggs_for_bird = min(capacity, remaining_eggs)
-        remaining_capacity = sum(
-            available_birds[bird_ids[i]] for i in range(bird_index + 1, len(bird_ids))
-        )
+        bird_id, capacity = items[index]
+        limit = min(capacity, remaining)
+        next_index = index + 1
 
-        for eggs_to_bird in range(max_eggs_for_bird + 1):
-            remaining_after = remaining_eggs - eggs_to_bird
+        dfs(next_index, remaining)
 
-            if remaining_after <= remaining_capacity:
-                if eggs_to_bird > 0:
-                    distribution[bird_id] = eggs_to_bird
-                find_distributions(remaining_after, distribution, bird_index + 1)
-                if eggs_to_bird > 0:
-                    del distribution[bird_id]
+        for count in range(1, limit + 1):
+            current[bird_id] = count
+            dfs(next_index, remaining - count)
+        current.pop(bird_id, None)
 
-    find_distributions(eggs_to_distribute, {}, 0)
-    return combinations
-
-
-def can_afford_bird(
-    cost_options: list[dict[str, int]],
-    resources: dict[str, int],
-) -> bool:
-    """Check if we can afford a bird using any of its cost options."""
-    try:
-        next(generate_food_payments(cost_options, resources))
-        return True
-    except StopIteration:
-        return False
+    dfs(0, eggs_to_distribute)
+    return results
 
 
 def can_afford_bird_cost(
@@ -237,8 +231,33 @@ def can_afford_bird_cost(
     resources: dict[str, int],
 ) -> bool:
     """Check if we can afford a bird using its frozen cost format (from BirdCard)."""
-    cost_options = [dict(option) for option in frozen_cost]
-    return can_afford_bird(cost_options, resources)
+    if not frozen_cost:
+        return True
+
+    for option in frozen_cost:
+        wild_cost = 0
+        remaining = dict(resources)
+
+        deficit = 0
+        for food_type, amount in option:
+            if food_type == "wild":
+                wild_cost = amount
+                continue
+            available = remaining.get(food_type, 0)
+            used = min(available, amount)
+            remaining[food_type] = available - used
+            deficit += amount - used
+
+        if deficit == 0 and wild_cost == 0:
+            return True
+
+        available_pairs = sum(v // 2 for v in remaining.values())
+        total_remaining = sum(remaining.values())
+
+        if available_pairs >= deficit and total_remaining >= 2 * deficit + wild_cost:
+            return True
+
+    return False
 
 
 def generate_food_payments(
