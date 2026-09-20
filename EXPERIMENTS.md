@@ -54,8 +54,6 @@ Two run modes implement the paired-comparison machinery, each suited to a differ
 
 ## Experiment Catalog
 
-Unordered. Scheduling lives in `BACKLOG.md`.
-
 ### EXP-001: Simulation budget scaling
 **Hypothesis:** Win rate advantage of higher sims plateaus around 1000–1500.
 **What it measures:** Strength as a function of simulation budget at otherwise fixed config.

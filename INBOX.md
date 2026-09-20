@@ -1,6 +1,6 @@
 # Inbox
 
-Unprioritized ideas to revisit when relevant. Add freely; nothing leaves until promoted to `BACKLOG.md`. Entries describe the *idea* and *why* it matters — implementation details belong in the backlog spec after promotion.
+Unprioritized ideas to revisit when relevant. Add freely. Entries describe the *idea* and *why* it matters; an idea graduates by becoming an experiment in `EXPERIMENTS.md`, where the implementation detail belongs.
 
 ---
 

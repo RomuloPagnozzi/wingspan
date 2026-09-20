@@ -1497,7 +1497,6 @@ name = "wingspan"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "black" },
     { name = "ipykernel" },
     { name = "matplotlib" },
     { name = "openpyxl" },
@@ -1515,9 +1514,13 @@ dependencies = [
     { name = "uuid6" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "black" },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "black", specifier = ">=26.1.0" },
     { name = "ipykernel", specifier = ">=7.1.0" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "openpyxl", specifier = ">=3.1.5" },
@@ -1534,3 +1537,6 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.3" },
     { name = "uuid6", specifier = ">=2025.0.1" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "black", specifier = ">=26.1.0" }]

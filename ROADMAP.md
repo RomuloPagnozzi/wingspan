@@ -1,6 +1,6 @@
 # Wingspan Project Roadmap
 
-Long-term plan for the project, from the current state (engine complete, experiment harness scaffolded) through the AlphaZero-style NN end state. Big-picture vision only — sprint-level work lives in `BACKLOG.md`; capture-only ideas live in `INBOX.md`; experiment definitions and results live in `EXPERIMENTS.md`.
+Long-term plan for the project, from the current state (engine complete, experiment harness scaffolded) through the AlphaZero-style NN end state. Big-picture vision only — capture-only ideas live in `INBOX.md`; experiment definitions and results live in `EXPERIMENTS.md`.
 
 ## Project goal
 

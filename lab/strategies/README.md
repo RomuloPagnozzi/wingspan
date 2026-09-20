@@ -8,7 +8,7 @@ Game-playing strategies. All strategies implement `Strategy.select_action(state,
 |------|------|
 | `base.py` | `Strategy` ABC, `ValueFunction` enum, name registry, `create_strategy` factory |
 | `random.py` | uniform random action selection (deterministic with a seed) |
-| `mcts.py` | UCB1 Monte Carlo Tree Search with rollouts and optional worker pool |
+| `mcts.py` | MCTS with UCB1 selection, progressive widening, and optional PIMC/IS-MCTS determinization |
 
 ## Dependencies
 
@@ -33,7 +33,7 @@ strategy = create_strategy("mcts", simulations=500, exploration_constant=1.41, s
 # Direct construction
 from lab.strategies import MCTSStrategy, MCTSConfig, ValueFunction
 strategy = MCTSStrategy(
-    config=MCTSConfig(simulations=500, value_function=ValueFunction.SCORE_DELTA),
+    params=MCTSConfig(simulations=500, value_function=ValueFunction.SCORE_DELTA),
     seed=42,
 )
 

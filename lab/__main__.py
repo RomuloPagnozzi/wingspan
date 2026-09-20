@@ -365,7 +365,7 @@ def main():
         "-c",
         "--config",
         action="append",
-        default=None,
+        required=True,
         help="Config file path. Repeat to queue multiple configs (run sequentially).",
     )
     parser.add_argument(
@@ -379,12 +379,7 @@ def main():
     parser.add_argument("--list", action="store_true", help="List config and exit")
     args = parser.parse_args()
 
-    if args.config:
-        config_paths = [Path(c) for c in args.config]
-    else:
-        config_paths = [
-            Path(__file__).parent.parent / "experiments" / "configs" / "config.yaml"
-        ]
+    config_paths = [Path(c) for c in args.config]
 
     missing = [p for p in config_paths if not p.exists()]
     if missing:
