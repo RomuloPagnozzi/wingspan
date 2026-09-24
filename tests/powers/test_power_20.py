@@ -15,7 +15,7 @@ from game.core import (
 from game.engine import transition_state
 from game.actions import get_actions
 from conftest import setup_power_execution
-from game.utils import get_triggered_pink_powers
+from game.utils import get_triggered_pink_powers, get_valid_birds_for_eggs
 from game.power import can_execute_power
 
 
@@ -539,3 +539,12 @@ class TestPower20NestTypes:
         state = transition_state(state, SimpleAction("activate_power"))
         assert state.players[1].board[1][0].bird
         assert state.players[1].board[1][0].bird.state.eggs == initial_eggs + 1
+
+
+def test_power_20_wild_nest_bird_is_valid_target():
+    """A star (wild) nest bird can receive the egg for any nest type."""
+    player = Player(1)
+    wild_id = find_bird_by_nest("wild")
+    player.board[0][0].bird = create_placed_bird(wild_id)
+
+    assert [b.id for b in get_valid_birds_for_eggs(player, "bowl")] == [wild_id]

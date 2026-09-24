@@ -9,6 +9,7 @@ from .core import (
     Spot,
     Player,
     PlacedBird,
+    BirdCard,
     GameState,
     get_bird_power,
     PinkTrigger,
@@ -64,6 +65,11 @@ def get_current_player_index(s: GameState) -> int:
             return idx
 
     return first
+
+
+def has_nest(card: BirdCard, nest_type: str) -> bool:
+    """Star (wild) nests count as every nest type."""
+    return card.nest == nest_type or card.nest == "wild"
 
 
 def find_leftmost_empty_spot(board_row: list[Spot]) -> Spot | None:
@@ -502,7 +508,7 @@ def get_valid_birds_for_eggs(player: Player, nest_type: str) -> list[PlacedBird]
         for spot in row:
             if (
                 spot.bird is not None
-                and spot.bird.card.nest == nest_type
+                and has_nest(spot.bird.card, nest_type)
                 and spot.bird.state.eggs < spot.bird.card.egg_limit
             ):
                 valid_birds.append(spot.bird)

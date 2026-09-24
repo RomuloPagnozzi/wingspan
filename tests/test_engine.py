@@ -2,6 +2,9 @@
 
 from game.core import (
     initiate_state,
+    BIRD_REGISTRY,
+    PlacedBird,
+    get_bird_power,
     GamePhase,
     ActionData,
     QueuedPower,
@@ -12,6 +15,7 @@ from game.engine import (
     _check_powers_done,
 )
 from game.engine import transition_state
+from game.actions import get_actions
 from conftest import setup_power_queue
 
 
@@ -109,3 +113,44 @@ def test_power_activation_skip():
     state = transition_state(state, SimpleAction("skip_power"))
 
     assert state.action_data.current_power_index == 1
+
+
+def test_pink_power_decided_by_owner():
+    """An opponent's pink power is decided by its owner, then the turn returns to the actor."""
+    state = initiate_state(2, seed=0)
+    by_name = {b.name: b.id for b in BIRD_REGISTRY.values()}
+    no_power = next(
+        b.id
+        for b in BIRD_REGISTRY.values()
+        if not get_bird_power(b.id).get("data") and b.egg_limit >= 2
+    )
+    bowl_bird = next(
+        b.id
+        for b in BIRD_REGISTRY.values()
+        if b.nest == "bowl"
+        and b.egg_limit > 0
+        and get_bird_power(b.id).get("color") != "pink"
+    )
+    state.game_phase = GamePhase.MAIN_TURN
+    for i, p in enumerate(state.players):
+        p.first_player = i == 0
+        p.action_cubes = 8
+    state.current_player_index = 0
+    state.players[0].food = {}  # no food -> no "trade food for egg" prompt
+    state.players[0].board[1][0].bird = PlacedBird(no_power)
+    state.players[1].board[1][0].bird = PlacedBird(by_name["Bronzed Cowbird"])
+    state.players[1].board[1][1].bird = PlacedBird(bowl_bird)
+
+    state = transition_state(state, SimpleAction("lay_eggs"))
+    state = transition_state(state, get_actions(state)[0])
+
+    assert state.game_phase == GamePhase.ACTIVATE_POWERS
+    assert state.current_player_index == 1
+    assert state.action_data.action_player_index == 0
+
+    state = transition_state(state, SimpleAction("activate_power"))
+
+    assert state.players[1].board[1][1].bird.state.eggs == 1
+    assert state.game_phase == GamePhase.MAIN_TURN
+    assert state.current_player_index == 1
+    assert state.players[0].score.egg_points == 2

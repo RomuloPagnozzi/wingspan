@@ -99,6 +99,7 @@ def finish_main_action(
         ]
         state.action_data.current_power_index = 0
         state.action_data.action_player_index = state.current_player_index
+        state.current_player_index = state.action_data.powers_queue[0].player_index
         return state
 
     return _finalize_turn(state)
@@ -187,6 +188,8 @@ def _check_powers_done(state: GameState) -> GameState:
     current_index = state.action_data.current_power_index
 
     if current_index >= len(queue):
+        if state.action_data.action_player_index is not None:
+            state.current_player_index = state.action_data.action_player_index
         state.game_phase = GamePhase.END_TURN
         return handle_end_turn(state, SimpleAction(""))
 

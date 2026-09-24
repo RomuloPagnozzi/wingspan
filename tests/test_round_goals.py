@@ -33,6 +33,17 @@ def _find_bird_id_with_nest(state, nest_type):
 class TestGoalEvaluation:
     """Tests for goal evaluation functions."""
 
+    def test_wild_nest_counts_for_every_nest_goal(self):
+        state = initiate_state(2)
+        player = state.players[0]
+        player.board[0][0].bird = create_placed_bird(
+            get_registry_bird_ids_by_nest("wild")[0], eggs=2
+        )
+
+        for nest in ("bowl", "cavity", "ground", "platform"):
+            assert evaluate_goal(state, player, f"eggs_in_{nest}") == 2
+            assert evaluate_goal(state, player, f"{nest}_birds_with_egg") == 1
+
     def test_count_eggs_in_bowl(self):
         state = initiate_state(2)
         player = state.players[0]

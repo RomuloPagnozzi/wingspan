@@ -1,4 +1,5 @@
 from .core import Player, Bonus, GameState, ScoringMode, get_bonus_card
+from .utils import has_nest
 
 
 def _count_bonus_birds(bonus: Bonus, player: Player) -> int:
@@ -92,7 +93,7 @@ def _count_eggs_on_nest_type(player: Player, nest_type: str) -> int:
     total = 0
     for row in player.board:
         for spot in row:
-            if spot.bird is not None and spot.bird.card.nest == nest_type:
+            if spot.bird is not None and has_nest(spot.bird.card, nest_type):
                 total += spot.bird.state.eggs
     return total
 
@@ -104,7 +105,7 @@ def _count_birds_with_eggs_on_nest_type(player: Player, nest_type: str) -> int:
         for spot in row:
             if (
                 spot.bird is not None
-                and spot.bird.card.nest == nest_type
+                and has_nest(spot.bird.card, nest_type)
                 and spot.bird.state.eggs >= 1
             ):
                 count += 1

@@ -28,7 +28,7 @@ core/             <- stdlib only
 power/            <- core, effects, utils
 effects.py        <- core, utils
 utils.py          <- core
-scoring.py        <- core
+scoring.py        <- core, utils
 actions.py        <- core, utils, power
 phase_handlers.py <- core, effects, utils, engine
 engine.py         <- core, scoring, utils, power, phase_handlers
