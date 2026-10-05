@@ -1,8 +1,8 @@
 """Tests for Power 5: Draw cards (bonus or bird cards with optional discard)."""
 
-from game.core import initiate_state, GamePhase, SimpleAction, IdAction
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.core import initiate_state, GamePhase, SimpleAction, IdAction
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_queue
 
 

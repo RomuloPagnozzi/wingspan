@@ -1,14 +1,14 @@
 """Tests for Power ID 13: Give resources to players with fewest birds in habitat."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     get_bird_power,
     GamePhase,
     SimpleAction,
     SelectDieAction,
 )
-from game.actions import get_actions
-from game.engine import transition_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
 from conftest import (
     place_bird_on_board,
     get_registry_bird_ids_by_habitat,
@@ -384,7 +384,7 @@ def test_power_13_feeder_empties_during_power():
 
 def test_power_13_validation():
     """Test Power 13 validation always returns True (no preconditions)."""
-    from game.power import can_execute_power
+    from wingspan.engine.power import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

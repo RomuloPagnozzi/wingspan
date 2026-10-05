@@ -5,21 +5,7 @@ description = "Wingspan board game engine with state machine architecture"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "ipykernel>=7.1.0",
-    "matplotlib>=3.10.8",
-    "openpyxl>=3.1.5",
-    "optuna>=4.9.0",
-    "pandas>=3.0.0",
-    "pyarrow>=23.0.0",
-    "pydeps>=3.0.2",
-    "pyinstrument>=5.1.2",
-    "pytest>=9.0.2",
     "pyyaml>=6.0.3",
-    "scipy>=1.17.1",
-    "seaborn>=0.13.2",
-    "textual>=7.5.0",
-    "tqdm>=4.67.3",
-    "uuid6>=2025.0.1",
 ]
 
 [tool.pytest.ini_options]
@@ -29,4 +15,33 @@ pythonpath = ["."]
 [dependency-groups]
 dev = [
     "black>=26.1.0",
+    "pytest>=9.0.2",
 ]
+lab = [
+    "ipykernel>=7.1.0",
+    "matplotlib>=3.10.8",
+    "openpyxl>=3.1.5",
+    "optuna>=4.9.0",
+    "pandas>=3.0.0",
+    "pyarrow>=23.0.0",
+    "pydeps>=3.0.2",
+    "pyinstrument>=5.1.2",
+    "scipy>=1.17.1",
+    "seaborn>=0.13.2",
+    "tqdm>=4.67.3",
+    "uuid6>=2025.0.1",
+]
+web = [
+    "fastapi>=0.142.2",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+wingspan = "wingspan.web.server:main"
+
+[build-system]
+requires = ["uv_build>=0.8"]
+build-backend = "uv_build"
+
+[tool.uv]
+default-groups = ["dev", "lab", "web"]

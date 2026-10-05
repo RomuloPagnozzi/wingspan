@@ -1,6 +1,6 @@
 """Comprehensive end-to-end tests for Power 10: Lay eggs on birds."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     get_bird_power,
@@ -10,8 +10,8 @@ from game.core import (
     SimpleAction,
     IdAction,
 )
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import (
     place_bird_on_board,
     filter_bird_ids_by_nest,
@@ -705,7 +705,7 @@ def test_power_10_mixed_capacity_birds():
 
 def test_power_10_validation():
     """Test Power 10 validation works correctly for all variants."""
-    from game.power import can_execute_power
+    from wingspan.engine.power import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

@@ -7,10 +7,10 @@ Set DETERMINIZE=True to profile IS-MCTS. MCTS itself is single-threaded;
 experiment-level (game-level) parallelism lives in the harness.
 """
 
-from game.core import initiate_state
-from game.actions import get_actions
-from game.engine import transition_state
-from lab.strategies import MCTSStrategy, MCTSConfig
+from wingspan.engine.core import initiate_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.ai import MCTSStrategy, MCTSConfig
 
 # ── Parameters ──────────────────────────────────────────────
 N_PLAYERS = 2

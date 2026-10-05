@@ -5,10 +5,10 @@ and determinize=False produce different move streams, and that the determinize=T
 path is itself deterministic across runs with matched seeds.
 """
 
-from game.core import initiate_state
-from game.actions import get_actions
-from game.engine import transition_state
-from lab.strategies import MCTSStrategy, MCTSConfig, ValueFunction
+from wingspan.engine.core import initiate_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.ai import MCTSStrategy, MCTSConfig, ValueFunction
 
 
 def _play(

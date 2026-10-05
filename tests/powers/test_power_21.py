@@ -1,6 +1,6 @@
 """Tests for Power 21: Pink power triggered when opponent's predator succeeds."""
 
-from game.core import (
+from wingspan.engine.core import (
     GameState,
     GamePhase,
     Player,
@@ -10,10 +10,10 @@ from game.core import (
     SimpleAction,
     SelectDieAction,
 )
-from game.engine import transition_state
-from game.actions import get_actions
-from game.utils import get_triggered_pink_powers
-from game.power import can_execute_power
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.utils import get_triggered_pink_powers
+from wingspan.engine.power import can_execute_power
 from conftest import place_bird_on_board, setup_power_execution
 
 
@@ -196,7 +196,7 @@ class TestPower21TriggerMatching:
             "data": {"id": 21, "details": {"resource": "die"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.PREDATOR_SUCCESS,
@@ -223,7 +223,7 @@ class TestPower21TriggerMatching:
             "data": {"id": 21, "details": {"resource": "die"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.LAY_EGGS,
@@ -248,7 +248,7 @@ class TestPower21TriggerMatching:
             "data": {"id": 21, "details": {"resource": "die"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.BIRD_PLAYED,
@@ -273,7 +273,7 @@ class TestPower21TriggerMatching:
             "data": {"id": 21, "details": {"resource": "die"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,
@@ -298,7 +298,7 @@ class TestPower21TriggerMatching:
             "data": {"id": 21, "details": {"resource": "die"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.PREDATOR_SUCCESS,
@@ -324,7 +324,7 @@ class TestPower21TriggerMatching:
             "data": {"id": 21, "details": {"resource": "die"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.PREDATOR_SUCCESS,
@@ -403,7 +403,7 @@ class TestPower21MultiPlayer:
                 }
             return {}
 
-        with patch("game.utils.get_bird_power", side_effect=mock_get_power):
+        with patch("wingspan.engine.utils.get_bird_power", side_effect=mock_get_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.PREDATOR_SUCCESS,

@@ -16,7 +16,7 @@ import optuna
 from lab.data import DecisionsWriter, GamesWriter
 from lab.generators import REFERENCE_PARAMS
 from lab.simulation import game_worker_init, run_one_game
-from lab.strategies import MCTSConfig, MCTSStrategy, Strategy, ValueFunction
+from wingspan.ai import MCTSConfig, MCTSStrategy, Strategy, ValueFunction
 
 
 # Mirrors lab/__main__._attribute_by_position. Kept local to avoid coupling.

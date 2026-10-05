@@ -1,0 +1,11 @@
+study_name: mcts_joint_v1
+best_trial_number: 62
+best_win_rate: 0.775
+best_run_id: 019eadf5-8050-72ef-82c3-c45d9ca9c963
+params:
+  determinize: true
+  simulations: 1500
+  exploration_constant: 2.2709568546160086
+  value_function: absolute_score
+  widening_alpha: 0.8342441456576
+  widening_k: 1.7011601880020222

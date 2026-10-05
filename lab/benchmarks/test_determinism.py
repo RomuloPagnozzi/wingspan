@@ -24,10 +24,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from game.core import initiate_state
-from game.actions import get_actions
-from game.engine import transition_state
-from lab.strategies import create_strategy
+from wingspan.engine.core import initiate_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.ai import create_strategy
 
 
 def play_game(

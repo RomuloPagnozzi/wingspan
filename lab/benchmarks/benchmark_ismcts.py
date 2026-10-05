@@ -8,10 +8,10 @@ of resuming from cached node states.
 import time
 from statistics import mean, stdev
 
-from game.core import initiate_state
-from game.actions import get_actions
-from game.engine import transition_state
-from lab.strategies import MCTSStrategy, MCTSConfig, RandomStrategy
+from wingspan.engine.core import initiate_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.ai import MCTSStrategy, MCTSConfig, RandomStrategy
 
 
 def _advance_to_branching_state(state, min_actions: int = 3):

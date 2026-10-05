@@ -1,6 +1,6 @@
 """Tests for Power 4: Discard to gain resources (exchange powers)."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     SimpleAction,
@@ -9,8 +9,8 @@ from game.core import (
     FoodMapAction,
     frozen_map,
 )
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_queue
 
 

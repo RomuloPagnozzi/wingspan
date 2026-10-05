@@ -1,6 +1,6 @@
 """Comprehensive end-to-end tests for Power 12: Play additional bird in habitat."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     get_bird_power,
@@ -9,8 +9,8 @@ from game.core import (
     SimpleAction,
     PlayBirdAction,
 )
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_execution
 
 
@@ -331,7 +331,7 @@ def test_power_12_no_valid_birds():
 
 def test_power_12_validation():
     """Test can_execute_power validator for Power 12."""
-    from game.power import can_execute_power
+    from wingspan.engine.power import can_execute_power
 
     state = initiate_state(2)
     state.current_player_index = 0

@@ -1,6 +1,6 @@
 """Tests for Power 20: Pink power triggered when opponent lays eggs."""
 
-from game.core import (
+from wingspan.engine.core import (
     GameState,
     GamePhase,
     Player,
@@ -12,11 +12,11 @@ from game.core import (
     SimpleAction,
     IdAction,
 )
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import setup_power_execution
-from game.utils import get_triggered_pink_powers, get_valid_birds_for_eggs
-from game.power import can_execute_power
+from wingspan.engine.utils import get_triggered_pink_powers, get_valid_birds_for_eggs
+from wingspan.engine.power import can_execute_power
 
 
 def find_bird_by_nest(nest_type: str, exclude_ids: set = set()) -> int:
@@ -213,7 +213,7 @@ class TestPower20TriggerMatching:
             "data": {"id": 20, "details": {"type": "bowl"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.LAY_EGGS,
@@ -241,7 +241,7 @@ class TestPower20TriggerMatching:
             "data": {"id": 20, "details": {"type": "bowl"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,
@@ -267,7 +267,7 @@ class TestPower20TriggerMatching:
             "data": {"id": 20, "details": {"type": "bowl"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.BIRD_PLAYED,
@@ -293,7 +293,7 @@ class TestPower20TriggerMatching:
             "data": {"id": 20, "details": {"type": "bowl"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.LAY_EGGS,
@@ -320,7 +320,7 @@ class TestPower20TriggerMatching:
             "data": {"id": 20, "details": {"type": "bowl"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.LAY_EGGS,

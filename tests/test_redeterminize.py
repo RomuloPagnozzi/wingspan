@@ -3,7 +3,7 @@ randomization across seeds, and mid-power-execution context handling."""
 
 import random
 
-from game.core import (
+from wingspan.engine.core import (
     BIRD_REGISTRY,
     BONUS_REGISTRY,
     PowerExecution,

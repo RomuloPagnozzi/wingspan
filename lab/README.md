@@ -1,6 +1,6 @@
 # lab
 
-Experiment framework: strategies that play the game, simulation harness, and result storage.
+Experiment framework: simulation harness, result storage, analysis and tuning. Strategies come from `wingspan.ai`.
 
 ## Files
 
@@ -16,7 +16,6 @@ Experiment framework: strategies that play the game, simulation harness, and res
 
 | Package | Role |
 |---------|------|
-| `strategies/` | game-playing strategies (Random, MCTS) registered by name |
 | `tune/` | Optuna hyperparameter search over `MCTSConfig` (`python -m lab.tune`) |
 | `benchmarks/` | performance benchmarks and determinism regression tests |
 | `tools/` | one-off maintenance scripts (e.g. merging a continuation run) |
@@ -24,12 +23,11 @@ Experiment framework: strategies that play the game, simulation harness, and res
 ## Dependencies
 
 ```
-strategies/    <- game.core, game.actions, game.engine
 data.py        <- stdlib, pyarrow, pandas, uuid6
-simulation.py  <- game.*, strategies, data.py
-generators.py  <- strategies
-__main__.py    <- strategies, data.py, simulation.py, generators.py
-benchmarks/    <- game.*, strategies
+simulation.py  <- wingspan.engine.*, wingspan.ai, data.py
+generators.py  <- wingspan.ai
+__main__.py    <- wingspan.ai, data.py, simulation.py, generators.py
+benchmarks/    <- wingspan.engine.*, wingspan.ai
 analysis.py    <- pandas, matplotlib, seaborn (standalone)
 tune/          <- optuna, lab.generators, lab.simulation, lab.data
 tools/         <- pandas, pyarrow, lab.data

@@ -17,13 +17,13 @@ Performance benchmarks and determinism checks. Standalone scripts, not part of p
 ## Dependencies
 
 ```
-benchmark_copy.py   <- game.core, game.actions, game.engine, game.phase_handlers
-benchmark_mcts.py   <- game.*, lab.strategies
-profile_game.py     <- game.*, lab.strategies
-test_determinism.py <- game.*, lab.strategies
-benchmark_ismcts.py <- game.*, lab.strategies
-test_ismcts.py      <- game.*, lab.strategies
-test_parallel_equivalence.py <- game.*, lab.strategies
+benchmark_copy.py   <- wingspan.engine.core, wingspan.engine.actions, wingspan.engine.engine, wingspan.engine.phase_handlers
+benchmark_mcts.py   <- wingspan.engine.*, wingspan.ai
+profile_game.py     <- wingspan.engine.*, wingspan.ai
+test_determinism.py <- wingspan.engine.*, wingspan.ai
+benchmark_ismcts.py <- wingspan.engine.*, wingspan.ai
+test_ismcts.py      <- wingspan.engine.*, wingspan.ai
+test_parallel_equivalence.py <- wingspan.engine.*, wingspan.ai
 ```
 
 ## Usage

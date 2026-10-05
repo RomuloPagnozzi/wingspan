@@ -1,9 +1,9 @@
 """Tests for Power 16: Trade 1 food for any other type from supply."""
 
-from game.core import initiate_state, GamePhase, SimpleAction, TradeAction
-from game.engine import transition_state
-from game.actions import get_actions
-from game.power import can_execute_power
+from wingspan.engine.core import initiate_state, GamePhase, SimpleAction, TradeAction
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.power import can_execute_power
 from conftest import setup_power_execution
 
 

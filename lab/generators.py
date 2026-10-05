@@ -4,7 +4,7 @@ import itertools
 import random
 from typing import Iterator
 
-from lab.strategies import (
+from wingspan.ai import (
     MCTSConfig,
     MCTSStrategy,
     Strategy,

@@ -1,7 +1,7 @@
 # experiments
 
 Experiment outputs. The runner lives in `lab/`; the planning and research docs live at the repo root
-(`ROADMAP.md`, `INBOX.md`, `EXPERIMENTS.md`).
+(`docs/ROADMAP.md`, `docs/INBOX.md`, `docs/EXPERIMENTS.md`).
 
 ## Layout
 
@@ -175,4 +175,4 @@ matchups:                      # each matchup is a list of >= 2 strategy specs
 
 ---
 
-See `EXPERIMENTS.md` for the paired-comparison design and the rationale behind each experiment.
+See `docs/EXPERIMENTS.md` for the paired-comparison design and the rationale behind each experiment.

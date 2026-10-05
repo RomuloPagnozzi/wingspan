@@ -1,7 +1,7 @@
 """Test atomic effects in isolation."""
 
-from game.core import initiate_state, PlacedBird, BirdState
-from game.effects import (
+from wingspan.engine.core import initiate_state, PlacedBird, BirdState
+from wingspan.engine.effects import (
     draw_cards_effect,
     gain_food_effect,
     lay_eggs_effect,

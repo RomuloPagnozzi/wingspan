@@ -2,15 +2,15 @@
 
 import random
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     get_bird_power,
     init_registries,
     SimpleAction,
 )
-from game.engine import transition_state
-from game.power import can_execute_power
+from wingspan.engine.engine import transition_state
+from wingspan.engine.power import can_execute_power
 from conftest import place_bird_on_board, setup_power_execution
 
 DICE_FACES = [

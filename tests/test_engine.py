@@ -1,6 +1,6 @@
 """Tests for game engine: state transitions, turn lifecycle, and power activation."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     BIRD_REGISTRY,
     PlacedBird,
@@ -9,13 +9,14 @@ from game.core import (
     ActionData,
     QueuedPower,
     SimpleAction,
+    PlayBirdAction,
 )
-from game.engine import (
+from wingspan.engine.engine import (
     finish_main_action,
     _check_powers_done,
 )
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import setup_power_queue
 
 
@@ -154,3 +155,82 @@ def test_pink_power_decided_by_owner():
     assert state.game_phase == GamePhase.MAIN_TURN
     assert state.current_player_index == 1
     assert state.players[0].score.egg_points == 2
+
+
+def test_play_bird_with_egg_cost_also_pays_food():
+    """A bird played in an egg-cost column pays its egg cost and then its food cost."""
+    state = initiate_state(2, seed=0)
+    by_name = {b.name: b.id for b in BIRD_REGISTRY.values()}
+    crossbill = by_name["Red Crossbill"]  # costs 2 seed, forest
+    state.game_phase = GamePhase.MAIN_TURN
+    state.current_player_index = 0
+    player = state.players[0]
+    player.action_cubes = 8
+    player.bird_hand = [crossbill]
+    player.food = {"seed": 2}
+    player.board[0][0].bird = PlacedBird(by_name["Cassin's Finch"])
+    player.board[0][0].bird.state.eggs = 1
+
+    state = transition_state(state, SimpleAction("play_bird"))
+    state = transition_state(
+        state,
+        next(a for a in get_actions(state) if a.bird_id == crossbill and a.col == 1),
+    )
+    assert state.game_phase == GamePhase.PAY_EGG_COST
+    state = transition_state(state, get_actions(state)[0])
+    assert state.game_phase == GamePhase.PAY_FOOD_COST
+    state = transition_state(state, get_actions(state)[0])
+
+    assert state.players[0].board[0][1].bird.id == crossbill
+    assert state.players[0].food.get("seed", 0) == 0
+    assert state.players[0].board[0][0].bird.state.eggs == 0
+
+
+def test_chained_additional_bird_plays_each_pay_their_costs():
+    """Birds played through chained "play an additional bird" powers still pay eggs and food."""
+    state = initiate_state(2, seed=0)
+    by_name = {b.name: b.id for b in BIRD_REGISTRY.values()}
+    chain = [
+        by_name[n] for n in ("Red-Eyed Vireo", "Downy Woodpecker", "Tufted Titmouse")
+    ]
+    no_power = next(
+        b.id
+        for b in BIRD_REGISTRY.values()
+        if not get_bird_power(b.id).get("data") and "grassland" in b.habitats
+    )
+    state.game_phase = GamePhase.MAIN_TURN
+    state.current_player_index = 0
+    player = state.players[0]
+    player.action_cubes = 8
+    player.bird_hand = list(chain)
+    player.food = {"invertebrate": 3}
+    player.board[1][0].bird = PlacedBird(no_power)
+    player.board[1][
+        0
+    ].bird.state.eggs = 2  # covers the egg cost of forest columns 2 and 3
+
+    state = transition_state(state, SimpleAction("play_bird"))
+    food_steps = 0
+    while (
+        state.game_phase != GamePhase.MAIN_TURN
+        or state.current_player_index == 0
+        and chain[-1] in state.players[0].bird_hand
+    ):
+        actions = get_actions(state)
+        food_steps += state.game_phase == GamePhase.PAY_FOOD_COST
+        plays = [a for a in actions if isinstance(a, PlayBirdAction)]
+        if plays:
+            state = transition_state(
+                state, next(a for a in plays if a.bird_id in chain and a.row == 0)
+            )
+        elif SimpleAction("activate_power") in actions:
+            state = transition_state(state, SimpleAction("activate_power"))
+        else:
+            state = transition_state(state, actions[0])
+
+    assert [
+        s.bird.id if s.bird else None for s in state.players[0].board[0][:3]
+    ] == chain
+    assert food_steps == 3
+    assert state.players[0].food.get("invertebrate", 0) == 0
+    assert state.players[0].board[1][0].bird.state.eggs == 0

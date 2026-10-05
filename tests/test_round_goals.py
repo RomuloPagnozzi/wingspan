@@ -1,12 +1,13 @@
 """Test round goal scoring functionality."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     ScoringMode,
     get_bird_card,
 )
-from game.scoring import (
+from wingspan.engine.scoring import (
     evaluate_goal,
+    goal_scores,
     _calculate_blue_score,
     _calculate_green_scores,
     update_round_goal_scores,
@@ -214,6 +215,23 @@ class TestGreenScoring:
         assert scores[2] == 3
         assert scores[3] == 3
 
+    def test_green_zero_items_scores_nothing(self):
+        """A player with none of the targeted item scores 0, even when tied or in 2nd."""
+        state = initiate_state(3, ScoringMode.GREEN)
+        state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+
+        scores = _calculate_green_scores(state, "birds_in_forest", round_num=4)
+
+        assert scores == {1: 7, 2: 0, 3: 0}
+
+    def test_green_all_zero_scores_nothing(self):
+        state = initiate_state(2, ScoringMode.GREEN)
+
+        assert _calculate_green_scores(state, "birds_in_forest", round_num=1) == {
+            1: 0,
+            2: 0,
+        }
+
     def test_green_different_rounds_different_scores(self):
         state = initiate_state(2, ScoringMode.GREEN)
         state.players[0].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
@@ -311,3 +329,14 @@ class TestIntegration:
         assert state.round_goal_config
         for goal in state.round_goal_config.selected_goals:
             assert goal in valid_goals
+
+
+def test_goal_scores_blue_mode():
+    """goal_scores projects blue scoring: 1 point per item, max 5."""
+    state = initiate_state(2, ScoringMode.BLUE)
+    state.round_goal_config.selected_goals[0] = "birds_in_forest"
+    for col in range(5):
+        state.players[0].board[0][col].bird = create_placed_bird(state.bird_deck.pop())
+    state.players[1].board[0][0].bird = create_placed_bird(state.bird_deck.pop())
+
+    assert goal_scores(state, round_num=1) == {1: 5, 2: 1}

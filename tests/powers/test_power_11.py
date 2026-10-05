@@ -1,6 +1,6 @@
 """Comprehensive end-to-end tests for Power 11: Draw and tuck based on wingspan."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     ActionData,
@@ -10,7 +10,7 @@ from game.core import (
     init_registries,
     SimpleAction,
 )
-from game.engine import transition_state
+from wingspan.engine.engine import transition_state
 from conftest import place_bird_on_board, setup_power_execution
 
 

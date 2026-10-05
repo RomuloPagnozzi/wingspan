@@ -17,4 +17,5 @@ uv run pytest tests/
 | `test_effects.py` | atomic state mutations |
 | `test_reproducibility.py` | deterministic seeded games |
 | `test_round_goals.py` | round goal scoring |
+| `test_bonus.py` | bonus card counting and scoring |
 | `powers/` | one test file per bird power (1-21) |

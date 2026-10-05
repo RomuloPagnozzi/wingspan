@@ -1,6 +1,6 @@
 """Tests for Power 19: Pink power triggered when opponent gains rodent."""
 
-from game.core import (
+from wingspan.engine.core import (
     GameState,
     GamePhase,
     Player,
@@ -9,10 +9,10 @@ from game.core import (
     BIRD_REGISTRY,
     SimpleAction,
 )
-from game.engine import transition_state
-from game.actions import get_actions
-from game.utils import get_triggered_pink_powers
-from game.power import can_execute_power
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.utils import get_triggered_pink_powers
+from wingspan.engine.power import can_execute_power
 from conftest import place_bird_on_board, setup_power_execution
 
 
@@ -79,7 +79,7 @@ class TestPower19TriggerMatching:
             "data": {"id": 19, "details": {"type": "rodent"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,
@@ -106,7 +106,7 @@ class TestPower19TriggerMatching:
             "data": {"id": 19, "details": {"type": "rodent"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,
@@ -131,7 +131,7 @@ class TestPower19TriggerMatching:
             "data": {"id": 19, "details": {"type": "rodent"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,
@@ -156,7 +156,7 @@ class TestPower19TriggerMatching:
             "data": {"id": 19, "details": {"type": "rodent"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,
@@ -182,7 +182,7 @@ class TestPower19TriggerMatching:
             "data": {"id": 19, "details": {"type": "rodent"}},
         }
 
-        with patch("game.utils.get_bird_power", return_value=mock_power):
+        with patch("wingspan.engine.utils.get_bird_power", return_value=mock_power):
             triggered = get_triggered_pink_powers(
                 state,
                 PinkTrigger.GAIN_FOOD,

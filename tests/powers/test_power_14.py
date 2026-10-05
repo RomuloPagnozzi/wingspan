@@ -1,6 +1,6 @@
 """End-to-end tests for Power 14: Repeat another bird's power in this habitat."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     ActionData,
@@ -10,9 +10,9 @@ from game.core import (
     SimpleAction,
     IdAction,
 )
-from game.engine import transition_state
-from game.actions import get_actions
-from game.power import can_execute_power
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.power import can_execute_power
 from conftest import place_bird_on_board
 
 

@@ -1,7 +1,7 @@
 """Tests for Power 3: Cache seed on activating bird."""
 
-from game.core import initiate_state, GamePhase, SimpleAction
-from game.engine import transition_state
+from wingspan.engine.core import initiate_state, GamePhase, SimpleAction
+from wingspan.engine.engine import transition_state
 from conftest import place_bird_on_board, setup_power_queue
 
 

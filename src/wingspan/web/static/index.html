@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wingspan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="icons/egg.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">Wingspan<small id="round"></small></div>
+    <div id="goals"></div>
+    <div id="players"></div>
+    <button id="log-btn" class="ghost">Log</button>
+  </header>
+
+  <main>
+    <section id="board-wrap"><div id="board"></div></section>
+    <aside>
+      <div class="panel"><h3>Birdfeeder</h3><div id="feeder"></div></div>
+      <div class="panel"><h3>Bird tray</h3><div id="tray"></div></div>
+      <div class="panel" id="supply"></div>
+    </aside>
+  </main>
+
+  <div id="dock"><div id="dock-in"><div id="prompt"></div><div id="hand"></div></div></div>
+
+  <div id="preview"></div>
+  <div id="goalpop" hidden></div>
+  <div id="log" hidden></div>
+  <div id="modal" hidden></div>
+  <div id="toast"></div>
+
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

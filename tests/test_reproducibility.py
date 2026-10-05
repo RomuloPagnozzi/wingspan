@@ -2,9 +2,9 @@
 
 import random
 
-from game.core import initiate_state, copy_state
-from game.actions import get_actions
-from game.engine import transition_state
+from wingspan.engine.core import initiate_state, copy_state
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
 
 
 def test_same_seed_produces_identical_initial_state():

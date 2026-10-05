@@ -11,7 +11,7 @@ from typing import Iterable, Iterator
 import yaml
 from tqdm import tqdm
 
-from lab.strategies import Strategy
+from wingspan.ai import Strategy
 from lab.data import (
     GameResult,
     GameDecisions,

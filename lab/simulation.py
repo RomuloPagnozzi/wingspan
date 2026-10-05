@@ -4,10 +4,10 @@ import signal
 from datetime import datetime
 from typing import Any
 
-from game.core import initiate_state, init_registries
-from game.actions import get_actions
-from game.engine import transition_state
-from lab.strategies import Strategy
+from wingspan.engine.core import initiate_state, init_registries
+from wingspan.engine.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.ai import Strategy
 
 from lab.data import (
     GameResult,

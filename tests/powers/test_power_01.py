@@ -1,7 +1,7 @@
 """Tests for Power 1: All players gain a resource (food or card)."""
 
-from game.core import initiate_state, GamePhase, SimpleAction
-from game.engine import transition_state
+from wingspan.engine.core import initiate_state, GamePhase, SimpleAction
+from wingspan.engine.engine import transition_state
 from conftest import setup_power_queue
 
 

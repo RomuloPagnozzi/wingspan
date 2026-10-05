@@ -1,6 +1,6 @@
 # State Copy Functions Documentation
 
-Custom state copy functions in `game/core/custom_copy.py` provide ~20x performance improvement over `deepcopy` by:
+Custom state copy functions in `src/wingspan/engine/core/custom_copy.py` provide ~20x performance improvement over `deepcopy` by:
 
 1. Using `object.__new__(Class)` to skip `__init__` and default factory calls
 2. Directly assigning attributes without introspection

@@ -1,6 +1,6 @@
 """Shared test fixtures and utilities."""
 
-from game.core import (
+from wingspan.engine.core import (
     PlacedBird,
     BirdState,
     ActionData,

@@ -1,6 +1,6 @@
 """Comprehensive end-to-end test for Power 6: Draw N+1 cards, all players select clockwise."""
 
-from game.core import (
+from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     get_bird_card,
@@ -10,8 +10,8 @@ from game.core import (
     FoodMapAction,
     frozen_map,
 )
-from game.engine import transition_state
-from game.actions import get_actions
+from wingspan.engine.engine import transition_state
+from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_execution
 
 
