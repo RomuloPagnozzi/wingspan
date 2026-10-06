@@ -197,7 +197,7 @@ function cardHtml(id, o = {}) {
   const eggs = Array.from({ length: b.eggs }, (_, k) =>
     st && k < st.eggs ? `<i class="egg laid" style="--egg:${EGG_TONES[(id + k) % EGG_TONES.length]}"></i>` : `<i class="egg"></i>`
   ).join("");
-  const pending = o.pending ? `<span class="c-pending">+${o.pending}${icon("egg")}</span>` : "";
+  const pending = o.pending ? `<span class="c-pending">${o.paying ? "−" : "+"}${o.pending}${icon("egg")}</span>` : "";
   return `<div class="card ${o.cls || ""}" data-bird="${id}" ${o.attrs || ""}>
     <div class="c-tab"><div class="c-habs">${b.habitats.map(icon).join("")}</div><div class="c-cost">${costHtml(b)}</div></div>
     <div class="c-name"><span style="font-size:${b.name.length > 18 ? 6.4 : b.name.length > 13 ? 7.4 : 8.4}cqw">${b.name}</span></div>
@@ -383,7 +383,7 @@ function renderBoard() {
       if (sp) {
         const focus = f && f.player === ui.view && f.row === r && f.col === c ? "focus" : "";
         const cls = mine ? (eggMode ? (eggCan(sp.id) ? "hot" : "") : hot(`bird:${sp.id}`)) : "";
-        h += `<div class="cell ${hab}">${cardHtml(sp.id, { state: sp, cls: `${cls} ${focus}`, pending: ui.eggs[sp.id], attrs: `data-click="board:${sp.id}" data-board="${ui.view}"` })}</div>`;
+        h += `<div class="cell ${hab}">${cardHtml(sp.id, { state: sp, cls: `${cls} ${focus}`, pending: ui.eggs[sp.id], paying: eggActs().some(({ a }) => a.type === "pay_eggs"), attrs: `data-click="board:${sp.id}" data-board="${ui.view}"` })}</div>`;
       } else {
         const can = mine && ui.sel !== null && playSpot(r, c) ? "hot" : "";
         h += `<div class="cell ${hab}"><div class="spot ${can}" data-click="spot:${r},${c}">
@@ -461,7 +461,7 @@ function renderPrompt() {
   let extra = "";
   if (has("EggMapAction")) {
     const need = Math.max(...eggActs().map(({ m }) => sum(Object.values(m))));
-    extra = `<span class="hint">Click birds to place eggs · ${sum(Object.values(ui.eggs))} / ${need}</span><button class="ghost small" data-click="reset">Reset</button>`;
+    extra = `<span class="hint">Click birds to ${eggActs()[0].a.type === "pay_eggs" ? "pay" : "place"} eggs · ${sum(Object.values(ui.eggs))} / ${need}</span><button class="ghost small" data-click="reset">Reset</button>`;
   } else if (has("DrawCardsAction")) {
     extra = `<span class="hint">Click tray cards or the deck</span><button class="ghost small" data-click="reset">Reset</button>`;
   } else if (has("PlayBirdAction")) {
