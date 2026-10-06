@@ -9,4 +9,3 @@ experiments/data/
 *.db*
 *.csv
 .env
-Makefile
