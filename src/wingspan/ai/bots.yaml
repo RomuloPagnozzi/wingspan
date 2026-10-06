@@ -1,0 +1,20 @@
+# The AI opponents the web app can field. New games face `champion`; every game records the bot
+# id *and* its full params, so history and stats stay exact after a bot is retuned or replaced.
+# To release a stronger AI: add an entry (and its picture at web/static/bots/<id>.png), then point
+# `champion` at it. Stats follow the id, so a bot can be renamed freely.
+champion: mcts-v1
+
+bots:
+  mcts-v1:
+    name: Dodo.exe
+    released: "2026-10-05"
+    strategy: mcts
+    # experiments/tuning/mcts_joint_v1 (trial 62, 77.5% vs the reference opponent at 1500 sims),
+    # held back to 1000 simulations: the first and weakest release
+    params:
+      determinize: true
+      simulations: 1000
+      exploration_constant: 2.2709568546160086
+      value_function: absolute_score
+      widening_alpha: 0.8342441456576
+      widening_k: 1.7011601880020222

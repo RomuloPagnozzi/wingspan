@@ -18,4 +18,5 @@ uv run pytest tests/
 | `test_reproducibility.py` | deterministic seeded games |
 | `test_round_goals.py` | round goal scoring |
 | `test_bonus.py` | bonus card counting and scoring |
+| `test_web.py` | web server: seats, persistence by replay, spectators, debug mode, leaderboard rules |
 | `powers/` | one test file per bird power (1-21) |

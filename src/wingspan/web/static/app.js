@@ -19,13 +19,18 @@ const ORD = ["1st", "2nd", "3rd", "4th", "5th"];
 const BIRD_ID = new Set(["discard_card", "discard_bird", "discard_egg", "discard_egg_from", "select_bird", "tuck_card", "select_card"]);
 
 let C, S, busy = false, targets = {};
-const ui = { view: 0, sel: null, eggs: {}, draw: { tray: [], deck: 0 }, init: { birds: [], bonus: null, food: {} }, discard: null, showScores: true };
+const ui = { view: 0, sel: null, eggs: {}, draw: { tray: [], deck: 0 }, init: { birds: [], bonus: null, food: {} }, ready: false, discard: null, showScores: true };
 
 const $ = (s) => document.querySelector(s);
 const bird = (id) => C.birds[id];
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 const has = (t) => S.actions.some((a) => a.t === t);
 const human = () => S.players[S.human];
+// Starting hands are chosen one player at a time, but yours is dealt up front: you pick while the
+// others choose, lock it in, and it's submitted when your turn comes (you still have 2 bonus cards
+// until then).
+const SETUP = new Set(["game_setup", "select_initial_cards", "discard_food"]);
+const choosingHand = () => !S.spectating && SETUP.has(S.phase) && Array.isArray(human().bonus) && human().bonus.length === 2;
 
 // =============================================================================
 // Server
@@ -50,15 +55,18 @@ async function call(path, body) {
       return api(gameUrl(""));
     }));
   } catch (e) {
-    // Games live in server memory: a restart (or a long idle) forgets them.
-    const msg = e.status === 404 ? "This game no longer exists on the server." : `Server error (${e.message}).`;
-    const m = $("#modal");
-    m.innerHTML = `<div class="sheet"><h2>Something went wrong</h2><p class="err">${msg}</p>
-      <div class="m-foot"><div></div><button class="primary" data-click="new">New game</button></div></div>`;
-    m.hidden = false;
+    fail(e);
   } finally {
     busy = false;
   }
+}
+
+function fail(e) {
+  const msg = e.status === 404 ? "This game doesn't exist (or can no longer be replayed)." : `Server error (${e.message}).`;
+  const m = $("#modal");
+  m.innerHTML = `<div class="sheet"><h2>Something went wrong</h2><p class="err">${msg}</p>
+    <div class="m-foot"><div></div><a class="primary" href="/">Back to menu</a></div></div>`;
+  m.hidden = false;
 }
 
 let toastTimer;
@@ -71,14 +79,9 @@ function toast(text) {
 }
 
 // The game id lives in the URL (?g=<id>) so a reload or a bookmark resumes the same game.
-const gameUrl = (path) => `/api/games/${new URLSearchParams(location.search).get("g")}${path}`;
+const gameId = new URLSearchParams(location.search).get("g");
+const gameUrl = (path) => `/api/games/${gameId}${path}`;
 const act = (i) => call(gameUrl("/act"), { index: i, version: S.version });
-
-async function newGame() {
-  const state = await api("/api/games", {});
-  history.replaceState(null, "", `?g=${state.id}`);
-  return state;
-}
 
 function set(state) {
   const waited = !S || !S.actions.length;
@@ -86,13 +89,22 @@ function set(state) {
   ui.sel = null;
   ui.eggs = {};
   ui.draw = { tray: [], deck: 0 };
-  if (S.phase !== "select_initial_cards") ui.init = { birds: [], bonus: null, food: {} };
+  if (!choosingHand()) {
+    ui.init = { birds: [], bonus: null, food: {} };
+    ui.ready = false;
+  }
   if (S.actions.length && waited) ui.view = S.human;
   targets = {};
   S.actions.forEach((a) => {
     const k = keyOf(a);
     if (k && !(k in targets)) targets[k] = a.i;
   });
+  // A starting hand locked in while others were choosing goes in as soon as it's our turn
+  if (ui.ready && initAction()) {
+    ui.ready = false;
+    ui.discard = ui.init.birds.length ? { ...ui.init.food } : null;
+    return setTimeout(() => act(initAction().i));
+  }
   // The food picked on the setup screen answers the engine's follow-up discard step.
   if (S.phase === "discard_food" && ui.discard && S.actions.length) {
     const want = ui.discard;
@@ -101,7 +113,9 @@ function set(state) {
     if (a) return setTimeout(() => act(a.i));
   }
   render();
-  if (!S.game_over && !S.actions.length) setTimeout(() => call(gameUrl("/step"), {}), 450);
+  // Players drive the AI's moves; spectators just watch whatever has been played so far.
+  if (S.ai_turn && !S.spectating) setTimeout(() => call(gameUrl("/step"), {}), 450);
+  else if (S.spectating && !S.game_over) setTimeout(() => call(gameUrl("")), 5000);
 }
 
 function keyOf(a) {
@@ -335,7 +349,7 @@ function renderHeader() {
     .map((p, i) => {
       const hand = Array.isArray(p.hand) ? p.hand.length : p.hand;
       return `<button class="ptab ${i === ui.view ? "viewing" : ""} ${i === S.turn_player && !S.game_over ? "turn" : ""}" data-click="view:${i}" style="--pc:${PCOLORS[i]}">
-        <span class="p-top"><span class="p-name">${p.name}</span>${p.first ? '<span class="p-first" title="first player">1st</span>' : ""}<span class="p-score">${p.score.total}</span></span>
+        <span class="p-top">${avatarHtml(p, PCOLORS[i], "sm")}<span class="p-name">${p.name}</span>${p.first ? '<span class="p-first" title="first player">1st</span>' : ""}<span class="p-score">${p.score.total}</span></span>
         <span class="p-meta"><span class="p-left" title="actions left this round"><i class="cube"></i><b>${p.cubes}</b>/${p.cubes_total}</span><span>${icon("card")}${hand}</span><span>${icon("egg")}${p.score.eggs}</span></span>
       </button>`;
     })
@@ -344,10 +358,10 @@ function renderHeader() {
 
 function renderBoard() {
   const p = S.players[ui.view];
-  const mine = ui.view === S.human;
+  const mine = ui.view === S.human && !S.spectating;
   const f = S.focus;
   const eggMode = mine && has("EggMapAction");
-  let h = `<div class="b-name" style="--pc:${PCOLORS[ui.view]}">${mine ? "Your board" : `${p.name}'s board`}</div>`;
+  let h = `<div class="b-name" style="--pc:${PCOLORS[ui.view]}">${p.name === "You" ? "Your board" : `${p.name}'s board`}</div>`;
   // Cube track on the board's left edge: one slot per action row, holding this round's cubes
   const gutter = (r) => `<div class="gutter ${r < 0 ? "play" : ""}" style="--pc:${PCOLORS[ui.view]}">${'<i class="cube"></i>'.repeat(p.cubes_used.filter((x) => x === r).length)}</div>`;
   h += gutter(-1);
@@ -396,12 +410,12 @@ function renderSide() {
   $("#tray").innerHTML = tray.join("");
 
   const p = S.players[ui.view];
-  const mine = ui.view === S.human;
+  const mine = ui.view === S.human && !S.spectating;
   const bonus = Array.isArray(p.bonus)
     ? p.bonus.map((b) => bonusHtml(b, { progress: p.bonus_progress[b] })).join("")
     : `<div class="hidden-bonus">${p.bonus} hidden bonus card${p.bonus === 1 ? "" : "s"} · ${Array.isArray(p.hand) ? p.hand.length : p.hand} cards in hand</div>`;
   const sc = p.score;
-  $("#supply").innerHTML = `<h3>${mine ? "Your supply" : `${p.name}'s supply`}</h3>
+  $("#supply").innerHTML = `<h3>${p.name === "You" ? "Your supply" : `${p.name}'s supply`}</h3>
     <div class="foods">${foodRow(p.food, mine)}</div>
     <h3>Bonus cards</h3><div class="bonuses">${bonus}</div>
     <h3>Score</h3><div class="score">
@@ -410,24 +424,39 @@ function renderSide() {
       <span class="total">Total<b>${sc.total}</b></span></div>`;
 }
 
+// Options that skip or decline: drawn as secondary tiles
+const DECLINE = new Set(["skip_power", "skip_trade"]);
+// The main actions already have big tiles on the board
+const ON_BOARD = new Set(["play_bird", "gain_food", "lay_eggs", "draw_cards"]);
+
 function renderPrompt() {
   const el = $("#prompt");
+  $("#choices").hidden = true;
   if (S.game_over) {
-    el.innerHTML = `<div class="p-text">Game over</div><div class="p-choices"><button class="primary" data-click="scores">Final scores</button><button class="ghost" data-click="new">New game</button></div>`;
+    el.innerHTML = `<div class="p-text">Game over</div><div class="p-choices"><button class="primary" data-click="scores">Final scores</button><a class="ghost" href="/">Menu</a></div>`;
     return;
   }
   if (!S.actions.length) {
     const p = S.players[S.current];
     const last = [...S.log].reverse().find((e) => e.text);
-    el.innerHTML = `<div class="p-text thinking"><span class="who" style="--pc:${PCOLORS[S.current]}">${p.name}</span> is thinking<span class="dots"></span></div>
+    const status = S.spectating ? `Watching <span class="who" style="--pc:${PCOLORS[S.human]}">${S.players[S.human].name}</span>'s game`
+      : S.ai_turn ? `<span class="who" style="--pc:${PCOLORS[S.current]}">${p.name}</span> is thinking<span class="dots"></span>`
+      : `Waiting for <span class="who" style="--pc:${PCOLORS[S.current]}">${p.name}</span>`;
+    el.innerHTML = `<div class="p-text ${S.ai_turn && !S.spectating ? "thinking" : ""}">${status}</div>
       ${last ? `<div class="p-last"><span class="who" style="--pc:${PCOLORS[last.p]}">${S.players[last.p].name}</span> ${tok(last.text)}</div>` : ""}`;
     return;
   }
+  // Plain choices go on the decision card as big tiles; compound actions are built on the board
   const builder = ["PlayBirdAction", "EggMapAction", "DrawCardsAction", "SelectInitialAction"];
   const seen = new Set();
-  const buttons = S.actions
-    .filter((a) => !builder.includes(a.t) && !seen.has(a.label) && seen.add(a.label))
-    .map((a) => `<button class="choice" data-click="act:${a.i}" ${a.t === "IdAction" && BIRD_ID.has(a.type) ? `data-bird="${a.id}"` : ""}>${tok(a.label)}</button>`);
+  const tiles = S.actions
+    .filter((a) => !builder.includes(a.t) && a.type !== "power_5_bonus" && !(a.t === "SimpleAction" && ON_BOARD.has(a.type)))
+    .filter((a) => !seen.has(a.label) && seen.add(a.label))
+    .map((a) => `<button class="choice-tile ${DECLINE.has(a.type) ? "decline" : ""}" data-click="act:${a.i}" ${a.t === "IdAction" && BIRD_ID.has(a.type) ? `data-bird="${a.id}"` : ""}>${tok(a.label)}</button>`);
+  if (tiles.length) {
+    $("#choices").innerHTML = `<div class="ch-head">${tok(S.prompt)}</div><div class="ch-grid">${tiles.join("")}</div>`;
+    $("#choices").hidden = false;
+  }
 
   let extra = "";
   if (has("EggMapAction")) {
@@ -440,12 +469,17 @@ function renderPrompt() {
       ? `<span class="hint">Highlighted birds in your hand are playable</span>`
       : `<span class="hint">Place <b>${bird(ui.sel).name}</b> on a highlighted spot</span><button class="ghost small" data-click="cancel">Cancel</button>`;
   }
-  el.innerHTML = `<div class="p-text"><span class="who" style="--pc:${PCOLORS[S.human]}">You</span> ${tok(S.prompt)}</div>
-    <div class="p-choices">${buttons.join("")}${extra}</div>`;
+  const text = tiles.length && !extra ? "Your move: choose on the card above" : tok(S.prompt);
+  el.innerHTML = `<div class="p-text"><span class="who" style="--pc:${PCOLORS[S.human]}">You</span> ${text}</div>
+    <div class="p-choices">${extra}</div>`;
 }
 
 function renderHand() {
   const hand = human().hand;
+  if (!Array.isArray(hand)) {  // a spectator doesn't see the player's cards
+    $("#hand").innerHTML = `<div class="empty">${hand} card${hand === 1 ? "" : "s"} in hand (hidden)</div>`;
+    return;
+  }
   const playable = new Set(playActs().map((a) => a.bird_id));
   $("#hand").innerHTML =
     hand
@@ -469,20 +503,24 @@ function renderModal() {
       <div class="m-foot"><div></div><span class="m-label">The other card${offer.length > 2 ? "s are" : " is"} discarded.</span></div></div>`;
     return;
   }
-  if (S.phase === "select_initial_cards" && S.actions.length) {
-    const bonuses = [...new Set(S.actions.map((a) => a.kept_bonus))];
+  if (choosingHand()) {
+    const myTurn = S.actions.some((a) => a.t === "SelectInitialAction");
+    const bonuses = human().bonus;
     const n = ui.init.birds.length;
     const food = human().food, disc = ui.init.food;
     const k = sum(Object.values(disc));
-    const ok = initAction() && k === n;
-    const label = !n ? "Keep no birds"
-      : k === n ? `Keep ${n} bird${n === 1 ? "" : "s"}, discard ${n} food`
+    const ok = ui.init.bonus !== null && k === n && !ui.ready;
+    const waiting = `waiting for ${S.players[S.current].name}`;
+    const label = ui.ready ? `Locked in · ${waiting}…`
+      : ui.init.bonus === null ? "Pick a bonus card"
       : k < n ? `Pick ${n - k} more food to discard`
-      : `Discard only ${n} food`;
+      : k > n ? `Discard only ${n} food`
+      : `${myTurn ? "" : "Lock in: "}${n ? `keep ${n} bird${n === 1 ? "" : "s"}, discard ${n} food` : "keep no birds"}`;
     const chips = FOODS.map((f) => `<div class="food pick ${disc[f] ? "out" : ""}" data-click="init-food:${f}">${icon(f)}<b>${(food[f] || 0) - (disc[f] || 0)}</b></div>`).join("");
     m.hidden = false;
     m.innerHTML = `<div class="sheet"><h2>Choose your starting hand</h2>
-      <p>Keep any birds — each one costs 1 food (you start with one of each). Then keep 1 bonus card.</p>
+      <p>Keep any birds — each one costs 1 food (you start with one of each). Then keep 1 bonus card.
+      ${myTurn ? "" : `<b class="m-wait">Others are choosing too: pick now and lock it in. It's played when your turn comes (${waiting}).</b>`}</p>
       <div class="m-table">
         <div><div class="m-label">Round goals</div><div class="m-goals">${goalsHtml()}</div></div>
         <div><div class="m-label">Bird tray</div><div class="m-tray">${S.tray.map((id) => cardHtml(id)).join("")}</div></div>
@@ -499,9 +537,9 @@ function renderModal() {
     const best = Math.max(...S.players.map((p) => p.score.total));
     m.hidden = false;
     m.innerHTML = `<div class="sheet scores"><h2>Final scores</h2><table>
-      <tr><th></th>${S.players.map((p, i) => `<th style="--pc:${PCOLORS[i]}" class="${p.score.total === best ? "win" : ""}">${p.name}</th>`).join("")}</tr>
+      <tr><th></th>${S.players.map((p, i) => `<th style="--pc:${PCOLORS[i]}" class="${p.score.total === best ? "win" : ""}">${avatarHtml(p, PCOLORS[i])}<div>${p.name}</div></th>`).join("")}</tr>
       ${rows.map(([l, k]) => `<tr class="r-${k}"><td>${l}</td>${S.players.map((p) => `<td>${p.score[k]}</td>`).join("")}</tr>`).join("")}
-      </table><div class="m-foot"><button class="ghost" data-click="close">View boards</button><button class="primary" data-click="new">New game</button></div></div>`;
+      </table><div class="m-foot"><button class="ghost" data-click="close">View boards</button><a class="primary" href="/">Back to menu</a></div></div>`;
     return;
   }
   m.hidden = true;
@@ -522,17 +560,19 @@ function renderLog() {
 
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-click]");
-  if (!el || busy) return;
+  if (!el) return;
   const raw = el.dataset.click;
   const sep = raw.indexOf(":");
   const kind = sep < 0 ? raw : raw.slice(0, sep);
   const arg = sep < 0 ? "" : raw.slice(sep + 1);
   const id = Number(arg);
   const mine = ui.view === S.human;
+  // Looking around never waits on the server (e.g. other boards while the AI thinks)
+  if (kind === "view") { ui.view = id; return render(); }
+  if (busy && !(kind.startsWith("init-") && !initAction())) return;  // picking a hand ahead is local too
   switch (kind) {
     case "act": return act(id);
     case "key": if (arg in targets && (mine || arg.startsWith("die") || arg.startsWith("s:reroll"))) act(targets[arg]); return;
-    case "view": ui.view = id; return render();
     case "hand":
       if (has("PlayBirdAction") && playActs().some((a) => a.bird_id === id)) { ui.sel = ui.sel === id ? null : id; return render(); }
       if (`bird:${id}` in targets) act(targets[`bird:${id}`]);
@@ -558,27 +598,36 @@ document.addEventListener("click", (e) => {
     case "init-bird": {
       const b = ui.init.birds;
       ui.init.birds = b.includes(id) ? b.filter((x) => x !== id) : [...b, id];
+      ui.ready = false;  // any change unlocks a locked-in hand
       return render();
     }
-    case "init-bonus": ui.init.bonus = id; return render();
+    case "init-bonus": ui.init.bonus = id; ui.ready = false; return render();
     case "init-food": {
       const d = ui.init.food, have = human().food[arg] || 0;
       ui.init.food = { ...d, [arg]: (d[arg] || 0) < have ? (d[arg] || 0) + 1 : 0 };
+      ui.ready = false;
       return render();
     }
     case "init-ok": {
+      if (ui.init.bonus === null || sum(Object.values(ui.init.food)) !== ui.init.birds.length) return;
       const a = initAction();
-      if (!a || sum(Object.values(ui.init.food)) !== ui.init.birds.length) return;
+      if (!a) { ui.ready = true; return render(); }  // not our turn yet: lock it in
       ui.discard = ui.init.birds.length ? { ...ui.init.food } : null;
       return act(a.i);
     }
     case "scores": ui.showScores = true; return render();
     case "close": ui.showScores = false; return render();
-    case "new": ui.showScores = true; return newGame().then(set);
   }
 });
 
 $("#log-btn").addEventListener("click", () => ($("#log").hidden = !$("#log").hidden));
+$("#report-btn").addEventListener("click", () =>
+  openReport({ game: gameId, version: S.version, context: { phase: S.phase, round: S.round, prompt: S.prompt, current: S.current, viewing: ui.view } }));
+
+// The hand rises when you point at it and stays up while the pointer is anywhere on the dock, so
+// moving from the cards to the action buttons doesn't drop the bar out from under the cursor.
+$("#hand").addEventListener("mouseenter", () => $("#dock").classList.add("peek"));
+$("#dock").addEventListener("mouseleave", () => $("#dock").classList.remove("peek"));
 
 // Goal standings panel under any hovered goal tile.
 const goalPop = $("#goalpop");
@@ -607,7 +656,11 @@ document.addEventListener("mouseover", (e) => {
 });
 
 (async () => {
+  if (!gameId) return location.replace("/");
   C = await api("/api/cards");
-  const resume = new URLSearchParams(location.search).has("g");
-  set(await (resume ? api(gameUrl("")).catch(newGame) : newGame()));
+  try {
+    set(await api(gameUrl("")));
+  } catch (e) {
+    fail(e);
+  }
 })();

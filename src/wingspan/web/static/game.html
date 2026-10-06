@@ -12,27 +12,36 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="menu-page">
+<body>
   <header>
-    <div class="brand">Wingspan<small>Humans vs AI</small></div>
-    <div id="me"></div>
+    <div class="brand">Wingspan<small id="round"></small></div>
+    <div id="goals"></div>
+    <div id="players"></div>
+    <button id="log-btn" class="ghost">Log</button>
+    <button id="report-btn" class="ghost">Report bug</button>
+    <a class="ghost" href="/">Menu</a>
   </header>
 
-  <main class="menu">
-    <section class="hero" id="hero"></section>
-    <section class="panel" id="leaderboard"></section>
-    <nav class="tabs" id="tabs">
-      <button data-tab="mine">My games</button>
-      <button data-tab="all">All games</button>
-    </nav>
-    <section class="panel" id="tab"></section>
+  <main>
+    <section id="board-wrap"><div id="board"></div></section>
+    <aside>
+      <div class="panel"><h3>Birdfeeder</h3><div id="feeder"></div></div>
+      <div class="panel"><h3>Bird tray</h3><div id="tray"></div></div>
+      <div class="panel" id="supply"></div>
+    </aside>
   </main>
 
+  <div id="dock"><div id="dock-in"><div id="choices" hidden></div><div id="prompt"></div><div id="hand"></div></div></div>
+
+  <div id="preview"></div>
+  <div id="goalpop" hidden></div>
+  <div id="log" hidden></div>
   <div id="modal" hidden></div>
   <div id="report" hidden></div>
+  <div id="toast"></div>
 
   <script src="icons.js"></script>
   <script src="report.js"></script>
-  <script src="menu.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

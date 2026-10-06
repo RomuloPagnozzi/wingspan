@@ -6,5 +6,7 @@ __pycache__
 .pytest_cache
 experiments/data/
 *.parquet
-*.db
+*.db*
 *.csv
+.env
+Makefile

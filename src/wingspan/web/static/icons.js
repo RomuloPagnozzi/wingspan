@@ -33,3 +33,9 @@ function silhouetteFor(bird) {
     : "perched";
   return `<svg class="sil" viewBox="0 0 100 100" aria-hidden="true">${SILHOUETTES[shape]}</svg>`;
 }
+
+// A player's or bot's picture; without one, their initial on their seat color.
+function avatarHtml(p, color, cls = "") {
+  const inner = p.avatar ? `<img src="${p.avatar}" alt="" draggable="false">` : (p.initial || (p.name || "?").trim().charAt(0)).toUpperCase();
+  return `<span class="av ${cls}" style="--pc:${color}">${inner}</span>`;
+}

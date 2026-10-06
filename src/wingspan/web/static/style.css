@@ -97,7 +97,7 @@ header { display: flex; align-items: center; gap: 16px; padding: 10px 16px 8px; 
 
 .ghost { background: transparent; border: 1.5px solid rgba(47, 43, 37, 0.3); border-radius: 999px; padding: 6px 14px; font-weight: 700; }
 .ghost.small { padding: 3px 10px; font-size: 12px; }
-.primary { background: var(--hot); border: 0; border-radius: 999px; padding: 9px 20px; font-weight: 800; }
+.primary { background: var(--hot); border: 0; border-radius: 999px; padding: 9px 20px; font-weight: 800; white-space: nowrap; }
 .primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ---------- main ---------- */
@@ -204,7 +204,7 @@ aside { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-
 .sheet .err { color: #b3261e; font-weight: 700; }
 .p-last { font-size: 13px; opacity: 0.8; }
 .p-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; max-height: 96px; overflow-y: auto; }
-.choice { background: #f6f1e6; color: var(--ink); border: 0; border-radius: 999px; padding: 5px 13px; font-weight: 700; font-size: 13px; }
+.choice { background: #f6f1e6; color: var(--ink); border: 0; border-radius: 999px; padding: 8px 18px; font-weight: 800; font-size: 15px; }
 .choice:hover { background: #fff; box-shadow: 0 0 0 2px var(--hot); }
 #prompt .ghost { border-color: rgba(246, 241, 230, 0.4); }
 .hint { font-size: 13px; opacity: 0.85; }
@@ -217,9 +217,9 @@ aside { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-
    (--hidden px are pushed below it); hovering the hand or needing a hand card slides it up. */
 #dock { --hidden: 112px; position: relative; z-index: 20; }
 #dock-in { transition: transform 0.22s ease; }
-#dock:has(#hand:hover) #dock-in, #dock.raised #dock-in { transform: translateY(calc(-1 * var(--hidden))); }
+#dock.peek #dock-in, #dock.raised #dock-in { transform: translateY(calc(-1 * var(--hidden))); }
 #hand { display: flex; gap: 12px; overflow-x: auto; padding: 14px 22px; margin: 6px 0 calc(-1 * var(--hidden)); height: 230px; border-radius: 18px 18px 0 0; transition: background 0.22s; }
-#dock:has(#hand:hover) #hand, #dock.raised #hand { background: rgba(196, 222, 216, 0.92); backdrop-filter: blur(4px); }
+#dock.peek #hand, #dock.raised #hand { background: rgba(196, 222, 216, 0.92); backdrop-filter: blur(4px); }
 #hand .card { width: 144px; flex: none; transition: transform 0.15s; }
 #hand .card:hover { transform: translateY(-6px); }
 #hand .card.sel { transform: translateY(-14px); }
@@ -302,3 +302,121 @@ aside { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-
 .scores th { color: var(--pc); font-weight: 800; }
 .scores th.win::before { content: "★ "; color: var(--hot); }
 .scores tr.r-total td { font: 26px var(--display); border-bottom: 0; }
+
+/* ---------- links styled as buttons ---------- */
+a.ghost, a.primary { text-decoration: none; color: inherit; display: inline-block; }
+#prompt a.ghost { color: #f6f1e6; }
+
+/* ---------- menu page ---------- */
+body.menu-page { display: block; height: auto; min-height: 100vh; overflow: auto; }
+.menu-page header { max-width: 1040px; margin: 0 auto; padding: 22px 16px 8px; justify-content: space-between; }
+.menu-page .brand { font-size: 44px; }
+#me { display: flex; align-items: center; gap: 8px; }
+.m-signed, .muted { color: var(--muted); }
+.menu { max-width: 1040px; margin: 0 auto; padding: 8px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; height: auto; overflow: visible; }
+.ng-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-weight: 700; }
+.seg { display: inline-flex; background: rgba(47, 43, 37, 0.07); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: transparent; border-radius: 999px; padding: 5px 14px; font-weight: 800; min-width: 40px; }
+.seg button.on { background: var(--ink); color: var(--paper); }
+.tabs { display: flex; gap: 6px; }
+.tabs button { border: 0; background: transparent; border-radius: 999px; padding: 7px 16px; font: 20px/1 var(--display); color: var(--muted); }
+.tabs button.on { background: var(--panel); color: var(--ink); box-shadow: 0 4px 14px rgba(40, 60, 50, 0.1); }
+#tab { padding: 8px 14px 14px; overflow-x: auto; }
+#tab h4 { font: 20px/1 var(--display); color: var(--muted); font-weight: 400; margin: 18px 0 6px; }
+.empty-tab { margin: 14px 4px; }
+table.list { width: 100%; border-collapse: collapse; }
+table.list th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 8px 8px 6px; }
+table.list td { padding: 8px; border-top: 1px solid var(--line); white-space: nowrap; }
+table.list tr[data-click] { cursor: pointer; }
+table.list tr[data-click]:hover td { background: rgba(242, 192, 62, 0.14); }
+table.list .who { margin: 1px 3px 1px 0; }
+table.list .go { text-align: right; font-weight: 800; color: var(--forest); }
+b.won { color: var(--forest); }
+.board-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; }
+.board-dot.green { background: #5d9b62; }
+.board-dot.blue { background: #4f86c6; }
+.records { display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--muted); }
+.records b { color: var(--ink); }
+.champ { font: 800 10px Nunito; text-transform: uppercase; letter-spacing: 0.06em; background: var(--hot); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+.m-label b { color: var(--ink); }
+.name-sheet input { width: 100%; font: 700 18px Nunito; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--line); background: #fff; }
+.name-sheet input:focus { outline: none; border-color: var(--hot); }
+.name-sheet .err { min-height: 18px; margin: 6px 0 0; }
+@media (max-width: 600px) { .menu-page .brand { font-size: 34px; } .vs { font-size: 38px; } }
+
+/* ---------- avatars ---------- */
+.av { --s: 40px; width: var(--s); height: var(--s); flex: none; border-radius: 50%; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; background: var(--pc); color: #fff; font: 800 calc(var(--s) * 0.45) / 1 Nunito; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--pc); vertical-align: middle; }
+.av img { width: 100%; height: 100%; object-fit: cover; }
+.av.sm { --s: 26px; box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--pc); }
+.av.xs { --s: 18px; box-shadow: none; }
+.av.lg { --s: 76px; }
+.me-btn { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px 4px 5px; }
+.who.person { display: inline-flex; align-items: center; gap: 4px; padding-left: 2px; vertical-align: middle; }
+.who.person .av { border: 1.5px solid rgba(255, 255, 255, 0.85); }
+.lb-who { display: flex; align-items: center; gap: 10px; }
+.p-top .av { margin-right: 6px; }
+.scores th .av { margin: 0 auto 4px; display: flex; }
+.name-sheet { width: min(520px, 94vw); }
+.pf-row { display: flex; align-items: center; gap: 14px; }
+.pf-photo { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.pf-photo label { cursor: pointer; }
+
+/* ---------- home: the Humans vs AI hero ---------- */
+.hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: center; min-height: 300px; border-radius: 22px; overflow: hidden;
+  background: linear-gradient(100deg, var(--paper) 30%, #dbe9ec 58%, #9fc0d8 100%); box-shadow: 0 10px 30px rgba(40, 60, 50, 0.14); }
+.hero-text { padding: 26px 30px; position: relative; z-index: 1; }
+.hero-kicker { font: 800 12px Nunito; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.vs-big { display: flex; align-items: flex-end; gap: 18px; margin: 6px 0 2px; }
+.vs-big .side { display: flex; flex-direction: column; align-items: center; }
+.vs-big b { font: 96px/0.9 var(--display); }
+.vs-big .side span { font: 800 12px Nunito; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.vs-big .h b { color: var(--sel); }
+.vs-big .a b { color: #c9534f; }
+.vs-big .dash { font: 60px/1 var(--display); color: var(--muted); padding-bottom: 26px; }
+.hero-lead { font: 24px/1.2 var(--display); color: #2d4a3e; }
+.hero-champ { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); }
+.hero-champ b { color: var(--ink); }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.hero-actions button { font-size: 15px; padding: 10px 22px; }
+/* The robot flies out of the panel's sky; its own watercolor sky melts into the gradient */
+.hero-img { width: 380px; height: 380px; object-fit: cover; justify-self: end; margin: -40px -20px -40px 0;
+  -webkit-mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); mask-image: radial-gradient(closest-side, #000 62%, transparent 100%); }
+#leaderboard .lb-title { font: 30px/1 var(--display); color: var(--ink); margin: 6px 0 10px; font-weight: 400; }
+#leaderboard { padding: 14px 18px 18px; overflow-x: auto; }
+#leaderboard h4 { font: 20px/1 var(--display); color: var(--muted); font-weight: 400; margin: 18px 0 6px; }
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; background: linear-gradient(180deg, #9fc0d8, #dbe9ec 40%, var(--paper) 75%); }
+  .hero-img { order: -1; width: 240px; height: 240px; justify-self: center; margin: -10px 0 -40px; }
+  .hero-text { padding: 10px 20px 22px; }
+  .vs-big b { font-size: 76px; }
+}
+
+/* ---------- decision card: plain choices as big tiles, riding just above the dock ---------- */
+#dock-in { position: relative; }
+#choices { position: absolute; right: 16px; bottom: calc(100% + 8px); width: var(--side); max-height: 56vh; overflow-y: auto;
+  background: var(--paper); border-radius: 18px; padding: 14px 14px 12px; border: 2px solid var(--hot);
+  box-shadow: 0 0 0 4px var(--hot-glow), 0 18px 44px rgba(20, 40, 30, 0.35); animation: rise 0.18s ease-out; }
+@keyframes rise { from { transform: translateY(8px); opacity: 0; } }
+.ch-head { font-size: 14px; font-weight: 700; line-height: 1.4; margin-bottom: 10px; }
+.ch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.choice-tile { min-height: 56px; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--line); background: #fff;
+  font: 800 15px/1.25 Nunito; color: var(--ink); display: flex; align-items: center; justify-content: center; text-align: center; transition: transform 0.1s, border-color 0.1s; }
+.choice-tile .tok .ico { width: 1.7em; height: 1.7em; vertical-align: -0.55em; }
+.choice-tile:hover { border-color: var(--hot); box-shadow: 0 0 0 3px var(--hot-glow); transform: translateY(-1px); }
+.choice-tile.decline { background: transparent; border-style: dashed; color: var(--muted); font-weight: 700; }
+/* The hover preview normally sits on the right edge; with a decision open, show it beside the card */
+body:has(#choices:not([hidden])) #preview { right: calc(var(--side) + 40px); }
+
+/* ---------- home: 10% larger, a champion that stands out ---------- */
+body.menu-page { zoom: 1.1; }
+.av.xl { --s: 92px; box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--pc), 0 10px 24px rgba(40, 30, 30, 0.25); }
+.hero-champ { gap: 16px; margin-top: 18px; }
+.champ-name { font: 38px/1 var(--display); color: var(--ink); margin-top: 2px; }
+.champ-rec { font-weight: 700; color: var(--muted); margin-top: 4px; }
+.m-wait { display: block; color: var(--forest); margin-top: 6px; }
+
+/* ---------- bug report dialog (its own overlay: game re-renders never close it) ---------- */
+#report { position: fixed; inset: 0; z-index: 80; background: rgba(22, 34, 29, 0.55); backdrop-filter: blur(3px); display: grid; place-items: center; }
+#report textarea { width: 100%; font: 15px/1.4 Nunito; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: #fff; resize: vertical; }
+#report textarea:focus { outline: none; border-color: var(--hot); }
+#me .ghost.small { margin-right: 8px; }

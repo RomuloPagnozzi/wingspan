@@ -9,9 +9,9 @@ Game-playing strategies. All strategies implement `Strategy.select_action(state,
 | `base.py` | `Strategy` ABC, `ValueFunction` enum, name registry, `create_strategy` factory |
 | `random.py` | uniform random action selection (deterministic with a seed) |
 | `mcts.py` | MCTS with UCB1 selection, progressive widening, and optional PIMC/IS-MCTS determinization |
-| `default_params.yaml` | tuned MCTS params the web app plays with (copied from `experiments/tuning/mcts_joint_v1/best_params.yaml`) |
+| `bots.yaml`, `bots.py` | the roster of bots the web app fields: each with a name, strategy and exact params; `champion` is the one new games face |
 
-Only AIs that ship with the app live here. Experimental strategies can live in `lab/` and self-register with `@register_strategy`; promote them here once they prove out.
+Only AIs that ship with the app live here. Experimental strategies can live in `lab/` and self-register with `@register_strategy`; promote them here once they prove out, and release them to players by adding a `bots.yaml` entry.
 
 ## Dependencies
 

@@ -1,6 +1,7 @@
-"""A single game against AI opponents, and its JSON view for the browser client."""
+"""A single game: its seats (humans and AI bots), its state, and the JSON view each seat sees."""
 
 import math
+import random
 from dataclasses import asdict
 
 from wingspan.engine.actions import get_actions
@@ -27,7 +28,6 @@ from wingspan.engine.engine import transition_state
 from wingspan.engine.scoring import count_bonus_birds, evaluate_goal, goal_scores, score_bonus_card
 from wingspan.ai import create_strategy
 
-HUMAN = 0
 HABITATS = ("forest", "grassland", "wetland")
 CUBE_ROWS = {
     "play_bird": -1,
@@ -119,13 +119,13 @@ def _egg_map(items) -> str:
     return ", ".join(f"{n}[egg] {BIRD_REGISTRY[b].name}" for b, n in items if n)
 
 
-def describe(a) -> str:
+def describe(a, names: list[str] | None = None) -> str:
     bird = lambda i: BIRD_REGISTRY[i].name  # noqa: E731
     match a:
         case SimpleAction(t):
             return SIMPLE_LABELS.get(t, t.replace("_", " ").capitalize())
         case IdAction("choose_player", i):
-            return f"Player {i + 1}"
+            return names[i] if names else f"Player {i + 1}"
         case IdAction("power_5_bonus", i):
             return f"Keep bonus: {BONUS_REGISTRY[i].name.replace('_', ' ').title()}"
         case IdAction(t, i):
@@ -165,12 +165,12 @@ def bonus_progress(bonus_id: int, player) -> dict:
     }
 
 
-def action_json(i: int, a) -> dict:
+def action_json(i: int, a, names: list[str] | None = None) -> dict:
     d = asdict(a)
     for k in ("items", "tray_birds", "kept_birds"):
         if k in d:
             d[k] = [list(x) if isinstance(x, tuple) else x for x in d[k]]
-    return {"i": i, "t": type(a).__name__, "label": describe(a), **d}
+    return {"i": i, "t": type(a).__name__, "label": describe(a, names), **d}
 
 
 # =============================================================================
@@ -178,36 +178,50 @@ def action_json(i: int, a) -> dict:
 # =============================================================================
 
 
+def human_seat(uid: str, name: str) -> dict:
+    return {"kind": "human", "uid": uid, "name": name}
+
+
+def bot_seat(bot: dict) -> dict:
+    """An AI seat records the bot's full params, so the game stays reproducible after a retune."""
+    return {"kind": "ai", "bot": bot["id"], "name": bot["name"], "strategy": bot["strategy"], "params": bot["params"]}
+
+
 class Session:
-    def __init__(
-        self,
-        players: int = 2,
-        ai: str = "mcts",
-        scoring: str = "green",
-        ai_params: dict | None = None,
-        seed: int | None = None,
-    ):
-        self.ai_name = ai
-        self.state = initiate_state(players, ScoringMode(scoring), seed=seed)
-        self.ai = {i: create_strategy(ai, **(ai_params or {})) for i in range(1, players)}
+    """A game is fully determined by its config (seats, scoring side, seed) and `history`, the str()
+    of every applied action, which is the same format the lab records. Passing a history replays it."""
+
+    def __init__(self, seats: list[dict], scoring: str = "green", seed: int | None = None, history: list[str] = ()):
+        seed = random.randrange(2**31) if seed is None else seed
+        self.config = {"seats": seats, "scoring": scoring, "seed": seed}
+        self.seats = seats
+        self.state = initiate_state(len(seats), ScoringMode(scoring), seed=seed)
+        self.ai = {i: create_strategy(s["strategy"], **s["params"]) for i, s in enumerate(seats) if s["kind"] == "ai"}
+        self.history: list[str] = []
         self.log: list[dict] = []
-        self.version = 0  # bumped by every applied action; clients echo it to avoid acting on a stale view
         self.last_round = 0
         # Action cubes placed this round, per player: the board row of each main action (CUBE_ROWS)
-        self.cubes: list[list[int]] = [[] for _ in range(players)]
+        self.cubes: list[list[int]] = [[] for _ in seats]
         # Goal counts frozen at the moment each round was scored (boards keep changing afterwards)
         self.final_counts: dict[int, list[int]] = {}
         self.actions = get_actions(self.state)
+        for a in history:  # raises KeyError if the game diverges (rules changed since it was played)
+            self.apply({str(x): x for x in self.actions}[a])
         self.skip_trivial()
 
+    @property
+    def version(self) -> int:
+        """Clients echo this so an action chosen on a stale view (e.g. another tab) is rejected."""
+        return len(self.history)
+
     def apply(self, action):
-        self.version += 1
+        self.history.append(str(action))
         s = self.state
         if s.round != self.last_round and s.game_phase == GamePhase.MAIN_TURN:
             self.last_round = s.round
             self.log.append({"round": s.round})
         if action.__class__ is not SimpleAction or "setup" not in action.type:
-            self.log.append({"p": s.current_player_index, "text": describe(action)})
+            self.log.append({"p": s.current_player_index, "text": describe(action, self.names())})
         self.track_cube(action)
         round_before = s.round
         self.state = transition_state(s, action)
@@ -255,17 +269,31 @@ class Session:
         ):
             self.cubes[s.current_player_index].append(CUBE_ROWS[action.type])
 
-    def human_turn(self) -> bool:
-        return bool(self.actions) and self.state.current_player_index == HUMAN
+    def names(self, looks: list[dict] | None = None) -> list[str]:
+        """Each seat's display name; bots of the same kind are numbered by seat."""
+        return [look["name"] + (f" {i + 1}" if len(self.ai) > 1 and i in self.ai else "") for i, look in enumerate(looks or self.seats)]
 
-    def act(self, index: int):
-        assert self.human_turn()
+    @property
+    def game_over(self) -> bool:
+        return self.state.game_phase == GamePhase.GAME_OVER
+
+    def seat_of(self, uid: str) -> int | None:
+        return next((i for i, s in enumerate(self.seats) if s.get("uid") == uid), None)
+
+    def turn_of(self, seat: int | None) -> bool:
+        """Is it this seat's move? (None asks: is it any human's move?)"""
+        if not self.actions or self.state.current_player_index in self.ai:
+            return False
+        return seat is None or self.state.current_player_index == seat
+
+    def act(self, seat: int, index: int):
+        assert self.turn_of(seat)
         self.apply(self.actions[index])
         self.skip_trivial()
 
     def ai_player(self) -> int | None:
         """The AI to move next, if it's an AI's turn."""
-        if self.actions and not self.human_turn():
+        if self.actions and self.state.current_player_index in self.ai:
             return self.state.current_player_index
         return None
 
@@ -273,9 +301,17 @@ class Session:
         self.apply(action)
         self.skip_trivial()
 
+    def results(self) -> list[dict] | None:
+        """Final standings per seat. Ties are broken by leftover food (official rule); a full tie shares the place."""
+        if not self.game_over:
+            return None
+        totals = [p["score"]["total"] for p in self.view(None)["players"]]
+        keys = [(t, sum(p.food.values())) for t, p in zip(totals, self.state.players)]
+        return [{"score": totals[i], "food": k[1], "place": 1 + sum(o > k for o in keys)} for i, k in enumerate(keys)]
+
     def skip_trivial(self):
-        """Auto-apply the human's bookkeeping-only setup actions."""
-        while self.human_turn() and self.actions[0] in (
+        """Auto-apply humans' bookkeeping-only setup actions."""
+        while self.turn_of(None) and self.actions[0] in (
             SimpleAction("start_setup"),
             SimpleAction("end_setup"),
         ):
@@ -283,9 +319,13 @@ class Session:
 
     # -------------------------------------------------------------------------
 
-    def view(self) -> dict:
+    def view(self, viewer: int | None, looks: list[dict] | None = None) -> dict:
+        """What one seat sees (its own hand, its actions); viewer=None is a spectator: public info only.
+        `looks` gives each seat's current {name, avatar}; by default, the names from game creation."""
         s = self.state
-        me = self.human_turn()
+        me = viewer is not None and self.turn_of(viewer)
+        looks = looks or self.seats
+        names = ["You" if i == viewer else name for i, name in enumerate(self.names(looks))]
         goals = s.round_goal_config
         assert goals
         return {
@@ -299,21 +339,23 @@ class Session:
                 and s.action_data.action_player_index is not None
                 else s.current_player_index
             ),
-            "human": HUMAN,
-            "game_over": s.game_phase == GamePhase.GAME_OVER,
+            "human": viewer if viewer is not None else next(i for i, x in enumerate(self.seats) if x["kind"] == "human"),
+            "spectating": viewer is None,
+            "ai_turn": self.ai_player() is not None,
+            "game_over": self.game_over,
             "scoring_mode": goals.scoring_mode.value,
             "goals": [self.goal_json(r) for r in range(1, 5)],
             "feeder": {str(k): v for k, v in s.feeder.items()},
             "tray": list(s.bird_tray),
             "deck": len(s.bird_deck),
-            "players": [self.player_json(i, p) for i, p in enumerate(s.players)],
+            "players": [self.player_json(i, p, viewer, looks[i], names[i]) for i, p in enumerate(s.players)],
             "actions": (
-                [action_json(i, a) for i, a in enumerate(self.actions)] if me else []
+                [action_json(i, a, names) for i, a in enumerate(self.actions)] if me else []
             ),
             "prompt": self.prompt() if me else None,
             # Where you'd stand on each offered bonus card right now (power 5)
             "bonus_offer": {
-                a.id: bonus_progress(a.id, s.players[HUMAN])
+                a.id: bonus_progress(a.id, s.players[viewer])
                 for a in self.actions
                 if me and isinstance(a, IdAction) and a.type == "power_5_bonus"
             },
@@ -321,7 +363,7 @@ class Session:
             "log": self.log[-120:],
         }
 
-    def player_json(self, i: int, p) -> dict:
+    def player_json(self, i: int, p, viewer: int | None, look: dict, name: str) -> dict:
         board = [
             [
                 (
@@ -349,10 +391,12 @@ class Session:
             "tucked": sum(b["tucked"] for b in birds),
         }
         score["total"] = sum(score.values())
-        visible = i == HUMAN or self.state.game_phase == GamePhase.GAME_OVER
+        visible = i == viewer or self.game_over
         return {
-            "name": "You" if i == HUMAN else f"{self.ai_name.upper()} {i + 1}",
-            "ai": i != HUMAN,
+            "name": name,
+            "avatar": look.get("avatar"),
+            "initial": look["name"][:1].upper(),  # for the avatar, even when shown as "You"
+            "ai": i in self.ai,
             "first": p.first_player,
             "cubes": 9
             - self.state.round

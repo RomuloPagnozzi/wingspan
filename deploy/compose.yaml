@@ -1,0 +1,14 @@
+# Production service behind Cloudflare Tunnel + Access. Copied to /srv/wingspan by `make deploy`.
+services:
+  wingspan:
+    image: wingspan:latest
+    container_name: wingspan
+    restart: unless-stopped
+    # Localhost only: cloudflared on the same host is the only way in.
+    ports:
+      - "127.0.0.1:8090:8000"
+    volumes:
+      - /srv/wingspan/data:/data
+    # CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD (see .env.example)
+    env_file: /srv/wingspan/.env
+    command: [wingspan, --host, 0.0.0.0, --port, "8000", --no-browser, --db, /data/games.db, --auth, cloudflare, --workers, "2"]
