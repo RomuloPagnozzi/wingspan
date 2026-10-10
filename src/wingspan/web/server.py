@@ -49,7 +49,13 @@ MAX_LIVE_GAMES = 200  # in memory; the rest are replayed from the store when ope
 def images(folder: str) -> list[str]:
     """Static image paths in a folder (the bots' pictures)."""
     d = STATIC / folder
-    return sorted(f"{folder}/{p.name}" for p in d.iterdir() if p.suffix.lower() in IMAGE_TYPES) if d.is_dir() else []
+    return (
+        sorted(
+            f"{folder}/{p.name}" for p in d.iterdir() if p.suffix.lower() in IMAGE_TYPES
+        )
+        if d.is_dir()
+        else []
+    )
 
 
 def bot_avatar(bot_id: str) -> str | None:
@@ -94,8 +100,12 @@ class Act(BaseModel):
 class Report(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
     game: str | None = Field(None, max_length=40)  # the game it happened in, if any
-    version: int | None = None  # the move number when reported: `make debug ID=<game> AT=<version>` reopens it there
-    context: dict = Field(default_factory=dict)  # what the client showed (phase, prompt, board viewed, ...)
+    version: int | None = (
+        None  # the move number when reported: `make debug ID=<game> AT=<version>` reopens it there
+    )
+    context: dict = Field(
+        default_factory=dict
+    )  # what the client showed (phase, prompt, board viewed, ...)
 
 
 class Name(BaseModel):
@@ -106,10 +116,15 @@ class Name(BaseModel):
 def create_app(args) -> FastAPI:
     bot = {**BOTS[args.bot]}
     if args.sims is not None and bot["strategy"] == "mcts":
-        bot["params"] = {**bot["params"], "simulations": args.sims}  # recorded as played
+        bot["params"] = {
+            **bot["params"],
+            "simulations": args.sims,
+        }  # recorded as played
     store = Store(args.db, readonly=args.debug)
     if args.auth == "cloudflare":
-        identify = CloudflareAccess(os.environ["CF_ACCESS_TEAM_DOMAIN"], os.environ["CF_ACCESS_AUD"])
+        identify = CloudflareAccess(
+            os.environ["CF_ACCESS_TEAM_DOMAIN"], os.environ["CF_ACCESS_AUD"]
+        )
     else:
         identify = DevUser(args.user)
     games: dict[str, Game] = {}
@@ -132,7 +147,9 @@ def create_app(args) -> FastAPI:
             if not request.state.uid:
                 return JSONResponse({"detail": "not signed in"}, status_code=401)
         response = await call_next(request)
-        response.headers.setdefault("Cache-Control", "no-cache")  # pick up new static files right away
+        response.headers.setdefault(
+            "Cache-Control", "no-cache"
+        )  # pick up new static files right away
         # No keep-alive: a proxy in between (e.g. Docker Desktop) can hide the server closing an idle
         # connection, and the browser's next POST then dies on it (browsers only retry GETs).
         response.headers["Connection"] = "close"
@@ -146,8 +163,14 @@ def create_app(args) -> FastAPI:
         base, _, at = gid.partition("@") if args.debug else (gid, "", "")
         if gid not in games and (doc := await asyncio.to_thread(store.load, base)):
             try:
-                session = Session(**doc["config"], history=doc["actions"][: int(at)] if at else doc["actions"])
-            except (KeyError, ValueError):  # played under different rules (can't be replayed), or a bad @move
+                session = Session(
+                    **doc["config"],
+                    history=doc["actions"][: int(at)] if at else doc["actions"],
+                )
+            except (
+                KeyError,
+                ValueError,
+            ):  # played under different rules (can't be replayed), or a bad @move
                 session = None
             if session and gid not in games:
                 games[gid] = Game(session, created=doc["created"])
@@ -166,7 +189,10 @@ def create_app(args) -> FastAPI:
             "status": "finished" if s.game_over else "in_progress",
             "round": s.state.round,
             "scoring": s.config["scoring"],
-            "seats": [{k: v for k, v in seat.items() if k in ("kind", "uid", "name", "bot")} for seat in s.seats],
+            "seats": [
+                {k: v for k, v in seat.items() if k in ("kind", "uid", "name", "bot")}
+                for seat in s.seats
+            ],
             "result": s.results(),
         }
 
@@ -180,14 +206,23 @@ def create_app(args) -> FastAPI:
             "config": s.config,
             "actions": s.history,
             # For reading in a database browser; not needed to resume
-            "log": [f"{names[e['p']]}: {e['text']}" if "text" in e else f"--- round {e['round']} ---" for e in s.log],
+            "log": [
+                (
+                    f"{names[e['p']]}: {e['text']}"
+                    if "text" in e
+                    else f"--- round {e['round']} ---"
+                )
+                for e in s.log
+            ],
         }
         await asyncio.to_thread(store.save, gid, doc, summary(gid, game))
 
     def seat(request: Request, game: Game) -> int | None:
         """The requester's seat, or None for a spectator. In --debug you sit in the owner's seat."""
         if args.debug:
-            return next(i for i, x in enumerate(game.session.seats) if x["kind"] == "human")
+            return next(
+                i for i, x in enumerate(game.session.seats) if x["kind"] == "human"
+            )
         return game.session.seat_of(request.state.uid)
 
     def avatar_url(avatar_id: str | None) -> str | None:
@@ -197,8 +232,14 @@ def create_app(args) -> FastAPI:
         """How a seat appears now: seats keep the name from game creation, players and bots get renamed."""
         if seat["kind"] == "human":
             profile = profiles.get(seat["uid"], {})
-            return {"name": profile.get("name") or seat["name"], "avatar": avatar_url(profile.get("avatar"))}
-        return {"name": BOTS.get(seat["bot"], seat)["name"], "avatar": bot_avatar(seat["bot"])}
+            return {
+                "name": profile.get("name") or seat["name"],
+                "avatar": avatar_url(profile.get("avatar")),
+            }
+        return {
+            "name": BOTS.get(seat["bot"], seat)["name"],
+            "avatar": bot_avatar(seat["bot"]),
+        }
 
     def view(request: Request, gid: str) -> dict:
         game = games[gid]
@@ -229,7 +270,12 @@ def create_app(args) -> FastAPI:
             "uid": uid,
             "name": profile.get("name"),
             "avatar": avatar_url(profile.get("avatar")),
-            "bot": {"id": bot["id"], "name": bot["name"], "avatar": bot_avatar(bot["id"]), "champion": bot["id"] == CHAMPION},
+            "bot": {
+                "id": bot["id"],
+                "name": bot["name"],
+                "avatar": bot_avatar(bot["id"]),
+                "champion": bot["id"] == CHAMPION,
+            },
             "debug": args.debug,
         }
 
@@ -262,7 +308,11 @@ def create_app(args) -> FastAPI:
 
     @app.post("/api/reports")
     def report_bug(request: Request, body: Report):
-        report = {**body.model_dump(), "app_version": APP_VERSION, "user_agent": request.headers.get("user-agent", "")[:300]}
+        report = {
+            **body.model_dump(),
+            "app_version": APP_VERSION,
+            "user_agent": request.headers.get("user-agent", "")[:300],
+        }
         if len(json.dumps(report)) > 20_000:
             raise HTTPException(413, "report too large")
         store.add_report(request.state.uid, report)
@@ -274,14 +324,20 @@ def create_app(args) -> FastAPI:
         if image is None:
             raise HTTPException(404, "no such picture")
         # A new upload gets a new id, so this one never changes
-        return Response(image, media_type="image/webp", headers={"Cache-Control": "private, max-age=31536000, immutable"})
+        return Response(
+            image,
+            media_type="image/webp",
+            headers={"Cache-Control": "private, max-age=31536000, immutable"},
+        )
 
     @app.get("/api/games")
     def list_games(request: Request, scope: Literal["mine", "all"] = "mine"):
         profiles = store.profiles()
         out = []
         for g in store.summaries():
-            if scope == "mine" and not any(s.get("uid") == request.state.uid for s in g["seats"]):
+            if scope == "mine" and not any(
+                s.get("uid") == request.state.uid for s in g["seats"]
+            ):
                 continue
             for s in g["seats"]:
                 s.update(look(s, profiles))
@@ -292,7 +348,12 @@ def create_app(args) -> FastAPI:
     def get_leaderboard():
         profiles = store.profiles()
         names = {uid: p["name"] for uid, p in profiles.items()}
-        board = leaderboard(store.summaries(), names, {bot_id: b["name"] for bot_id, b in BOTS.items()}, CHAMPION)
+        board = leaderboard(
+            store.summaries(),
+            names,
+            {bot_id: b["name"] for bot_id, b in BOTS.items()},
+            CHAMPION,
+        )
         for row in board["players"]:
             row["avatar"] = profiles.get(row["id"], {}).get("avatar")
         for row in board["bots"]:
@@ -351,16 +412,31 @@ def create_app(args) -> FastAPI:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Play Wingspan in the browser")
-    parser.add_argument("--bot", default=CHAMPION, choices=list(BOTS), help="AI opponent for new games (bots.yaml)")
-    parser.add_argument("--sims", type=int, default=None, help="override MCTS simulations")
+    parser.add_argument(
+        "--bot",
+        default=CHAMPION,
+        choices=list(BOTS),
+        help="AI opponent for new games (bots.yaml)",
+    )
+    parser.add_argument(
+        "--sims", type=int, default=None, help="override MCTS simulations"
+    )
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--db", default="games.db", help="SQLite database file")
-    parser.add_argument("--debug", action="store_true", help="read-only database; you sit in each game's owner seat")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="read-only database; you sit in each game's owner seat",
+    )
     parser.add_argument("--auth", default="dev", choices=["dev", "cloudflare"])
-    parser.add_argument("--user", default="you@localhost", help="the signed-in email with --auth dev")
+    parser.add_argument(
+        "--user", default="you@localhost", help="the signed-in email with --auth dev"
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--workers", type=int, default=os.cpu_count(), help="AI worker processes")
+    parser.add_argument(
+        "--workers", type=int, default=os.cpu_count(), help="AI worker processes"
+    )
     parser.add_argument("--no-browser", dest="open_browser", action="store_false")
     return parser.parse_args(argv)
 

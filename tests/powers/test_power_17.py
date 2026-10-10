@@ -1,6 +1,12 @@
 """Tests for Power 17: Tuck 1 card from hand behind bird for bonus."""
 
-from wingspan.engine.core import initiate_state, GamePhase, SimpleAction, IdAction, NameAction
+from wingspan.engine.core import (
+    initiate_state,
+    GamePhase,
+    SimpleAction,
+    IdAction,
+    NameAction,
+)
 from wingspan.engine.engine import transition_state
 from wingspan.engine.actions import get_actions
 from wingspan.engine.power import can_execute_power

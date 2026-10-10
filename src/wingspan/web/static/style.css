@@ -59,7 +59,8 @@ header { display: flex; align-items: center; gap: 16px; padding: 10px 16px 8px; 
 .g-s i:empty { opacity: 0.25; }
 .g-s i small { font-size: 9px; opacity: 0.85; margin-left: 1px; }
 .goal[data-goal] { cursor: help; }
-.score b small { font: 700 11px Nunito; color: var(--forest); }
+.score b small, .p-score small { font: 700 11px Nunito; color: var(--forest); }
+.score .total b small { color: #cfe0d6; }
 
 /* ---------- goal standings panel ---------- */
 #goalpop { position: fixed; z-index: 60; width: 430px; background: #fffdf7; border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px rgba(20, 40, 30, 0.3); font-size: 13px; pointer-events: none; }
@@ -296,12 +297,6 @@ aside { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-
 .food.pick:hover { border-color: var(--hot); }
 .food.pick.out { background: #f6e1da; border: 1.5px dashed #c9534f; }
 .food.pick.out .ico { opacity: 0.4; }
-.scores table { border-collapse: collapse; margin: 10px 0; font-size: 15px; min-width: 420px; }
-.scores th, .scores td { padding: 7px 14px; text-align: center; border-bottom: 1px solid var(--line); }
-.scores td:first-child { text-align: left; color: var(--muted); }
-.scores th { color: var(--pc); font-weight: 800; }
-.scores th.win::before { content: "★ "; color: var(--hot); }
-.scores tr.r-total td { font: 26px var(--display); border-bottom: 0; }
 
 /* ---------- links styled as buttons ---------- */
 a.ghost, a.primary { text-decoration: none; color: inherit; display: inline-block; }
@@ -355,7 +350,6 @@ b.won { color: var(--forest); }
 .who.person .av { border: 1.5px solid rgba(255, 255, 255, 0.85); }
 .lb-who { display: flex; align-items: center; gap: 10px; }
 .p-top .av { margin-right: 6px; }
-.scores th .av { margin: 0 auto 4px; display: flex; }
 .name-sheet { width: min(520px, 94vw); }
 .pf-row { display: flex; align-items: center; gap: 14px; }
 .pf-photo { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
@@ -420,3 +414,47 @@ body.menu-page { zoom: 1.1; }
 #report textarea { width: 100%; font: 15px/1.4 Nunito; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: #fff; resize: vertical; }
 #report textarea:focus { outline: none; border-color: var(--hot); }
 #me .ghost.small { margin-right: 8px; }
+
+/* ---------- scoring screens (round ends + final tally) ---------- */
+:root { --c-birds: #9bb3c4; --c-bonus: #a9cf8a; --c-goals: #ecd58a; --c-eggs: #e8bf8e; --c-cached: #d98c84; --c-tucked: #b9a3cf; }
+#scoring { position: fixed; inset: 0; z-index: 35; background: rgba(22, 34, 29, 0.55); backdrop-filter: blur(3px); display: grid; place-items: center; }
+.sc-sheet { position: relative; width: min(980px, 94vw); }
+.sc-sheet h2 { display: flex; align-items: baseline; gap: 12px; }
+.sc-sheet h2 small { font: 700 12px Nunito; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.sc-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; }
+.sc-foot .ghost { border: 1.5px solid var(--line); border-radius: 999px; padding: 8px 16px; font-weight: 700; text-decoration: none; }
+.sc-p { display: inline-flex; align-items: center; gap: 1px; }
+.sc-p .ico { width: 0.75em; height: 1em; }
+
+.sc-round { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; padding: 8px 0; border-top: 1px dashed var(--line); }
+.sc-round:first-of-type { border-top: 0; }
+.sc-round.future { opacity: 0.35; }
+.sc-round .goal { width: auto; }
+.sc-round.now .goal { border-color: var(--hot); background: #fffdf5; box-shadow: 0 0 0 3px var(--hot-glow); }
+.sc-lanes { display: flex; flex-direction: column; gap: 6px; }
+.sc-lane { display: grid; grid-template-columns: 1fr 96px; gap: 12px; align-items: center; }
+.sc-track { position: relative; height: 18px; border-radius: 999px; background: #ece4d3; }
+.sc-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 999px; background: var(--pc); opacity: 0.9; }
+.sc-track .av { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); }
+.sc-cnt { position: absolute; top: 50%; left: 0; transform: translate(18px, -50%); font: 18px/1 var(--display); }
+.sc-pts { font: 22px/1 var(--display); opacity: 0; transform: scale(0.6); transition: 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); display: flex; gap: 6px; align-items: baseline; }
+.sc-pts.show { opacity: 1; transform: none; }
+.sc-pts small { font: 700 11px Nunito; color: var(--muted); }
+
+.sc-final { display: flex; flex-direction: column; gap: 26px; margin: 24px 0 10px; }
+.sc-row { display: grid; grid-template-columns: 1fr 80px; align-items: center; gap: 14px; }
+.sc-bar { position: relative; height: 40px; border-radius: 10px; background: #ece4d3; display: flex; }
+.sc-seg { height: 100%; width: 0; background-color: var(--cc); background-repeat: repeat-x; background-size: 26px 22px; background-position: 4px center; border-right: 1px solid rgba(255, 255, 255, 0.6); }
+.sc-seg:first-child { border-radius: 10px 0 0 10px; }
+.sc-tip { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); }
+.sc-tip .av { --s: 44px; }
+.sc-total { font: 34px/1 var(--display); }
+.sc-row.win .sc-total { color: var(--forest); }
+.sc-row.win .sc-tip .av { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--hot), 0 0 24px 6px var(--hot-glow); }
+.sc-legend { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+.sc-legend span { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: color-mix(in srgb, var(--cc) 45%, #fff); font: 17px/1 var(--display); color: var(--muted); transition: 0.3s; }
+.sc-legend span.on { background: var(--cc); color: var(--ink); transform: scale(1.15); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+.sc-legend span.done { color: var(--ink); }
+.sc-legend .ico { width: 20px; height: 20px; }
+.sc-banner { position: absolute; left: 50%; top: 14px; transform: translateX(-50%) scale(0.6); opacity: 0; transition: 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); font: 40px/1 var(--display); background: var(--hot); padding: 8px 26px; border-radius: 999px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); white-space: nowrap; }
+.sc-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }

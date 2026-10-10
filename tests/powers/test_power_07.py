@@ -1,6 +1,12 @@
 """Comprehensive end-to-end test for Power 7: Each player gains 1 die from birdfeeder, starting with player of your choice."""
 
-from wingspan.engine.core import initiate_state, GamePhase, SimpleAction, IdAction, SelectDieAction
+from wingspan.engine.core import (
+    initiate_state,
+    GamePhase,
+    SimpleAction,
+    IdAction,
+    SelectDieAction,
+)
 from wingspan.engine.engine import transition_state
 from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_execution

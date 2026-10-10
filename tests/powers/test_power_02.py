@@ -1,6 +1,12 @@
 """Tests for Power 2: All players lay eggs on matching nest types."""
 
-from wingspan.engine.core import initiate_state, GamePhase, SimpleAction, EggMapAction, frozen_map
+from wingspan.engine.core import (
+    initiate_state,
+    GamePhase,
+    SimpleAction,
+    EggMapAction,
+    frozen_map,
+)
 from wingspan.engine.engine import transition_state
 from wingspan.engine.actions import get_actions
 from conftest import (

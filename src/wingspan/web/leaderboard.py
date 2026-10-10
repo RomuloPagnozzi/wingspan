@@ -12,7 +12,10 @@ ABANDONED_DAYS = 7
 
 def is_abandoned(summary: dict) -> bool:
     cutoff = datetime.now(timezone.utc) - timedelta(days=ABANDONED_DAYS)
-    return summary["status"] != "finished" and datetime.fromisoformat(summary["updated"]) < cutoff
+    return (
+        summary["status"] != "finished"
+        and datetime.fromisoformat(summary["updated"]) < cutoff
+    )
 
 
 def winner(summary: dict) -> int | None:
@@ -21,9 +24,19 @@ def winner(summary: dict) -> int | None:
     return firsts[0] if len(firsts) == 1 else None
 
 
-def leaderboard(summaries: list[dict], names: dict[str, str], bot_names: dict[str, str], champion: str) -> dict:
-    humans_vs_ai = {"all": {"humans": 0, "ai": 0, "draws": 0}, "champion": {"humans": 0, "ai": 0, "draws": 0}}
-    players = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "scores": [], "abandoned": 0})
+def leaderboard(
+    summaries: list[dict],
+    names: dict[str, str],
+    bot_names: dict[str, str],
+    champion: str,
+) -> dict:
+    humans_vs_ai = {
+        "all": {"humans": 0, "ai": 0, "draws": 0},
+        "champion": {"humans": 0, "ai": 0, "draws": 0},
+    }
+    players = defaultdict(
+        lambda: {"games": 0, "wins": 0, "draws": 0, "scores": [], "abandoned": 0}
+    )
     bots = defaultdict(lambda: {"games": 0, "wins": 0, "draws": 0, "scores": []})
     records = {"high_score": None, "biggest_win": None}
 
@@ -47,7 +60,9 @@ def leaderboard(summaries: list[dict], names: dict[str, str], bot_names: dict[st
             stats = bots[bot]
             stats["games"] += 1
             stats["wins"] += w in mine
-            stats["draws"] += w is None and any(g["result"][i]["place"] == 1 for i in mine)
+            stats["draws"] += w is None and any(
+                g["result"][i]["place"] == 1 for i in mine
+            )
             stats["scores"] += [g["result"][i]["score"] for i in mine]
 
         for i, (seat, r) in enumerate(zip(g["seats"], g["result"])):
@@ -58,24 +73,48 @@ def leaderboard(summaries: list[dict], names: dict[str, str], bot_names: dict[st
                 stats["draws"] += w is None and r["place"] == 1
                 stats["scores"].append(r["score"])
                 name = names.get(seat["uid"], seat["name"])
-                if not records["high_score"] or r["score"] > records["high_score"]["score"]:
-                    records["high_score"] = {"name": name, "score": r["score"], "game": g["id"], "date": g["updated"]}
+                if (
+                    not records["high_score"]
+                    or r["score"] > records["high_score"]["score"]
+                ):
+                    records["high_score"] = {
+                        "name": name,
+                        "score": r["score"],
+                        "game": g["id"],
+                        "date": g["updated"],
+                    }
                 if w == i:
-                    margin = r["score"] - max(o["score"] for j, o in enumerate(g["result"]) if j != i)
-                    if not records["biggest_win"] or margin > records["biggest_win"]["margin"]:
-                        records["biggest_win"] = {"name": name, "margin": margin, "game": g["id"], "date": g["updated"]}
+                    margin = r["score"] - max(
+                        o["score"] for j, o in enumerate(g["result"]) if j != i
+                    )
+                    if (
+                        not records["biggest_win"]
+                        or margin > records["biggest_win"]["margin"]
+                    ):
+                        records["biggest_win"] = {
+                            "name": name,
+                            "margin": margin,
+                            "game": g["id"],
+                            "date": g["updated"],
+                        }
 
     def table(rows: dict, label) -> list[dict]:
         out = []
         for key, s in rows.items():
             scores = s.pop("scores")
-            out.append({
-                "id": key, "name": label(key), **s,
-                "win_rate": s["wins"] / s["games"] if s["games"] else None,
-                "avg_score": sum(scores) / len(scores) if scores else None,
-                "best_score": max(scores, default=None),
-            })
-        return sorted(out, key=lambda r: (r["wins"], r["win_rate"] or 0, r["games"]), reverse=True)
+            out.append(
+                {
+                    "id": key,
+                    "name": label(key),
+                    **s,
+                    "win_rate": s["wins"] / s["games"] if s["games"] else None,
+                    "avg_score": sum(scores) / len(scores) if scores else None,
+                    "best_score": max(scores, default=None),
+                }
+            )
+        return sorted(
+            out, key=lambda r: (r["wins"], r["win_rate"] or 0, r["games"]), reverse=True
+        )
 
     return {
         "humans_vs_ai": humans_vs_ai,

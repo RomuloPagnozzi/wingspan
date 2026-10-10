@@ -19,7 +19,7 @@ const ORD = ["1st", "2nd", "3rd", "4th", "5th"];
 const BIRD_ID = new Set(["discard_card", "discard_bird", "discard_egg", "discard_egg_from", "select_bird", "tuck_card", "select_card"]);
 
 let C, S, busy = false, targets = {};
-const ui = { view: 0, sel: null, eggs: {}, draw: { tray: [], deck: 0 }, init: { birds: [], bonus: null, food: {} }, ready: false, discard: null, showScores: true };
+const ui = { view: 0, sel: null, eggs: {}, draw: { tray: [], deck: 0 }, init: { birds: [], bonus: null, food: {} }, ready: false, discard: null, finals: null };
 
 const $ = (s) => document.querySelector(s);
 const bird = (id) => C.birds[id];
@@ -113,8 +113,9 @@ function set(state) {
     if (a) return setTimeout(() => act(a.i));
   }
   render();
+  queueScoring();
   // Players drive the AI's moves; spectators just watch whatever has been played so far.
-  if (S.ai_turn && !S.spectating) setTimeout(() => call(gameUrl("/step"), {}), 450);
+  if (S.ai_turn && !S.spectating) afterScoring(() => setTimeout(() => call(gameUrl("/step"), {}), 450));
   else if (S.spectating && !S.game_over) setTimeout(() => call(gameUrl("")), 5000);
 }
 
@@ -285,6 +286,7 @@ function goalsHtml() {
 // Hover panel for a goal: the goal board's placements, each player's points and what it takes to move up.
 // Points the current round's goal would give this player if scored now.
 const liveGoal = (i) => S.goals.find((g) => g.status === "live")?.points[i] || 0;
+const livePlus = (i) => (liveGoal(i) ? `<small title="this round's goal, if scored now"> +${liveGoal(i)}</small>` : "");
 
 function goalPanel(r) {
   const g = S.goals[r], blue = S.scoring_mode === "blue";
@@ -349,7 +351,7 @@ function renderHeader() {
     .map((p, i) => {
       const hand = Array.isArray(p.hand) ? p.hand.length : p.hand;
       return `<button class="ptab ${i === ui.view ? "viewing" : ""} ${i === S.turn_player && !S.game_over ? "turn" : ""}" data-click="view:${i}" style="--pc:${PCOLORS[i]}">
-        <span class="p-top">${avatarHtml(p, PCOLORS[i], "sm")}<span class="p-name">${p.name}</span>${p.first ? '<span class="p-first" title="first player">1st</span>' : ""}<span class="p-score">${p.score.total}</span></span>
+        <span class="p-top">${avatarHtml(p, PCOLORS[i], "sm")}<span class="p-name">${p.name}</span>${p.first ? '<span class="p-first" title="first player">1st</span>' : ""}<span class="p-score">${p.score.total}${livePlus(i)}</span></span>
         <span class="p-meta"><span class="p-left" title="actions left this round"><i class="cube"></i><b>${p.cubes}</b>/${p.cubes_total}</span><span>${icon("card")}${hand}</span><span>${icon("egg")}${p.score.eggs}</span></span>
       </button>`;
     })
@@ -419,9 +421,9 @@ function renderSide() {
     <div class="foods">${foodRow(p.food, mine)}</div>
     <h3>Bonus cards</h3><div class="bonuses">${bonus}</div>
     <h3>Score</h3><div class="score">
-      ${[["Birds", sc.birds], ["Bonus", sc.bonus], ["Goals", sc.goals, liveGoal(ui.view)], ["Eggs", sc.eggs], ["Cached", sc.cached], ["Tucked", sc.tucked]]
-        .map(([k, v, live]) => `<span>${k}<b>${v}${live ? `<small title="this round's goal, if scored now"> +${live}</small>` : ""}</b></span>`).join("")}
-      <span class="total">Total<b>${sc.total}</b></span></div>`;
+      ${[["Birds", sc.birds], ["Bonus", sc.bonus ?? "?"], ["Goals", sc.goals, livePlus(ui.view)], ["Eggs", sc.eggs], ["Cached", sc.cached], ["Tucked", sc.tucked]]
+        .map(([k, v, live = ""]) => `<span>${k}<b>${v}${live}</b></span>`).join("")}
+      <span class="total" ${sc.bonus === null ? 'title="without hidden bonus cards"' : ""}>Total<b>${sc.total}${livePlus(ui.view)}</b></span></div>`;
 }
 
 // Options that skip or decline: drawn as secondary tiles
@@ -532,18 +534,153 @@ function renderModal() {
       <button class="primary" data-click="init-ok" ${ok ? "" : "disabled"}>${label}</button></div></div>`;
     return;
   }
-  if (S.game_over && ui.showScores) {
-    const rows = [["Birds", "birds"], ["Bonus cards", "bonus"], ["Round goals", "goals"], ["Eggs", "eggs"], ["Cached food", "cached"], ["Tucked cards", "tucked"], ["Total", "total"]];
-    const best = Math.max(...S.players.map((p) => p.score.total));
-    m.hidden = false;
-    m.innerHTML = `<div class="sheet scores"><h2>Final scores</h2><table>
-      <tr><th></th>${S.players.map((p, i) => `<th style="--pc:${PCOLORS[i]}" class="${p.score.total === best ? "win" : ""}">${avatarHtml(p, PCOLORS[i])}<div>${p.name}</div></th>`).join("")}</tr>
-      ${rows.map(([l, k]) => `<tr class="r-${k}"><td>${l}</td>${S.players.map((p) => `<td>${p.score[k]}</td>`).join("")}</tr>`).join("")}
-      </table><div class="m-foot"><button class="ghost" data-click="close">View boards</button><a class="primary" href="/">Back to menu</a></div></div>`;
-    return;
-  }
   m.hidden = true;
   m.innerHTML = "";
+}
+
+// =============================================================================
+// Scoring screens: round goals after each round, then the final tally
+// =============================================================================
+
+const CATS = [["birds", "Birds"], ["bonus", "Bonus cards"], ["goals", "Round goals"], ["eggs", "Eggs"], ["cached", "Food on cards"], ["tucked", "Tucked cards"]];
+const svgUrl = (body, box = 100) => `url('data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}">${body}</svg>`)}')`;
+const CAT_ICON = {
+  birds: `<svg class="ico" viewBox="0 0 100 100" fill="#4d6577">${SILHOUETTES.perched}</svg>`,
+  goals: `<i class="cube" style="--pc:#c8a53c"></i>`,
+};
+const CAT_BG = {  // faint repeating pattern inside each category's bar segment
+  birds: svgUrl(`<g fill="#5d7486" opacity=".55">${SILHOUETTES.perched}</g>`),
+  goals: svgUrl(`<rect x="5" y="5" width="10" height="10" rx="2" fill="none" stroke="#a88a2d" stroke-dasharray="3 2" opacity=".7"/>`, 20),
+  bonus: "url('icons/star.png')", eggs: "url('icons/egg.png')", cached: "url('icons/seed.png')", tucked: "url('icons/card.png')",
+};
+const catIcon = (k) => CAT_ICON[k] || icon({ bonus: "star", eggs: "egg", cached: "seed", tucked: "card" }[k]);
+const pts = (n) => `<span class="sc-p">${n}${icon("points")}</span>`;  // game points always carry the feather
+
+// One screen at a time; a newer run id aborts the older animation, Skip jumps to its end.
+const ABORT = "aborted", scQueue = [], scAfter = [], scWaits = new Set();
+let scRun = 0, scFast = false;
+const scSleep = (id, ms) => new Promise((res, rej) => {
+  if (scFast) return id === scRun ? res() : rej(ABORT);
+  const w = { res, t: setTimeout(() => { scWaits.delete(w); id === scRun ? res() : rej(ABORT); }, ms) };
+  scWaits.add(w);
+});
+const scTween = (id, ms, fn) => new Promise((res, rej) => {
+  const t0 = performance.now();
+  const step = (now) => {
+    if (id !== scRun) return rej(ABORT);
+    const t = scFast ? 1 : Math.min(1, (now - t0) / ms);
+    fn(1 - (1 - t) ** 3);
+    t < 1 ? requestAnimationFrame(step) : res();
+  };
+  scFast ? step(t0) : requestAnimationFrame(step);
+});
+function skipScoring() {
+  scFast = true;
+  scWaits.forEach((w) => { clearTimeout(w.t); w.res(); });
+  scWaits.clear();
+}
+
+// A round goal turning final (or the game ending) queues its screen; on load we only catch up silently.
+function queueScoring() {
+  const finals = S.goals.filter((g) => g.status === "final").length;
+  const fresh = ui.finals !== null;
+  if (fresh) for (let r = ui.finals; r < finals; r++) showScoring((id, el) => roundScreen(id, el, r));
+  if (S.game_over && (!fresh || finals > ui.finals)) showScoring(finalScreen, !fresh);
+  ui.finals = finals;
+}
+function showScoring(play, fast = false) {
+  scQueue.push({ play, fast });
+  if (scQueue.length === 1) nextScoring();
+}
+async function nextScoring() {
+  const el = $("#scoring");
+  if (!scQueue.length) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return scAfter.splice(0).forEach((f) => f());
+  }
+  const id = ++scRun;
+  scFast = scQueue[0].fast || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.hidden = false;
+  try { await scQueue[0].play(id, el); } catch (e) { if (e !== ABORT) throw e; }
+}
+function closeScoring() {
+  scRun++;
+  skipScoring();
+  scQueue.shift();
+  nextScoring();
+}
+const afterScoring = (fn) => ($("#scoring").hidden ? fn() : scAfter.push(fn));
+const scFoot = (next, extra = "") => `<div class="sc-foot"><button class="ghost" data-click="sc-skip">Skip</button>${extra}<button class="primary" data-click="sc-next">${next}</button></div>`;
+
+async function roundScreen(id, el, r) {
+  const green = S.scoring_mode === "green";
+  const done = S.goals.slice(0, r + 1);
+  const max = Math.max(5, ...done.flatMap((g) => g.counts));
+  const place = (counts, i) => (counts[i] ? ORD[counts.filter((c) => c > counts[i]).length] : "—");
+  el.innerHTML = `<div class="sheet sc-sheet"><h2>End of round ${r + 1}<small>round goals</small></h2>
+    ${S.goals.map((g, ri) => `<div class="sc-round ${ri > r ? "future" : ""} ${ri === r ? "now" : ""}">
+      <div class="goal"><div class="g-r">ROUND ${ri + 1}</div><div class="g-t">${tok(goalText(g.name))}</div></div>
+      <div class="sc-lanes">${S.players.map((p, i) => `<div class="sc-lane" style="--pc:${PCOLORS[i]}">
+        <div class="sc-track"><div class="sc-fill"></div>${avatarHtml(p, PCOLORS[i], "sm")}<span class="sc-cnt"></span></div>
+        <div class="sc-pts ${ri < r ? "show" : ""}">${ri <= r ? `${pts(`+${g.points[i]}`)}${green ? `<small>${place(g.counts, i)}</small>` : ""}` : ""}</div>
+      </div>`).join("")}</div></div>`).join("")}
+    ${scFoot(r === 3 ? "Final scores" : "Continue")}</div>`;
+  const rows = [...el.querySelectorAll(".sc-round")];
+  const draw = (ri, i, n) => {
+    const lane = rows[ri].querySelectorAll(".sc-lane")[i], at = `${(n / max) * 85}%`;  // 85%: room for the count
+    lane.querySelector(".sc-fill").style.width = at;
+    lane.querySelector(".av").style.left = at;
+    const cnt = lane.querySelector(".sc-cnt");
+    cnt.style.left = at;
+    cnt.textContent = ri <= r ? Math.round(n) : "";
+  };
+  S.goals.forEach((g, ri) => S.players.forEach((_, i) => draw(ri, i, ri < r ? g.counts[i] : 0)));
+  await scSleep(id, 600);
+  await scTween(id, 1800, (t) => S.players.forEach((_, i) => draw(r, i, S.goals[r].counts[i] * t)));
+  await scSleep(id, 400);
+  // points pop in from the fewest to the most, for a little suspense
+  const order = S.players.map((_, i) => i).sort((a, b) => S.goals[r].points[a] - S.goals[r].points[b]);
+  for (const i of order) {
+    rows[r].querySelectorAll(".sc-pts")[i].classList.add("show");
+    await scSleep(id, 450);
+  }
+}
+
+async function finalScreen(id, el) {
+  const ps = S.players, max = Math.max(...ps.map((p) => p.score.total)) * 1.06 || 1;
+  // ties go to whoever has more food left (official rule)
+  const key = (p) => p.score.total * 1000 + sum(Object.values(p.food));
+  const best = Math.max(...ps.map(key));
+  const winners = ps.map((p, i) => i).filter((i) => key(ps[i]) === best);
+  el.innerHTML = `<div class="sheet sc-sheet"><h2>Final scores</h2><div class="sc-banner"></div>
+    <div class="sc-final">${ps.map((p, i) => `<div class="sc-row" style="--pc:${PCOLORS[i]}">
+      <div class="sc-bar">${CATS.map(([k]) => `<div class="sc-seg" style="--cc:var(--c-${k});background-image:${CAT_BG[k]}"></div>`).join("")}
+        <div class="sc-tip">${avatarHtml(p, PCOLORS[i])}</div></div><div class="sc-total">${pts(0)}</div></div>`).join("")}</div>
+    <div class="sc-legend">${CATS.map(([k, label]) => `<span style="--cc:var(--c-${k})">${catIcon(k)}${label}</span>`).join("")}</div>
+    ${scFoot("View boards", `<a class="ghost" href="/">Menu</a>`)}</div>`;
+  const rows = [...el.querySelectorAll(".sc-row")], legend = [...el.querySelectorAll(".sc-legend span")];
+  const run = ps.map(() => 0);
+  const draw = (i, c, n) => {
+    rows[i].querySelectorAll(".sc-seg")[c].style.width = `${(n / max) * 100}%`;
+    rows[i].querySelector(".sc-tip").style.left = `${((run[i] + n) / max) * 100}%`;
+    rows[i].querySelector(".sc-total").innerHTML = pts(Math.round(run[i] + n));
+  };
+  await scSleep(id, 700);
+  for (const [c, [k]] of CATS.entries()) {
+    legend.forEach((l, j) => l.classList.toggle("on", j === c));
+    await scSleep(id, 650);
+    await scTween(id, 1500, (t) => ps.forEach((p, i) => draw(i, c, p.score[k] * t)));
+    ps.forEach((p, i) => (run[i] += p.score[k]));
+    legend[c].classList.add("done");
+    await scSleep(id, 700);
+  }
+  legend.forEach((l) => l.classList.remove("on"));
+  rows.forEach((r, i) => r.classList.toggle("win", winners.includes(i)));
+  const names = winners.map((i) => ps[i].name);
+  const banner = el.querySelector(".sc-banner");
+  banner.textContent = names.length > 1 ? `Shared win: ${names.join(" & ")}` : names[0] === "You" ? "You win!" : `${names[0]} wins!`;
+  banner.classList.add("show");
 }
 
 function renderLog() {
@@ -615,8 +752,9 @@ document.addEventListener("click", (e) => {
       ui.discard = ui.init.birds.length ? { ...ui.init.food } : null;
       return act(a.i);
     }
-    case "scores": ui.showScores = true; return render();
-    case "close": ui.showScores = false; return render();
+    case "scores": return showScoring(finalScreen, true);
+    case "sc-next": return closeScoring();
+    case "sc-skip": return skipScoring();
   }
 });
 

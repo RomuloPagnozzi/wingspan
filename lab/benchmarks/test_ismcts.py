@@ -70,8 +70,7 @@ def test_ismcts_action_values_populated():
     while len(actions) <= 1:
         state = transition_state(state, actions[0])
         actions = get_actions(state)
-    with strategy:
-        strategy.select_action(state, actions)
+    strategy.select_action(state, actions)
     visits = strategy.get_last_visit_counts()
     values = strategy.get_last_action_values()
     assert visits is not None and sum(visits.values()) > 0

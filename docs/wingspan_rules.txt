@@ -40,7 +40,7 @@ On a player’s turn, they must take one of the four possible actions (these are
                         ii. A Wild Food requirement can be paid with any Food Token.
                        iii. If the Food requirement has a “+”, discard both types of Food token. If it has a “/” you choose which to discard.
                        iv. Some Birds have no Food requirements.
-                        v. Two Food Tokens of the same type can be discarded to stand in for one Food Token of a required type
+                        v. Any two Food Tokens (of any types) can be discarded to stand in for one Food Token of a required type
                             that you don’t have, if needed.
              c. Place the Bird Card chosen in the Habitat row matching the Bird’s desired habitat (Forest, Grassland, Wetland). The
                   Bird Card must be placed in the leftmost unoccupied space in that row (if there is more than one Habitat shown on the

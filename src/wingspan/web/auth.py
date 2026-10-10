@@ -13,7 +13,9 @@ class CloudflareAccess:
     def __init__(self, team_domain: str, audience: str):
         self.issuer = f"https://{team_domain}"
         self.audience = audience
-        self.keys = jwt.PyJWKClient(f"{self.issuer}/cdn-cgi/access/certs")  # cached between requests
+        self.keys = jwt.PyJWKClient(
+            f"{self.issuer}/cdn-cgi/access/certs"
+        )  # cached between requests
 
     def __call__(self, request: Request) -> str | None:
         token = request.headers.get("cf-access-jwt-assertion")
@@ -21,7 +23,13 @@ class CloudflareAccess:
             return None
         try:
             key = self.keys.get_signing_key_from_jwt(token).key
-            claims = jwt.decode(token, key, algorithms=["RS256"], audience=self.audience, issuer=self.issuer)
+            claims = jwt.decode(
+                token,
+                key,
+                algorithms=["RS256"],
+                audience=self.audience,
+                issuer=self.issuer,
+            )
         except jwt.PyJWTError:
             return None
         return claims.get("email")

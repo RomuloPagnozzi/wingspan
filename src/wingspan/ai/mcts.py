@@ -39,12 +39,14 @@ class MCTSNode:
     action_taken: Action | None = None
     children: dict[Action, MCTSNode] = field(default_factory=dict)
     visits: int = 0
-    total_value: float = 0.0
+    total_value: list[float] = field(default_factory=list)
     untried_actions: list[Action] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.untried_actions:
             self.untried_actions = get_actions(self.state)
+        if not self.total_value:
+            self.total_value = [0.0] * len(self.state.players)
 
     @property
     def is_terminal(self) -> bool:
@@ -54,12 +56,12 @@ class MCTSNode:
     def is_fully_expanded(self) -> bool:
         return len(self.untried_actions) == 0
 
-    def ucb1(self, exploration_constant: float) -> float:
+    def ucb1(self, exploration_constant: float, player: int) -> float:
         if self.visits == 0:
             return float("inf")
         if self.parent is None:
             raise ValueError("UCB1 cannot be computed on the root node (no parent)")
-        exploitation = self.total_value / self.visits
+        exploitation = self.total_value[player] / self.visits
         exploration = exploration_constant * math.sqrt(
             math.log(self.parent.visits) / self.visits
         )
@@ -77,17 +79,17 @@ class ISMCTSNode:
     so children that are only sometimes-legal aren't unfairly down-weighted.
     """
 
+    total_value: list[float]
     parent: ISMCTSNode | None = None
     action_taken: Action | None = None
     children: dict[Action, ISMCTSNode] = field(default_factory=dict)
     visits: int = 0
     availability: int = 0
-    total_value: float = 0.0
 
-    def ucb1_ismcts(self, exploration_constant: float) -> float:
+    def ucb1_ismcts(self, exploration_constant: float, player: int) -> float:
         if self.visits == 0 or self.availability == 0:
             return float("inf")
-        exploitation = self.total_value / self.visits
+        exploitation = self.total_value[player] / self.visits
         exploration = exploration_constant * math.sqrt(
             math.log(self.availability) / self.visits
         )
@@ -101,11 +103,10 @@ class ISMCTSNode:
 
 def _simulate_from_state(
     state: GameState,
-    root_player_index: int,
     value_function: ValueFunction,
     rng: random.Random,
     max_depth: int | None = None,
-) -> float:
+) -> list[float]:
     depth = 0
     while actions := get_actions(state):
         if max_depth is not None and depth >= max_depth:
@@ -115,16 +116,15 @@ def _simulate_from_state(
         action = rng.choice(actions)
         state = transition_state(state, action)
         depth += 1
-    return _compute_value(state, root_player_index, value_function)
+    return _compute_values(state, value_function)
 
 
 def _rollout_inplace(
     state: GameState,
-    root_player_index: int,
     value_function: ValueFunction,
     rng: random.Random,
     max_depth: int | None = None,
-) -> float:
+) -> list[float]:
     """Mutating rollout for IS-MCTS. Caller must own `state`."""
     depth = 0
     while actions := get_actions(state):
@@ -135,7 +135,7 @@ def _rollout_inplace(
         action = rng.choice(actions)
         state = transition_state_inplace(state, action)
         depth += 1
-    return _compute_value(state, root_player_index, value_function)
+    return _compute_values(state, value_function)
 
 
 def _compute_value(
@@ -178,10 +178,16 @@ def _compute_value(
             raise ValueError(f"Unknown value function: {value_function}")
 
 
-def _backpropagate(node: MCTSNode | ISMCTSNode | None, value: float) -> None:
+def _compute_values(state: GameState, value_function: ValueFunction) -> list[float]:
+    """One value per player: each node is later judged by whoever moves at its parent."""
+    return [_compute_value(state, i, value_function) for i in range(len(state.players))]
+
+
+def _backpropagate(node: MCTSNode | ISMCTSNode | None, values: list[float]) -> None:
     while node is not None:
         node.visits += 1
-        node.total_value += value
+        for i, v in enumerate(values):
+            node.total_value[i] += v
         node = node.parent
 
 
@@ -215,7 +221,10 @@ def _select(
     ):
         if not node.children:
             return node
-        node = max(node.children.values(), key=lambda n: n.ucb1(exploration_constant))
+        player = node.player_index
+        node = max(
+            node.children.values(), key=lambda n: n.ucb1(exploration_constant, player)
+        )
     return node
 
 
@@ -257,10 +266,10 @@ def _peek_iteration(
 ) -> None:
     node = _select(root, exploration_constant, widening_k, widening_alpha)
     node = _expand(node, rng, widening_k, widening_alpha)
-    value = _simulate_from_state(
-        node.state, root.player_index, value_function, rng, max_depth=rollout_depth
+    values = _simulate_from_state(
+        node.state, value_function, rng, max_depth=rollout_depth
     )
-    _backpropagate(node, value)
+    _backpropagate(node, values)
 
 
 # =============================================================================
@@ -285,8 +294,7 @@ def _ismcts_iteration(
     while True:
         legal = get_actions(state)
         if not legal:
-            value = _compute_value(state, perspective_player, value_function)
-            _backpropagate(node, value)
+            _backpropagate(node, _compute_values(state, value_function))
             return
 
         legal_set = set(legal)
@@ -300,21 +308,25 @@ def _ismcts_iteration(
             idx = rng.randrange(len(untried))
             action = untried[idx]
             state = transition_state_inplace(state, action)
-            child = ISMCTSNode(parent=node, action_taken=action)
-            node.children[action] = child
-            value = _rollout_inplace(
-                state, perspective_player, value_function, rng, max_depth=rollout_depth
+            child = ISMCTSNode(
+                total_value=[0.0] * len(state.players), parent=node, action_taken=action
             )
-            _backpropagate(child, value)
+            node.children[action] = child
+            values = _rollout_inplace(
+                state, value_function, rng, max_depth=rollout_depth
+            )
+            _backpropagate(child, values)
             return
 
         # All legal actions have a child. Increment availability for every
-        # compatible child (per IS-MCTS), then UCB-select among them.
+        # compatible child (per IS-MCTS), then UCB-select among them from the
+        # point of view of the player to move here.
         compatible = [(a, c) for a, c in node.children.items() if a in legal_set]
         for _, c in compatible:
             c.availability += 1
+        player = state.current_player_index
         action, child = max(
-            compatible, key=lambda ac: ac[1].ucb1_ismcts(exploration_constant)
+            compatible, key=lambda ac: ac[1].ucb1_ismcts(exploration_constant, player)
         )
         state = transition_state_inplace(state, action)
         node = child
@@ -374,7 +386,7 @@ class MCTSStrategy(Strategy):
         root_state = copy_state(state)
 
         if self.params.determinize:
-            ismcts_root = ISMCTSNode()
+            ismcts_root = ISMCTSNode(total_value=[0.0] * len(state.players))
             for _ in range(self.params.simulations):
                 _ismcts_iteration(
                     ismcts_root,
@@ -407,9 +419,11 @@ class MCTSStrategy(Strategy):
             root_total_value = peek_root.total_value
 
         self._last_visit_counts = {action: c.visits for action, c in children.items()}
-        self._last_root_value = root_total_value / root_visits if root_visits else None
+        self._last_root_value = (
+            root_total_value[perspective] / root_visits if root_visits else None
+        )
         self._last_action_values = {
-            action: c.total_value / c.visits
+            action: c.total_value[perspective] / c.visits
             for action, c in children.items()
             if c.visits > 0
         }

@@ -1,7 +1,6 @@
 from typing import Generator
 from itertools import (
     combinations_with_replacement,
-    product,
     combinations,
 )
 
@@ -254,13 +253,8 @@ def can_afford_bird_cost(
             remaining[food_type] = available - used
             deficit += amount - used
 
-        if deficit == 0 and wild_cost == 0:
-            return True
-
-        available_pairs = sum(v // 2 for v in remaining.values())
-        total_remaining = sum(remaining.values())
-
-        if available_pairs >= deficit and total_remaining >= 2 * deficit + wild_cost:
+        # Each missing food is replaced by any 2 tokens; wild by any 1.
+        if sum(remaining.values()) >= 2 * deficit + wild_cost:
             return True
 
     return False
@@ -310,66 +304,11 @@ def _generate_food_payments_for_cost_option(
                 if remaining_resources[food_type] == 0:
                     del remaining_resources[food_type]
 
-    if remaining_cost:
-        yield from _generate_2_to_1_trade_combinations(
-            remaining_cost, remaining_resources, exact_payment, wild_cost
-        )
-    elif wild_cost > 0:
-        yield from _generate_wild_payments(
-            exact_payment, remaining_resources, wild_cost
-        )
-    else:
-        yield exact_payment
-
-
-def _generate_2_to_1_trade_combinations(
-    remaining_cost: dict[str, int],
-    remaining_resources: dict[str, int],
-    exact_payment: dict[str, int],
-    wild_cost: int,
-) -> Generator[dict[str, int], None, None]:
-    """Generate all valid 2:1 trade combinations for remaining costs."""
-
-    total_units_needed = sum(remaining_cost.values())
-
-    tradeable_foods = [
-        food for food, amount in remaining_resources.items() if amount >= 2
-    ]
-
-    if not tradeable_foods:
-        return
-
-    for trade_assignment in product(tradeable_foods, repeat=total_units_needed):
-
-        trade_usage = {}
-        for food in trade_assignment:
-            trade_usage[food] = trade_usage.get(food, 0) + 2
-
-        valid = True
-        for food_type, needed in trade_usage.items():
-            if remaining_resources.get(food_type, 0) < needed:
-                valid = False
-                break
-
-        if not valid:
-            continue
-
-        payment = exact_payment.copy()
-        for food_type, used in trade_usage.items():
-            payment[food_type] = payment.get(food_type, 0) + used
-
-        resources_after_trades = remaining_resources.copy()
-        for food_type, used in trade_usage.items():
-            resources_after_trades[food_type] -= used
-            if resources_after_trades[food_type] == 0:
-                del resources_after_trades[food_type]
-
-        if wild_cost > 0:
-            yield from _generate_wild_payments(
-                payment, resources_after_trades, wild_cost
-            )
-        else:
-            yield payment
+    # Each missing food is replaced by any 2 tokens, and wild by any 1, so the
+    # rest of the payment is just any `2 * missing + wild` remaining tokens.
+    yield from _generate_wild_payments(
+        exact_payment, remaining_resources, 2 * sum(remaining_cost.values()) + wild_cost
+    )
 
 
 def _generate_wild_payments(
@@ -377,7 +316,7 @@ def _generate_wild_payments(
     remaining: dict[str, int],
     wild_count: int,
 ) -> Generator[dict[str, int], None, None]:
-    """Generate all ways to pay wild cost with remaining resources."""
+    """Generate all ways to pay `wild_count` tokens of any type from remaining resources."""
     available_foods = []
     for food_type, amount in remaining.items():
         available_foods.extend([food_type] * amount)

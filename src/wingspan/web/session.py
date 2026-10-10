@@ -25,7 +25,12 @@ from wingspan.engine.core import (
     initiate_state,
 )
 from wingspan.engine.engine import transition_state
-from wingspan.engine.scoring import count_bonus_birds, evaluate_goal, goal_scores, score_bonus_card
+from wingspan.engine.scoring import (
+    count_bonus_birds,
+    evaluate_goal,
+    goal_scores,
+    score_bonus_card,
+)
 from wingspan.ai import create_strategy
 
 HABITATS = ("forest", "grassland", "wetland")
@@ -184,19 +189,36 @@ def human_seat(uid: str, name: str) -> dict:
 
 def bot_seat(bot: dict) -> dict:
     """An AI seat records the bot's full params, so the game stays reproducible after a retune."""
-    return {"kind": "ai", "bot": bot["id"], "name": bot["name"], "strategy": bot["strategy"], "params": bot["params"]}
+    return {
+        "kind": "ai",
+        "bot": bot["id"],
+        "name": bot["name"],
+        "strategy": bot["strategy"],
+        "params": bot["params"],
+    }
 
 
 class Session:
     """A game is fully determined by its config (seats, scoring side, seed) and `history`, the str()
-    of every applied action, which is the same format the lab records. Passing a history replays it."""
+    of every applied action, which is the same format the lab records. Passing a history replays it.
+    """
 
-    def __init__(self, seats: list[dict], scoring: str = "green", seed: int | None = None, history: list[str] = ()):
+    def __init__(
+        self,
+        seats: list[dict],
+        scoring: str = "green",
+        seed: int | None = None,
+        history: list[str] = (),
+    ):
         seed = random.randrange(2**31) if seed is None else seed
         self.config = {"seats": seats, "scoring": scoring, "seed": seed}
         self.seats = seats
         self.state = initiate_state(len(seats), ScoringMode(scoring), seed=seed)
-        self.ai = {i: create_strategy(s["strategy"], **s["params"]) for i, s in enumerate(seats) if s["kind"] == "ai"}
+        self.ai = {
+            i: create_strategy(s["strategy"], **s["params"])
+            for i, s in enumerate(seats)
+            if s["kind"] == "ai"
+        }
         self.history: list[str] = []
         self.log: list[dict] = []
         self.last_round = 0
@@ -205,7 +227,11 @@ class Session:
         # Goal counts frozen at the moment each round was scored (boards keep changing afterwards)
         self.final_counts: dict[int, list[int]] = {}
         self.actions = get_actions(self.state)
-        for a in history:  # raises KeyError if the game diverges (rules changed since it was played)
+        for (
+            a
+        ) in (
+            history
+        ):  # raises KeyError if the game diverges (rules changed since it was played)
             self.apply({str(x): x for x in self.actions}[a])
         self.skip_trivial()
 
@@ -221,7 +247,9 @@ class Session:
             self.last_round = s.round
             self.log.append({"round": s.round})
         if action.__class__ is not SimpleAction or "setup" not in action.type:
-            self.log.append({"p": s.current_player_index, "text": describe(action, self.names())})
+            self.log.append(
+                {"p": s.current_player_index, "text": describe(action, self.names())}
+            )
         self.track_cube(action)
         round_before = s.round
         self.state = transition_state(s, action)
@@ -271,7 +299,10 @@ class Session:
 
     def names(self, looks: list[dict] | None = None) -> list[str]:
         """Each seat's display name; bots of the same kind are numbered by seat."""
-        return [look["name"] + (f" {i + 1}" if len(self.ai) > 1 and i in self.ai else "") for i, look in enumerate(looks or self.seats)]
+        return [
+            look["name"] + (f" {i + 1}" if len(self.ai) > 1 and i in self.ai else "")
+            for i, look in enumerate(looks or self.seats)
+        ]
 
     @property
     def game_over(self) -> bool:
@@ -307,7 +338,10 @@ class Session:
             return None
         totals = [p["score"]["total"] for p in self.view(None)["players"]]
         keys = [(t, sum(p.food.values())) for t, p in zip(totals, self.state.players)]
-        return [{"score": totals[i], "food": k[1], "place": 1 + sum(o > k for o in keys)} for i, k in enumerate(keys)]
+        return [
+            {"score": totals[i], "food": k[1], "place": 1 + sum(o > k for o in keys)}
+            for i, k in enumerate(keys)
+        ]
 
     def skip_trivial(self):
         """Auto-apply humans' bookkeeping-only setup actions."""
@@ -321,11 +355,14 @@ class Session:
 
     def view(self, viewer: int | None, looks: list[dict] | None = None) -> dict:
         """What one seat sees (its own hand, its actions); viewer=None is a spectator: public info only.
-        `looks` gives each seat's current {name, avatar}; by default, the names from game creation."""
+        `looks` gives each seat's current {name, avatar}; by default, the names from game creation.
+        """
         s = self.state
         me = viewer is not None and self.turn_of(viewer)
         looks = looks or self.seats
-        names = ["You" if i == viewer else name for i, name in enumerate(self.names(looks))]
+        names = [
+            "You" if i == viewer else name for i, name in enumerate(self.names(looks))
+        ]
         goals = s.round_goal_config
         assert goals
         return {
@@ -339,7 +376,11 @@ class Session:
                 and s.action_data.action_player_index is not None
                 else s.current_player_index
             ),
-            "human": viewer if viewer is not None else next(i for i, x in enumerate(self.seats) if x["kind"] == "human"),
+            "human": (
+                viewer
+                if viewer is not None
+                else next(i for i, x in enumerate(self.seats) if x["kind"] == "human")
+            ),
             "spectating": viewer is None,
             "ai_turn": self.ai_player() is not None,
             "game_over": self.game_over,
@@ -348,9 +389,14 @@ class Session:
             "feeder": {str(k): v for k, v in s.feeder.items()},
             "tray": list(s.bird_tray),
             "deck": len(s.bird_deck),
-            "players": [self.player_json(i, p, viewer, looks[i], names[i]) for i, p in enumerate(s.players)],
+            "players": [
+                self.player_json(i, p, viewer, looks[i], names[i])
+                for i, p in enumerate(s.players)
+            ],
             "actions": (
-                [action_json(i, a, names) for i, a in enumerate(self.actions)] if me else []
+                [action_json(i, a, names) for i, a in enumerate(self.actions)]
+                if me
+                else []
             ),
             "prompt": self.prompt() if me else None,
             # Where you'd stand on each offered bonus card right now (power 5)
@@ -382,20 +428,24 @@ class Session:
         ]
         birds = [b for row in board for b in row if b]
         bonus = {b: bonus_progress(b, p) for b in p.bonus_hand}
+        visible = i == viewer or self.game_over
         score = {
             "birds": sum(BIRD_REGISTRY[b["id"]].points for b in birds),
-            "bonus": sum(v["score"] for v in bonus.values()),
             "goals": sum(p.score.round_goals),
             "eggs": sum(b["eggs"] for b in birds),
             "cached": sum(b["cached"] for b in birds),
             "tucked": sum(b["tucked"] for b in birds),
         }
-        score["total"] = sum(score.values())
-        visible = i == viewer or self.game_over
+        # Hidden bonus cards: their points stay out of the total too, or the total would reveal them
+        bonus_points = sum(v["score"] for v in bonus.values()) if visible else 0
+        score["total"] = sum(score.values()) + bonus_points
+        score["bonus"] = bonus_points if visible else None
         return {
             "name": name,
             "avatar": look.get("avatar"),
-            "initial": look["name"][:1].upper(),  # for the avatar, even when shown as "You"
+            "initial": look["name"][
+                :1
+            ].upper(),  # for the avatar, even when shown as "You"
             "ai": i in self.ai,
             "first": p.first_player,
             "cubes": 9
