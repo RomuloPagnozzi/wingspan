@@ -1,6 +1,12 @@
 """Tests for Power 5: Draw cards (bonus or bird cards with optional discard)."""
 
-from wingspan.engine.core import initiate_state, GamePhase, SimpleAction, IdAction
+from wingspan.engine.core import (
+    initiate_state,
+    GamePhase,
+    SimpleAction,
+    IdAction,
+    DrawCardsAction,
+)
 from wingspan.engine.engine import transition_state
 from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_queue
@@ -111,6 +117,7 @@ def test_power_5_draw_cards_discard_at_end_of_turn():
     )
 
     state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, DrawCardsAction((), 2))
 
     assert state.game_phase == GamePhase.END_TURN
     assert len(state.players[0].bird_hand) == initial_hand_size + 2
@@ -189,10 +196,12 @@ def test_power_5_multiple_discards_at_end_of_turn():
 
     # Activate first Power 5 - draws 1 card, queues discard effect
     state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, DrawCardsAction((), 1))
     assert len(state.action_data.end_turn_effects) == 1
 
     # Activate second Power 5 - draws 1 card, queues another discard effect
     state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, DrawCardsAction((), 1))
     assert len(state.action_data.end_turn_effects) == 2
 
     # Now we're in END_TURN phase with 2 discard effects
@@ -225,3 +234,34 @@ def test_power_5_multiple_discards_at_end_of_turn():
     assert state.game_phase == GamePhase.MAIN_TURN
     # Drew 2 cards (1 each), discarded 2 cards = net 0
     assert len(state.players[0].bird_hand) == initial_hand_size
+
+
+def test_power_5_bonus_reshuffles_discards_when_deck_runs_out():
+    state = initiate_state(2, seed=0)
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+    bird_id = state.players[0].bird_hand[0]
+    place_bird_on_board(state, 0, 0, 0, bird_id)
+    state.discarded_bonuses = state.bonus_deck[1:]
+    state.bonus_deck = state.bonus_deck[:1]
+    total = len(state.discarded_bonuses) + 1
+
+    setup_power_queue(
+        state,
+        [
+            {
+                "bird_id": bird_id,
+                "power_data": {
+                    "data": {"id": 5, "details": {"amount": 2, "bonus": True}}
+                },
+                "spot": state.players[0].board[0][0],
+            }
+        ],
+    )
+    assert SimpleAction("activate_power") in get_actions(state)
+    state = transition_state(state, SimpleAction("activate_power"))
+
+    options = state.action_data.execution_stack[0].context["bonus_options"]
+    assert len(set(options)) == 2
+    assert len(state.bonus_deck) == total - 2
+    assert state.discarded_bonuses == []

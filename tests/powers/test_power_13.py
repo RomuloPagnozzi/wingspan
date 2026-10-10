@@ -5,6 +5,7 @@ from wingspan.engine.core import (
     get_bird_power,
     GamePhase,
     SimpleAction,
+    DrawCardsAction,
     SelectDieAction,
 )
 from wingspan.engine.actions import get_actions
@@ -46,8 +47,9 @@ def test_power_13_card_single_player():
         state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
-    # Execute activation (should complete immediately for card variant)
+    # Activate, then the player chooses to draw from the deck
     state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, DrawCardsAction((), 1))
 
     # Verify Player 0 gained 1 card
     assert (
@@ -92,8 +94,11 @@ def test_power_13_card_multiple_tied():
         state, 13, bird_id, activating_spot, state.current_player_index, power_data
     )
 
-    # Execute activation
+    # Activate, then each tied player draws in turn, starting with the activator
     state = transition_state(state, SimpleAction("activate_power"))
+    for player_index in (0, 1, 2):
+        assert state.current_player_index == player_index
+        state = transition_state(state, DrawCardsAction((), 1))
 
     # Verify all players gained 1 card
     assert (
@@ -232,23 +237,14 @@ def test_power_13_die_multiple_players():
         2,
     ], "All players should be awaiting"
 
-    # Player 0 selects die 0 (fish)
-    assert state.current_player_index == 0, "Should start with Player 0"
-    state = transition_state(state, SelectDieAction(0, "fish"))
-    assert (
-        state.players[0].food.get("fish", 0) == initial_food[0].get("fish", 0) + 1
-    ), "Player 0 should have gained fish"
-    assert 0 not in state.feeder, "Die 0 should be removed"
-
-    # Player 1 selects die 1 (seed)
-    assert state.current_player_index == 1, "Should be Player 1's turn"
+    # The activator (Player 1) picks first, then clockwise: 2, then 0
+    assert state.current_player_index == 1, "Should start with the activator"
     state = transition_state(state, SelectDieAction(1, "seed"))
     assert (
         state.players[1].food.get("seed", 0) == initial_food[1].get("seed", 0) + 1
     ), "Player 1 should have gained seed"
     assert 1 not in state.feeder, "Die 1 should be removed"
 
-    # Player 2 selects die 2 (invertebrate)
     assert state.current_player_index == 2, "Should be Player 2's turn"
     state = transition_state(state, SelectDieAction(2, "invertebrate"))
     assert (
@@ -256,6 +252,13 @@ def test_power_13_die_multiple_players():
         == initial_food[2].get("invertebrate", 0) + 1
     ), "Player 2 should have gained invertebrate"
     assert 2 not in state.feeder, "Die 2 should be removed"
+
+    assert state.current_player_index == 0, "Should be Player 0's turn"
+    state = transition_state(state, SelectDieAction(0, "fish"))
+    assert (
+        state.players[0].food.get("fish", 0) == initial_food[0].get("fish", 0) + 1
+    ), "Player 0 should have gained fish"
+    assert 0 not in state.feeder, "Die 0 should be removed"
 
     # Verify power completed and cleanup done
     assert state.game_phase == GamePhase.MAIN_TURN, "Should return to MAIN_TURN"

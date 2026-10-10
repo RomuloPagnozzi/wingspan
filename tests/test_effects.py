@@ -1,6 +1,6 @@
 """Test atomic effects in isolation."""
 
-from wingspan.engine.core import initiate_state, PlacedBird, BirdState
+from wingspan.engine.core import initiate_state, PlacedBird, BirdState, BIRD_REGISTRY
 from wingspan.engine.effects import (
     draw_cards_effect,
     gain_food_effect,
@@ -73,9 +73,8 @@ def test_lay_eggs_single_bird():
 
 def test_lay_eggs_multiple_birds():
     state = initiate_state(2)
-    # bird_hand contains IDs - create PlacedBird for board
-    bird_id1 = state.players[0].bird_hand[0]
-    bird_id2 = state.players[0].bird_hand[1]
+    roomy = [b.id for b in BIRD_REGISTRY.values() if b.egg_limit >= 3]
+    bird_id1, bird_id2 = roomy[:2]
     state.players[0].board[0][0].bird = PlacedBird(id=bird_id1)
     state.players[0].board[1][1].bird = PlacedBird(id=bird_id2)
 
@@ -83,6 +82,17 @@ def test_lay_eggs_multiple_birds():
 
     assert state.players[0].board[0][0].bird.state.eggs == 1
     assert state.players[0].board[1][1].bird.state.eggs == 3
+
+
+def test_lay_eggs_never_exceeds_egg_limit():
+    state = initiate_state(2)
+    bird_id = next(b.id for b in BIRD_REGISTRY.values() if b.egg_limit == 2)
+    state.players[0].board[0][0].bird = PlacedBird(id=bird_id)
+
+    lay_eggs_effect(state, {bird_id: 1}, player_index=0)
+    lay_eggs_effect(state, {bird_id: 5}, player_index=0)
+
+    assert state.players[0].board[0][0].bird.state.eggs == 2
 
 
 def test_place_bird():

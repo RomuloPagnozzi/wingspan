@@ -89,7 +89,10 @@ def _can_execute_power_4(state: GameState, power_entry: dict) -> bool:
     current_player = state.players[state.current_player_index]
 
     if gain == "card":
-        if get_available_bird_cards(state) < gain_qty:
+        available = get_available_bird_cards(state)
+        if details.get("action") == "draw":
+            available += len(state.bird_tray)
+        if available < gain_qty:
             return False
 
     if discard_type == "egg":
@@ -120,9 +123,9 @@ def _can_execute_power_5(state: GameState, power_entry: dict) -> bool:
     amount = details.get("amount", 1)
 
     if details.get("bonus"):
-        return len(state.bonus_deck) >= amount
+        return len(state.bonus_deck) + len(state.discarded_bonuses) >= amount
 
-    return get_available_bird_cards(state) >= amount
+    return get_available_bird_cards(state) + len(state.bird_tray) >= amount
 
 
 # =============================================================================
@@ -271,6 +274,20 @@ def _can_execute_power_12(state: GameState, power_entry: dict) -> bool:
 
 
 # =============================================================================
+# Power 13: Give resources to players with fewest birds in habitat
+# =============================================================================
+
+
+@power_validator(13)
+def _can_execute_power_13(state: GameState, power_entry: dict) -> bool:
+    """Validate power type 13: the card version needs a card to draw."""
+    power_data = power_entry.get("power_data", power_entry)
+    if power_data["data"].get("details", {}).get("item") == "card":
+        return get_available_bird_cards(state) + len(state.bird_tray) >= 1
+    return True
+
+
+# =============================================================================
 # Power 14: Repeat another bird's power in this habitat
 # =============================================================================
 
@@ -362,7 +379,7 @@ def _can_execute_power_17(state: GameState, power_entry: dict) -> bool:
     power_data = power_entry.get("power_data", power_entry)
     details = power_data["data"].get("details", {})
     if details.get("types") == ["card"]:
-        if get_available_bird_cards(state) < 1:
+        if get_available_bird_cards(state) + len(state.bird_tray) < 1:
             return False
 
     return True

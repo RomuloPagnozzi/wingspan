@@ -535,9 +535,11 @@ def get_triggered_pink_powers(
     triggered = []
     context = context or {}
 
-    for player_index, player in enumerate(state.players):
-        if player_index == triggering_player_index:
-            continue
+    # Clockwise, starting to the left of the player who caused the trigger
+    n = len(state.players)
+    for offset in range(1, n):
+        player_index = (triggering_player_index + offset) % n
+        player = state.players[player_index]
 
         for row in player.board:
             for spot in row:

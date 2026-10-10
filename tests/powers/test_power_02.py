@@ -10,6 +10,7 @@ from wingspan.engine.core import (
 from wingspan.engine.engine import transition_state
 from wingspan.engine.actions import get_actions
 from conftest import (
+    get_bird_egg_limit,
     get_registry_bird_ids_by_nest,
     place_bird_on_board,
     setup_power_queue,
@@ -201,3 +202,24 @@ def test_power_2_with_mixed_eligibility():
 
     # Verify we're back to main turn
     assert state.game_phase == GamePhase.MAIN_TURN
+
+
+def test_power_2_activator_second_egg_goes_on_another_bird():
+    """'You may lay 1 egg on 1 additional bird': never 2 eggs on the same bird."""
+    state = initiate_state(2)
+    nest = "bowl"
+    bird_ids = [
+        i for i in get_registry_bird_ids_by_nest(nest) if get_bird_egg_limit(i) >= 2
+    ][:2]
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+    for col, bird_id in enumerate(bird_ids):
+        place_bird_on_board(state, 0, 0, col, bird_id)
+
+    power_data = {"color": "brown", "data": {"id": 2, "details": {"type": nest}}}
+    setup_power_queue(state, [{"bird_id": bird_ids[0], "power_data": power_data}])
+    state = transition_state(state, SimpleAction("activate_power"))
+
+    actions = get_actions(state)
+    assert actions
+    assert all(n == 1 for a in actions for _, n in a.items)

@@ -78,6 +78,9 @@ def _select_initial_cards(state: GameState, action: Action) -> GameState:
         raise ValueError(f"Expected SelectInitialAction, got {action}")
 
     current_player = state.players[state.current_player_index]
+    state.discarded_birds.extend(
+        b for b in current_player.bird_hand if b not in action.kept_birds
+    )
     current_player.bird_hand = [
         bird_id for bird_id in current_player.bird_hand if bird_id in action.kept_birds
     ]
@@ -150,6 +153,20 @@ def _route_main_turn(state: GameState, action: Action) -> GameState:
             return state
 
         case SimpleAction("lay_eggs"):
+            has_room = any(
+                spot.bird.state.eggs < spot.bird.card.egg_limit
+                for row in current_player.board
+                for spot in row
+                if spot.bird is not None
+            )
+            if not has_room:
+                return finish_main_action(
+                    state,
+                    "brown",
+                    habitat="grassland",
+                    pink_trigger=PinkTrigger.LAY_EGGS,
+                )
+
             grassland_spot = find_leftmost_empty_spot(current_player.board[1])
             base_amount = grassland_spot.config.resource_amount if grassland_spot else 4
             can_trade = current_player.food and (

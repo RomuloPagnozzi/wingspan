@@ -203,7 +203,7 @@ def _build_board_layout() -> tuple[tuple[SpotConfig, ...], ...]:
     habitats = {0: "forest", 1: "grassland", 2: "wetland"}
     resources = {0: "food", 1: "egg", 2: "card"}
     resource_amount = {0: 1, 1: 1, 2: 2, 3: 2, 4: 3}
-    extra = {0: False, 1: True, 2: False, 3: True, 4: True}
+    extra = {0: False, 1: True, 2: False, 3: True, 4: False}
     egg_cost = {0: 0, 1: 1, 2: 1, 3: 2, 4: 2}
     rows = []
     for line in range(3):

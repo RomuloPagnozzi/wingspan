@@ -4,6 +4,7 @@ from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     SimpleAction,
+    DrawCardsAction,
     IdAction,
     NameAction,
     FoodMapAction,
@@ -208,6 +209,7 @@ def test_power_4_discard_egg_draw_cards_end_to_end():
 
     # Discard egg (can discard from activating bird since gain != "wild")
     state = transition_state(state, IdAction("discard_egg_from", bird_id1))
+    state = transition_state(state, DrawCardsAction((), 2))
 
     # Verify results (get bird from returned state after deepcopy)
     assert state.game_phase == GamePhase.MAIN_TURN

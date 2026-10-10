@@ -4,6 +4,7 @@ from wingspan.engine.core import (
     initiate_state,
     GamePhase,
     SimpleAction,
+    DrawCardsAction,
     IdAction,
     NameAction,
 )
@@ -148,6 +149,7 @@ def test_power_17_bonus_card():
 
     state = transition_state(state, SimpleAction("activate_power"))
     state = transition_state(state, IdAction("tuck_card", id))
+    state = transition_state(state, DrawCardsAction((), 1))
 
     assert len(state.players[0].bird_hand) == initial_hand_size
     assert len(state.bird_deck) == initial_deck_size - 1
@@ -290,3 +292,18 @@ if __name__ == "__main__":
     print("✓ test_power_17_transitions_to_main_turn passed")
 
     print("\n✅ All Power 17 tests passed!")
+
+
+def test_power_17_egg_bonus_respects_egg_limit():
+    """A full bird still tucks, but the bonus egg is lost."""
+    state = initiate_state(2, seed=1)
+    state = setup_power_17_state(state, ["egg"])
+    bird = state.players[0].board[0][0].bird
+    bird.state.eggs = bird.card.egg_limit
+
+    state = transition_state(state, SimpleAction("activate_power"))
+    state = transition_state(state, get_actions(state)[0])
+
+    bird = state.players[0].board[0][0].bird
+    assert bird.state.tucked_cards == 1
+    assert bird.state.eggs == bird.card.egg_limit

@@ -66,7 +66,7 @@ def lay_eggs_effect(
     egg_distribution: dict[int, int],
     player_index: Optional[int] = None,
 ) -> None:
-    """Add eggs to birds. Mutates state in-place."""
+    """Add eggs to birds, up to their egg limit (excess is lost). Mutates state in-place."""
     target_player = state.players[
         player_index if player_index is not None else state.current_player_index
     ]
@@ -75,7 +75,9 @@ def lay_eggs_effect(
         for row in target_player.board:
             for spot in row:
                 if spot.bird is not None and spot.bird.id == bird_id:
-                    spot.bird.state.eggs += eggs_to_add
+                    spot.bird.state.eggs = min(
+                        spot.bird.state.eggs + eggs_to_add, spot.bird.card.egg_limit
+                    )
                     break
 
 

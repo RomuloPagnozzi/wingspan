@@ -18,6 +18,7 @@ from ..core import (
     TradeAction,
     FoodMapAction,
     EggMapAction,
+    DrawCardsAction,
 )
 from ..effects import (
     draw_cards_effect,
@@ -33,6 +34,7 @@ from ..utils import (
     find_leftmost_empty_spot,
     get_triggered_pink_powers,
     ensure_bird_deck,
+    get_available_bird_cards,
 )
 from .validators import PREDATOR_POWERS, can_execute_power
 
@@ -53,6 +55,20 @@ def power_handler(power_id: int, phase: str | None = None):
 def get_power_handler(power_id: int, phase: str | None) -> PowerHandler | None:
     """Get the handler for a specific power and phase."""
     return _POWER_HANDLERS.get((power_id, phase))
+
+
+# "Draw" powers let the player pick from the face-up tray or the deck, like the
+# draw cards action. Powers that say "from the deck" skip this and draw directly.
+def _await_draw(current: PowerExecution, amount: int) -> None:
+    """Ask the current player where to draw `amount` cards from."""
+    current.phase = "select_draw"
+    current.context["draw_amount"] = amount
+
+
+def _draw_selected(state: GameState, action: Action) -> None:
+    """Apply the current player's tray/deck choice."""
+    assert isinstance(action, DrawCardsAction)
+    draw_cards_effect(state, list(action.tray_birds), action.deck_count)
 
 
 # =============================================================================
@@ -198,9 +214,9 @@ def _power_4_select_discard(
 
     if gain_type == "card":
         if action_type == "draw":
-            draw_cards_effect(state, tray_bird_ids=[], deck_count=gain_qty)
-        elif action_type == "tuck":
-            tuck_cards_effect(state, current.bird_id, gain_qty)
+            _await_draw(current, gain_qty)
+            return state
+        tuck_cards_effect(state, current.bird_id, gain_qty)
         stack.pop()
         return state
 
@@ -209,6 +225,18 @@ def _power_4_select_discard(
         return state
 
     gain_food_effect(state, gain_type, amount=gain_qty)
+    stack.pop()
+    return state
+
+
+@power_handler(4, "select_draw")
+def _power_4_select_draw(
+    state: GameState,
+    stack: list[PowerExecution],
+    action: Action,
+) -> GameState:
+    """Handle the tray/deck choice."""
+    _draw_selected(state, action)
     stack.pop()
     return state
 
@@ -246,21 +274,37 @@ def _power_5_activate(state: GameState, stack: list[PowerExecution], _) -> GameS
     bonus = details.get("bonus")
 
     if not bonus:
-        draw_cards_effect(state, [], amount)
-        if discard:
-            state.action_data.end_turn_effects.append(
-                EndTurnEffect(
-                    effect_type="discard_cards",
-                    player_index=state.current_player_index,
-                    amount=1,
-                )
-            )
-        stack.pop()
+        _await_draw(current, amount)
         return state
 
+    if len(state.bonus_deck) < amount:
+        state.bonus_deck.extend(state.discarded_bonuses)
+        state.discarded_bonuses.clear()
+        state.rng.shuffle(state.bonus_deck)
     drawn_ids = [state.bonus_deck.pop() for _ in range(amount)]
     current.context["bonus_options"] = drawn_ids
     current.phase = "select_bonus"
+    return state
+
+
+@power_handler(5, "select_draw")
+def _power_5_select_draw(
+    state: GameState,
+    stack: list[PowerExecution],
+    action: Action,
+) -> GameState:
+    """Handle the tray/deck choice, then schedule the end-of-turn discard."""
+    current = stack[-1]
+    _draw_selected(state, action)
+    if current.context["power_data"]["data"]["details"].get("discard"):
+        state.action_data.end_turn_effects.append(
+            EndTurnEffect(
+                effect_type="discard_cards",
+                player_index=state.current_player_index,
+                amount=1,
+            )
+        )
+    stack.pop()
     return state
 
 
@@ -869,23 +913,50 @@ def _power_13_activate(state: GameState, stack: list[PowerExecution], _) -> Game
         bird_counts[i] = count
 
     min_count = min(bird_counts.values())
+    # Clockwise from the activator, so on a tie the activator picks first
+    n = len(state.players)
     players_with_fewest = [
-        idx for idx, count in bird_counts.items() if count == min_count
+        idx
+        for idx in ((current.player_index + i) % n for i in range(n))
+        if bird_counts[idx] == min_count
     ]
 
     if item == "card":
-        for player_idx in players_with_fewest:
-            draw_cards_effect(
-                state, tray_bird_ids=[], deck_count=1, player_index=player_idx
-            )
-        stack.pop()
-        return state
-
-    current.phase = "select_die"
-    current.context["awaiting_players"] = players_with_fewest[:]
+        _await_draw(current, 1)
+    else:
+        current.phase = "select_die"
+    current.context["awaiting_players"] = players_with_fewest
     current.context["activator"] = current.player_index
     state.current_player_index = players_with_fewest[0]
     return state
+
+
+def _power_13_next_player(state: GameState, stack: list[PowerExecution]) -> GameState:
+    """Pass to the next tied player, or finish and return to the activator."""
+    current = stack[-1]
+    awaiting = current.context["awaiting_players"]
+    awaiting.remove(state.current_player_index)
+
+    if awaiting:
+        state.current_player_index = awaiting[0]
+        return state
+
+    state.current_player_index = current.context["activator"]
+    stack.pop()
+    return state
+
+
+@power_handler(13, "select_draw")
+def _power_13_select_draw(
+    state: GameState,
+    stack: list[PowerExecution],
+    action: Action,
+) -> GameState:
+    """Handle a tied player's tray/deck choice."""
+    _draw_selected(state, action)
+    if not get_available_bird_cards(state) + len(state.bird_tray):
+        stack[-1].context["awaiting_players"] = [state.current_player_index]
+    return _power_13_next_player(state, stack)
 
 
 @power_handler(13, "select_die")
@@ -895,8 +966,6 @@ def _power_13_select_die(
     action: Action,
 ) -> GameState:
     """Handle die selection for Power 13."""
-    current = stack[-1]
-
     if isinstance(action, SimpleAction) and action.type == "reroll_all":
         state.feeder = roll_feeder(state.rng)
         return state
@@ -906,18 +975,7 @@ def _power_13_select_die(
     select_die_effect(
         state, die_index, food_type, player_index=state.current_player_index
     )
-
-    awaiting = current.context["awaiting_players"]
-    awaiting.remove(state.current_player_index)
-
-    if awaiting:
-        current.context["awaiting_players"] = awaiting
-        state.current_player_index = awaiting[0]
-        return state
-
-    state.current_player_index = current.context["activator"]
-    stack.pop()
-    return state
+    return _power_13_next_player(state, stack)
 
 
 # =============================================================================
@@ -1129,8 +1187,7 @@ def _power_17_select_card(
     spot.bird.state.tucked_cards += 1
 
     if bonus_types == ["card"]:
-        draw_cards_effect(state, tray_bird_ids=[], deck_count=1)
-        stack.pop()
+        _await_draw(current, 1)
         return state
     elif bonus_types == ["egg"]:
         lay_eggs_effect(state, {current.bird_id: 1})
@@ -1144,6 +1201,18 @@ def _power_17_select_card(
         current.phase = "select_food"
         current.context["food_types"] = bonus_types
         return state
+
+
+@power_handler(17, "select_draw")
+def _power_17_select_draw(
+    state: GameState,
+    stack: list[PowerExecution],
+    action: Action,
+) -> GameState:
+    """Handle the tray/deck choice for the tuck bonus."""
+    _draw_selected(state, action)
+    stack.pop()
+    return state
 
 
 @power_handler(17, "select_food")

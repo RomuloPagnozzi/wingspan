@@ -8,7 +8,7 @@ const ROW = {
   wetland: { action: "draw_cards", label: "Draw cards", res: "card", trade: "[egg] → +1[card]" },
 };
 const AMOUNTS = [[1, 1, 2, 2, 3], [2, 2, 3, 3, 4], [1, 1, 2, 2, 3]];
-const EXTRA = [false, true, false, true, true];
+const EXTRA = [false, true, false, true, false];
 const EGG_COST = [0, 1, 1, 2, 2];
 const PCOLORS = ["#4f86c6", "#c9534f", "#5d9b62", "#8a63b5", "#d9a22e"];
 const EGG_TONES = ["#dfe9f3", "#f3e0df", "#e6efd8", "#f4ead0", "#ece0f0", "#fff6e0"];

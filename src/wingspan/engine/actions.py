@@ -25,6 +25,7 @@ from .utils import (
     get_food_discard_combinations,
     get_available_bird_cards,
     get_collect_food_actions,
+    get_triggered_powers,
 )
 from .power import can_execute_power, get_power_choice_generator
 
@@ -120,7 +121,10 @@ def _get_main_turn_actions(state: GameState) -> list[Action]:
         if spot.bird is not None
     )
 
-    if available_egg_capacity:
+    # With no room for eggs the action is only worth taking for its brown powers
+    if available_egg_capacity or get_triggered_powers(
+        current_player, "brown", habitat="grassland"
+    ):
         actions.append(SimpleAction("lay_eggs"))
 
     if can_play_a_bird(current_player):

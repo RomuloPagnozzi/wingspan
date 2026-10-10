@@ -234,3 +234,80 @@ def test_chained_additional_bird_plays_each_pay_their_costs():
     assert food_steps == 3
     assert state.players[0].food.get("invertebrate", 0) == 0
     assert state.players[0].board[1][0].bird.state.eggs == 0
+
+
+def test_fifth_slot_has_no_trade():
+    """Trades sit on slots 2 and 4 and on the full row, not on the 5th slot."""
+    from wingspan.engine.core.models import BOARD_LAYOUT
+
+    for row in BOARD_LAYOUT:
+        assert [cfg.extra_resource for cfg in row] == [False, True, False, True, False]
+
+
+def test_setup_discards_go_to_discard_pile():
+    state = initiate_state(2, seed=0)
+    state = transition_state(state, SimpleAction("start_setup"))
+    hand = list(state.players[state.current_player_index].bird_hand)
+    action = next(a for a in get_actions(state) if len(a.kept_birds) == 2)
+    state = transition_state(state, action)
+    assert sorted(state.discarded_birds) == sorted(set(hand) - set(action.kept_birds))
+
+
+def test_final_scores_are_fresh_for_all_players():
+    """Eggs gained on other players' turns must be in the final score."""
+    import random
+    from wingspan.engine.scoring import update_player_scores
+
+    for seed in range(40):
+        rng = random.Random(seed)
+        state = initiate_state(2, seed=seed)
+        while actions := get_actions(state):
+            state = transition_state(state, rng.choice(actions))
+        totals = [p.score.total for p in state.players]
+        for p in state.players:
+            update_player_scores(p)
+        assert totals == [p.score.total for p in state.players]
+
+
+def _full_board_state(grassland_bird_id):
+    state = initiate_state(2, seed=0)
+    state.game_phase = GamePhase.MAIN_TURN
+    player = state.players[state.current_player_index]
+    player.action_cubes = 8
+    player.board[1][0].bird = PlacedBird(grassland_bird_id)
+    player.board[1][0].bird.state.eggs = BIRD_REGISTRY[grassland_bird_id].egg_limit
+    return state, player
+
+
+def test_lay_eggs_not_offered_when_it_would_do_nothing():
+    plain = next(
+        b.id
+        for b in BIRD_REGISTRY.values()
+        if not get_bird_power(b.id).get("data") and "grassland" in b.habitats
+    )
+    state, _ = _full_board_state(plain)
+    assert SimpleAction("lay_eggs") not in get_actions(state)
+
+
+def test_lay_eggs_with_no_room_only_activates_brown_powers():
+    brown = next(
+        b.id
+        for b in BIRD_REGISTRY.values()
+        if get_bird_power(b.id).get("color") == "brown"
+        and "grassland" in b.habitats
+        and b.egg_limit > 0
+    )
+    state, player = _full_board_state(brown)
+    actor = state.current_player_index
+    player.food = {"seed": 1}  # would pay for an extra egg if there were room
+    assert SimpleAction("lay_eggs") in get_actions(state)
+
+    state = transition_state(state, SimpleAction("lay_eggs"))
+    assert state.game_phase == GamePhase.ACTIVATE_POWERS  # no egg or trade prompt
+    assert state.action_data.get_current_queued_power().bird_id == brown
+    state = transition_state(state, SimpleAction("skip_power"))
+
+    assert state.players[actor].action_cubes == 7
+    assert state.players[actor].food == {"seed": 1}
+    bird = state.players[actor].board[1][0].bird
+    assert bird.state.eggs == bird.card.egg_limit

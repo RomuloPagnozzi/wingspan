@@ -213,6 +213,9 @@ def _finalize_turn(state: GameState) -> GameState:
 
         next_round = state.round + 1
         if next_round > 4:
+            # Other players' boards and hands may have changed since their last turn
+            for player in state.players:
+                update_player_scores(player)
             state.game_phase = GamePhase.GAME_OVER
             state.action_data.clear()
             return state
@@ -220,19 +223,16 @@ def _finalize_turn(state: GameState) -> GameState:
         cubes = get_action_cubes_for_round(next_round)
         for player in state.players:
             player.action_cubes = cubes
-            player.used_pink_powers.clear()
 
         state.round = next_round
         state.current_player_index = get_first_player_index(state)
-        state.game_phase = GamePhase.MAIN_TURN
-        state.action_data.clear()
-        return state
-
-    refresh_bird_tray(state)
+    else:
+        refresh_bird_tray(state)
+        state.current_player_index = get_current_player_index(state)
 
     state.game_phase = GamePhase.MAIN_TURN
     state.action_data.clear()
-    state.current_player_index = get_current_player_index(state)
+    # "Once between turns": a pink power is only refreshed by its owner's own turn
     state.players[state.current_player_index].used_pink_powers.clear()
     return state
 

@@ -516,10 +516,12 @@ def test_power_14_repeat_power_with_subphase():
     ][0]
     state = transition_state(state, tuck_action)
 
-    # Verify cleanup - power should be done or in food selection
+    # Verify cleanup - power should be done or choosing its bonus (food or card)
     if state.action_data.execution_stack:
-        # If Power 17 has multiple types, it might be in food selection
-        assert state.action_data.execution_stack[0].phase == "select_food"
+        assert state.action_data.execution_stack[0].phase in (
+            "select_food",
+            "select_draw",
+        )
     else:
         # Power completed
         pass

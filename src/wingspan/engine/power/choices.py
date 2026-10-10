@@ -11,6 +11,7 @@ from ..core import (
     TradeAction,
     EggMapAction,
     FoodMapAction,
+    DrawCardsAction,
     frozen_map,
 )
 from ..utils import (
@@ -18,6 +19,8 @@ from ..utils import (
     get_food_gain_combinations,
     get_valid_birds_for_eggs,
     get_collect_food_actions,
+    get_card_draw_combinations,
+    get_available_bird_cards,
 )
 
 ChoiceGenerator = Callable[[GameState, PowerExecution], list[Action]]
@@ -40,6 +43,25 @@ def get_power_choice_generator(power_id: int, phase: str) -> ChoiceGenerator | N
 
 
 # =============================================================================
+# "Draw" powers (4, 5, 13, 17): pick from the face-up tray or the deck
+# =============================================================================
+
+
+def _get_draw_choices(state: GameState, execution: PowerExecution) -> list[Action]:
+    """Generate tray/deck combinations, as for the draw cards action."""
+    combos = get_card_draw_combinations(
+        execution.context["draw_amount"],
+        list(state.bird_tray),
+        max_deck_cards=get_available_bird_cards(state),
+    )
+    return [DrawCardsAction(tuple(c["tray_birds"]), c["deck_cards"]) for c in combos]
+
+
+for _power_id in (4, 5, 13, 17):
+    _POWER_CHOICE_GENERATORS[(_power_id, "select_draw")] = _get_draw_choices
+
+
+# =============================================================================
 # Power 2: All players lay eggs on nest type
 # =============================================================================
 
@@ -53,7 +75,8 @@ def _get_power_2_choices(state: GameState, execution: PowerExecution) -> list[Ac
     amount = 2 if state.current_player_index == activator else 1
 
     valid_birds = get_valid_birds_for_eggs(player, nest_type)
-    birds_capacity = {b.id: b.card.egg_limit - b.state.eggs for b in valid_birds}
+    # At most 1 egg per bird: the activator's second egg goes on an additional bird
+    birds_capacity = {b.id: 1 for b in valid_birds}
     combos = get_egg_distribution_combinations(birds_capacity, amount)
     return [EggMapAction("activate_eggs", frozen_map(c)) for c in combos]
 
