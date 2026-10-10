@@ -6,8 +6,9 @@ from wingspan.engine.core import (
     SimpleAction,
     IdAction,
     DrawCardsAction,
+    EndTurnEffect,
 )
-from wingspan.engine.engine import transition_state
+from wingspan.engine.engine import transition_state, handle_end_turn
 from wingspan.engine.actions import get_actions
 from conftest import place_bird_on_board, setup_power_queue
 
@@ -265,3 +266,21 @@ def test_power_5_bonus_reshuffles_discards_when_deck_runs_out():
     assert len(set(options)) == 2
     assert len(state.bonus_deck) == total - 2
     assert state.discarded_bonuses == []
+
+
+def test_end_turn_discard_is_skipped_when_the_hand_is_empty():
+    """Later powers can use up the drawn card (e.g. tucking it); the game must not stall."""
+    state = initiate_state(2)
+    state.game_phase = GamePhase.END_TURN
+    state.current_player_index = 0
+    state.players[0].bird_hand = []
+    state.action_data.end_turn_effects = [
+        EndTurnEffect("discard_cards", player_index=0, amount=1),
+        EndTurnEffect("discard_cards", player_index=0, amount=1),
+    ]
+
+    state = handle_end_turn(state, SimpleAction(""))
+
+    assert state.game_phase == GamePhase.MAIN_TURN
+    assert not state.action_data.end_turn_effects
+    assert get_actions(state)

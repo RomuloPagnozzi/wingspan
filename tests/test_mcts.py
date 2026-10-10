@@ -35,6 +35,7 @@ def toy_game(monkeypatch):
     monkeypatch.setattr(mcts, "get_actions", lambda s: list(MOVES.get(s.path, [])))
     monkeypatch.setattr(mcts, "transition_state", step)
     monkeypatch.setattr(mcts, "transition_state_inplace", step)
+    monkeypatch.setattr(mcts, "update_player_scores", lambda p: None)
     monkeypatch.setattr(mcts, "copy_state", copy.deepcopy)
     monkeypatch.setattr(mcts, "redeterminize", lambda s, p, rng: copy.deepcopy(s))
 

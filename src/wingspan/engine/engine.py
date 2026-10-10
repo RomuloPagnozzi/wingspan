@@ -1,3 +1,5 @@
+from typing import Callable
+
 from .core import (
     GameState,
     GamePhase,
@@ -20,13 +22,38 @@ from .utils import (
     restock_bird_tray,
     refresh_bird_tray,
     get_first_player_index,
+    get_current_player_index,
 )
 from .power import get_power_handler
+
+PhaseHandler = Callable[[GameState, Action], GameState]
+_PHASE_HANDLERS: dict[GamePhase, PhaseHandler] = {}
+
+
+def phase_handler(phase: GamePhase):
+    """Decorator to register a phase handler."""
+
+    def decorator(func: PhaseHandler) -> PhaseHandler:
+        _PHASE_HANDLERS[phase] = func
+        return func
+
+    return decorator
+
+
+def get_phase_handler(phase: GamePhase) -> PhaseHandler | None:
+    """Get the handler for a specific game phase."""
+    return _PHASE_HANDLERS.get(phase)
 
 
 def transition_state(state: GameState, action: Action) -> GameState:
     """Apply an action and return a new state. Input state is not mutated."""
-    return transition_state_inplace(copy_state(state), action)
+    state = transition_state_inplace(copy_state(state), action)
+    # Scores are derived from the board, so they are refreshed here, at the start of each
+    # turn, rather than inside the in-place transitions that MCTS rollouts run.
+    if state.game_phase == GamePhase.MAIN_TURN:
+        for player in state.players:
+            update_player_scores(player)
+    return state
 
 
 def transition_state_inplace(state: GameState, action: Action) -> GameState:
@@ -37,9 +64,10 @@ def transition_state_inplace(state: GameState, action: Action) -> GameState:
     (e.g. IS-MCTS per-simulation walk + rollout, where the redeterminized
     state has a single owner). Peek-MCTS tree nodes alias their states
     across simulations and must continue to use `transition_state`.
-    """
-    from .phase_handlers import get_phase_handler
 
+    Scores are only refreshed at game over: call `update_player_scores`
+    before reading them from a mid-game state.
+    """
     handler = get_phase_handler(state.game_phase)
     if not handler:
         raise NotImplementedError(f"No handler for: {state.game_phase}")
@@ -105,6 +133,7 @@ def finish_main_action(
     return _finalize_turn(state)
 
 
+@phase_handler(GamePhase.ACTIVATE_POWERS)
 def activate_powers(state: GameState, action: Action) -> GameState:
     """Handle power activation using stack-based execution.
 
@@ -201,11 +230,6 @@ def _check_powers_done(state: GameState) -> GameState:
 
 def _finalize_turn(state: GameState) -> GameState:
     """Finalize turn: check for round end or advance to next player."""
-    from .utils import get_current_player_index
-
-    current_player = state.players[state.current_player_index]
-    update_player_scores(current_player)
-
     if check_round_end(state):
         update_round_goal_scores(state)
         restock_bird_tray(state)
@@ -237,6 +261,7 @@ def _finalize_turn(state: GameState) -> GameState:
     return state
 
 
+@phase_handler(GamePhase.END_TURN)
 def handle_end_turn(state: GameState, action: Action) -> GameState:
     """Handle end-of-turn deferred effects."""
     effects = state.action_data.end_turn_effects
@@ -250,6 +275,10 @@ def handle_end_turn(state: GameState, action: Action) -> GameState:
         execution = state.action_data.get_current_execution()
 
         if not execution or execution.phase != "end_turn_discard":
+            # Later powers may have used up the drawn card; nothing left to discard
+            if not state.players[current_effect.player_index].bird_hand:
+                effects.pop(0)
+                return handle_end_turn(state, SimpleAction(""))
             state.action_data.execution_stack.append(
                 PowerExecution(
                     power_id=0,

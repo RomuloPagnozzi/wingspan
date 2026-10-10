@@ -110,8 +110,6 @@ def _simulate_from_state(
     depth = 0
     while actions := get_actions(state):
         if max_depth is not None and depth >= max_depth:
-            for p in state.players:
-                update_player_scores(p)
             break
         action = rng.choice(actions)
         state = transition_state(state, action)
@@ -129,8 +127,6 @@ def _rollout_inplace(
     depth = 0
     while actions := get_actions(state):
         if max_depth is not None and depth >= max_depth:
-            for p in state.players:
-                update_player_scores(p)
             break
         action = rng.choice(actions)
         state = transition_state_inplace(state, action)
@@ -179,7 +175,13 @@ def _compute_value(
 
 
 def _compute_values(state: GameState, value_function: ValueFunction) -> list[float]:
-    """One value per player: each node is later judged by whoever moves at its parent."""
+    """One value per player: each node is later judged by whoever moves at its parent.
+
+    Scores are refreshed first: in-place transitions leave them stale, and so does a
+    rollout cut off at `rollout_depth`.
+    """
+    for p in state.players:
+        update_player_scores(p)
     return [_compute_value(state, i, value_function) for i in range(len(state.players))]
 
 

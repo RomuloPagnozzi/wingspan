@@ -7,7 +7,7 @@ import random
 from wingspan.engine.core import initiate_state, GameState, Action
 from wingspan.engine.actions import get_actions
 from wingspan.engine.engine import transition_state
-from wingspan.engine.phase_handlers import get_phase_handler
+from wingspan.engine.engine import get_phase_handler
 
 GAMES = 100
 PLAYERS = 5

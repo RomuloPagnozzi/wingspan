@@ -1,5 +1,3 @@
-from typing import Callable
-
 from .core import (
     GameState,
     GamePhase,
@@ -31,29 +29,7 @@ from .effects import (
     pay_food_effect,
     discard_bird_from_hand_effect,
 )
-from .engine import finish_main_action, activate_powers, handle_end_turn
-
-PhaseHandler = Callable[[GameState, Action], GameState]
-_PHASE_HANDLERS: dict[GamePhase, PhaseHandler] = {}
-
-
-def phase_handler(phase: GamePhase):
-    """Decorator to register a phase handler."""
-
-    def decorator(func: PhaseHandler) -> PhaseHandler:
-        _PHASE_HANDLERS[phase] = func
-        return func
-
-    return decorator
-
-
-def get_phase_handler(phase: GamePhase) -> PhaseHandler | None:
-    """Get the handler for a specific game phase."""
-    return _PHASE_HANDLERS.get(phase)
-
-
-_PHASE_HANDLERS[GamePhase.ACTIVATE_POWERS] = activate_powers
-_PHASE_HANDLERS[GamePhase.END_TURN] = handle_end_turn
+from .engine import finish_main_action, phase_handler
 
 
 @phase_handler(GamePhase.GAME_SETUP)

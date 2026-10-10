@@ -6,8 +6,8 @@ Core game logic for Wingspan.
 
 | File | Role |
 |------|------|
-| `engine.py` | the game loop: apply an action, get the next state |
-| `phase_handlers.py` | what happens in each phase when an action arrives |
+| `engine.py` | the game loop: apply an action, get the next state; owns the phase-handler registry |
+| `phase_handlers.py` | what happens in each phase when an action arrives (registers itself with `engine.py`; the package `__init__` imports it) |
 | `actions.py` | what moves are legal in each phase |
 | `effects.py` | atomic state mutations like "draw cards" or "lay eggs" |
 | `utils.py` | shared queries and combinatorics over game state |
@@ -31,7 +31,7 @@ utils.py          <- core
 scoring.py        <- core, utils
 actions.py        <- core, utils, power
 phase_handlers.py <- core, effects, utils, engine
-engine.py         <- core, scoring, utils, power, phase_handlers
+engine.py         <- core, scoring, utils, power
 ```
 
 ## Usage

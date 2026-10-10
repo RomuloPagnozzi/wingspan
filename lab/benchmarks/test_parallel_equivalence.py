@@ -49,7 +49,10 @@ def _config(determinize: bool) -> dict:
         },
         "compare": {
             "parameter": "exploration_constant",
-            "values": [1.0, 1.41],
+            "values": [
+                {"label": "c=1.0", "value": 1.0},
+                {"label": "c=1.41", "value": 1.41},
+            ],
         },
         "seeds": {"count": 2, "start": 1},
     }
