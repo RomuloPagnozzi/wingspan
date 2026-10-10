@@ -553,3 +553,32 @@ if __name__ == "__main__":
     print("+ test_power_14_repeat_power_with_subphase passed")
 
     print("\n+ All Power 14 tests passed!")
+
+
+def test_power_14_predator_repeat_accepts_dice_hunt():
+    """Dice-hunt birds (Power 15) are predators, so the predator repeat can pick them."""
+    state = initiate_state(2)
+    init_registries()
+
+    def find(pred):
+        return next(
+            (i, p)
+            for i in range(1, 171)
+            if (p := get_bird_power(i)) and p.get("data") and pred(p["data"])
+        )
+
+    power_14_bird_id, power_14_data = find(
+        lambda d: d["id"] == 14 and d["details"]["type"] == "predator"
+    )
+    power_15_bird_id, _ = find(lambda d: d["id"] == 15)
+
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+    place_bird_on_board(state, 0, 2, 0, power_14_bird_id)
+    place_bird_on_board(state, 0, 2, 1, power_15_bird_id)
+    setup_power_queue(
+        state, power_14_bird_id, power_14_data, state.players[0].board[2][0]
+    )
+
+    state = transition_state(state, SimpleAction("activate_power"))
+    assert IdAction("select_bird", power_15_bird_id) in get_actions(state)

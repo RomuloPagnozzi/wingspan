@@ -34,7 +34,7 @@ from ..utils import (
     get_triggered_pink_powers,
     ensure_bird_deck,
 )
-from .validators import can_execute_power
+from .validators import PREDATOR_POWERS, can_execute_power
 
 PowerHandler = Callable[[GameState, list[PowerExecution], Action], GameState]
 _POWER_HANDLERS: dict[tuple[int, str | None], PowerHandler] = {}
@@ -760,6 +760,25 @@ def _power_10_select_bird(
 # =============================================================================
 
 
+def _queue_predator_success(state: GameState, player_index: int) -> None:
+    """Queue opponents' pink powers that react to a successful predator."""
+    pink_powers = get_triggered_pink_powers(
+        state, PinkTrigger.PREDATOR_SUCCESS, player_index
+    )
+    queue = state.action_data.powers_queue
+    insert_index = state.action_data.current_power_index + 1
+    for i, pp in enumerate(pink_powers):
+        queued = QueuedPower(
+            power_id=pp["power_data"]["data"]["id"],
+            bird_id=pp["bird_id"],
+            spot_row=pp["spot"].config.row,
+            spot_col=pp["spot"].config.col,
+            player_index=pp["player_index"],
+            power_data=pp["power_data"],
+        )
+        queue.insert(insert_index + i, queued)
+
+
 @power_handler(11)
 def _power_11_activate(state: GameState, stack: list[PowerExecution], _) -> GameState:
     """Execute predator power."""
@@ -779,25 +798,7 @@ def _power_11_activate(state: GameState, stack: list[PowerExecution], _) -> Game
     if drawn_bird_card and drawn_bird_card.wingspan < wingspan_threshold:
         activating_bird.state.tucked_cards += 1
 
-        pink_powers = get_triggered_pink_powers(
-            state,
-            PinkTrigger.PREDATOR_SUCCESS,
-            current.player_index,
-        )
-        if pink_powers:
-
-            queue = state.action_data.powers_queue
-            insert_index = state.action_data.current_power_index + 1
-            for i, pp in enumerate(pink_powers):
-                queued = QueuedPower(
-                    power_id=pp["power_data"]["data"]["id"],
-                    bird_id=pp["bird_id"],
-                    spot_row=pp["spot"].config.row,
-                    spot_col=pp["spot"].config.col,
-                    player_index=pp["player_index"],
-                    power_data=pp["power_data"],
-                )
-                queue.insert(insert_index + i, queued)
+        _queue_predator_success(state, current.player_index)
     else:
         state.discarded_birds.append(drawn_bird_id)
 
@@ -949,7 +950,7 @@ def _power_14_activate(state: GameState, stack: list[PowerExecution], _) -> Game
             continue
 
         if repeat_type == "predator":
-            if other_power["data"].get("id") == 11:
+            if other_power["data"].get("id") in PREDATOR_POWERS:
                 eligible_birds.append(
                     {
                         "bird_id": other_spot.bird.id,
@@ -1051,6 +1052,7 @@ def _power_15_activate(state: GameState, stack: list[PowerExecution], _) -> Game
             spot = current.get_spot(state)
             assert spot.bird
             spot.bird.state.stashed_food += 1
+            _queue_predator_success(state, current.player_index)
             break
 
     stack.pop()

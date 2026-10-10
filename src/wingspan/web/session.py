@@ -25,6 +25,7 @@ from wingspan.engine.core import (
     initiate_state,
 )
 from wingspan.engine.engine import transition_state
+from wingspan.engine.power.validators import PREDATOR_POWERS
 from wingspan.engine.scoring import (
     count_bonus_birds,
     evaluate_goal,
@@ -66,7 +67,12 @@ def catalog() -> dict:
             "eggs": b.egg_limit,
             "wingspan": b.wingspan,
             "power": (
-                {"text": p["text"], "color": p["color"], "trigger": p["trigger"]}
+                {
+                    "text": p["text"],
+                    "color": p["color"],
+                    "trigger": p["trigger"],
+                    "predator": p["data"]["id"] in PREDATOR_POWERS,
+                }
                 if _clean(p.get("text"))
                 else None
             ),

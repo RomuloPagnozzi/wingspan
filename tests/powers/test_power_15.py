@@ -155,3 +155,38 @@ if __name__ == "__main__":
     print("✓ test_power_15_no_cache_on_no_match passed")
 
     print("\n✅ All Power 15 tests passed!")
+
+
+def _run_power_15_against_pink(should_match: bool):
+    """Activate Power 15 while the opponent holds a 'predator succeeds' pink bird."""
+    state = initiate_state(2, seed=42)
+    power_15_bird_id, power_15_data = find_power_15_bird_id(state)
+    assert power_15_bird_id and power_15_data
+    food_type = power_15_data["data"]["details"]["type"]
+    pink_bird_id = next(
+        i
+        for i in range(1, 171)
+        if (get_bird_power(i).get("data") or {}).get("id") == 21
+    )
+
+    state.game_phase = GamePhase.ACTIVATE_POWERS
+    state.current_player_index = 0
+    place_bird_on_board(state, 0, 0, 0, power_15_bird_id)
+    place_bird_on_board(state, 1, 0, 0, pink_bird_id)
+    state.feeder = {}
+
+    setup_power_execution(
+        state, 15, power_15_bird_id, state.players[0].board[0][0], 0, power_15_data
+    )
+    state.rng = random.Random(find_seed_for_roll(food_type, should_match, n_dice=5))
+    state = transition_state(state, SimpleAction("activate_power"))
+    return [q.power_id for q in state.action_data.powers_queue]
+
+
+def test_power_15_success_triggers_pink_predator_power():
+    """A successful dice hunt is a predator success for opponents' pink powers."""
+    assert 21 in _run_power_15_against_pink(should_match=True)
+
+
+def test_power_15_failure_does_not_trigger_pink_predator_power():
+    assert 21 not in _run_power_15_against_pink(should_match=False)

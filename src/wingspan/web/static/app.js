@@ -209,7 +209,7 @@ function cardHtml(id, o = {}) {
     </div>
     <div class="c-art">${silhouetteFor(b)}</div>
     <div class="c-wing">${b.wingspan}cm</div>
-    <div class="c-power ${p ? p.color : "none"}">${p ? `<div><b>${p.trigger}:</b> ${tok(p.text)}</div>` : ""}</div>
+    <div class="c-power ${p ? p.color : "none"}">${p ? `<div>${p.predator ? tok("[predator]") + " " : ""}<b>${p.trigger}:</b> ${tok(p.text)}</div>` : ""}</div>
     ${st && st.cached ? `<span class="c-cache" title="cached food">${st.cached}</span>` : ""}
     ${st && st.tucked ? `<span class="c-tuck" title="tucked cards">${icon("card")}${st.tucked}</span>` : ""}
     ${pending}

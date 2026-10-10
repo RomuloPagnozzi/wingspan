@@ -226,6 +226,10 @@ def _can_execute_power_10(state: GameState, power_entry: dict) -> bool:
     return len(get_valid_birds_for_eggs(current_player, nest_type)) > 0
 
 
+# Powers printed with the predator symbol: wingspan hunt (11) and dice hunt (15).
+PREDATOR_POWERS = (11, 15)
+
+
 # =============================================================================
 # Power 11: Predator - draw and tuck if wingspan < threshold
 # =============================================================================
@@ -299,7 +303,7 @@ def _can_execute_power_14(state: GameState, power_entry: dict) -> bool:
             continue
 
         if repeat_type == "predator":
-            if other_power["data"].get("id") == 11:
+            if other_power["data"].get("id") in PREDATOR_POWERS:
                 return True
 
         elif repeat_type == "brown":
