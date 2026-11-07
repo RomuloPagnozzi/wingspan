@@ -1,0 +1,1554 @@
+<title>Wingspan as Tensors</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;600&family=Patrick+Hand+SC&family=Nunito:wght@400;700;800&display=swap">
+<style>
+/* Layout: a long-form reading column (68ch) with figures that break out to 1120px; sticky section rail on top. */
+:root {
+  --paper: #F0F3EE; --panel: #FAFBF8; --ink: #17202A; --muted: #586461; --rule: #D2D9D0; --soft: #E5EAE2;
+  --forest: #2E6A41; --grass: #A87F0E; --wetland: #2B6A99;
+  --obs: #1C7570; --act: #BC6418; --net: #9E3A63; --hidden: #A3ACA8;
+  --cold: #E3E8E0; --good: #2E6A41;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Literata", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --wide: 1120px; --read: 68ch;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0F1417; --panel: #161D21; --ink: #E2E8E1; --muted: #9AA7A2; --rule: #29343A; --soft: #1D262B;
+  --forest: #63B47B; --grass: #E1B53F; --wetland: #62A6DA;
+  --obs: #4CC2B8; --act: #F0A25A; --net: #E27EA6; --hidden: #56625E; --cold: #1F292E; --good: #63B47B;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #0F1417; --panel: #161D21; --ink: #E2E8E1; --muted: #9AA7A2; --rule: #29343A; --soft: #1D262B;
+  --forest: #63B47B; --grass: #E1B53F; --wetland: #62A6DA;
+  --obs: #4CC2B8; --act: #F0A25A; --net: #E27EA6; --hidden: #56625E; --cold: #1F292E; --good: #63B47B;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.62; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.wrap { max-width: calc(var(--wide) + 64px); margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.prose { max-width: var(--read); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.08; margin: 0; }
+h1 { font-size: clamp(2.6rem, 6.4vw, 4.9rem); font-weight: 800; letter-spacing: -0.025em; }
+h2 { font-size: clamp(1.7rem, 3.4vw, 2.45rem); font-weight: 700; letter-spacing: -0.015em; }
+h3 { font-size: 1.18rem; font-weight: 700; }
+p { margin: 0; }
+.prose > * + * { margin-top: 1em; }
+code, .mono { font-family: var(--f-mono); font-size: 0.84em; }
+code { background: var(--soft); padding: 0.08em 0.35em; border-radius: 4px; }
+a { color: inherit; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.74rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.2rem; color: var(--muted); max-width: 60ch; }
+em.k { font-style: normal; font-weight: 600; }
+.t-obs { color: var(--obs); } .t-act { color: var(--act); } .t-net { color: var(--net); }
+
+/* Sticky rail */
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: color-mix(in oklab, var(--paper) 92%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); }
+.rail .wrap { display: flex; gap: 4px; overflow-x: auto; padding-block: 8px; scrollbar-width: none; }
+.rail a { font-family: var(--f-mono); font-size: 0.74rem; text-decoration: none; color: var(--muted); padding: 4px 9px; border-radius: 99px; white-space: nowrap; }
+.rail a:hover, .rail a.on { color: var(--ink); background: var(--soft); }
+
+header.hero { padding-block: 56px 26px; display: grid; gap: 18px; }
+section { padding-block: 64px 8px; border-top: 1px solid var(--rule); margin-top: 48px; }
+section > .wrap { display: grid; gap: 22px; }
+.sec-head { display: grid; gap: 10px; }
+
+/* Figures */
+.fig { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.fig-cap { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+.fig-title { font-family: var(--f-display); font-weight: 700; font-size: 1.02rem; }
+.scroll-x { overflow-x: auto; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.cols > * { min-width: 0; }
+.cols > .fig { align-content: start; }
+
+/* Controls */
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+.seg button { font: 500 0.82rem var(--f-display); background: transparent; color: var(--muted); border: 0; padding: 7px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--act); outline-offset: 2px; }
+select, input[type=range] { font: 0.9rem var(--f-body); color: var(--ink); background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 8px; }
+input[type=range] { padding: 0; accent-color: var(--net); }
+label.ctl { font-family: var(--f-mono); font-size: 0.76rem; color: var(--muted); display: inline-flex; gap: 8px; align-items: center; }
+
+/* Heatmap cells */
+.cells { display: flex; flex-wrap: wrap; gap: 2px; }
+.c { width: var(--cw, 10px); height: var(--cw, 10px); border-radius: 2px; background: color-mix(in oklab, var(--hot, var(--obs)) var(--p, 0%), var(--cold)); flex: none; }
+.c.hid { background: repeating-linear-gradient(135deg, var(--hidden) 0 2px, transparent 2px 4px); opacity: 0.75; }
+.c.chg { box-shadow: 0 0 0 1.5px var(--net); }
+.c:hover { box-shadow: 0 0 0 2px var(--ink); }
+.anat { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; align-items: center; }
+.anat .lab { font-family: var(--f-mono); font-size: 0.7rem; color: var(--muted); text-align: right; white-space: nowrap; }
+.anat .lab b { color: var(--ink); font-weight: 600; }
+.anat .sep { grid-column: 1 / -1; height: 6px; }
+.anat .blk { grid-column: 1 / -1; font-family: var(--f-display); font-weight: 700; font-size: 0.86rem; margin-top: 6px; }
+
+/* Tooltip */
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--paper); font-family: var(--f-mono); font-size: 0.74rem; padding: 6px 9px; border-radius: 6px; max-width: 320px; display: grid; gap: 2px; }
+#tip span { opacity: 0.75; }
+
+/* Chips & legend */
+.chip { font-family: var(--f-mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; background: var(--soft); white-space: nowrap; display: inline-block; }
+.chip b { font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.tag-planned { font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--net); border: 1px dashed var(--net); border-radius: 4px; padding: 1px 6px; }
+.tag-built { font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--obs); border: 1px solid var(--obs); border-radius: 4px; padding: 1px 6px; }
+
+/* Principles */
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 22px 28px; }
+.principle { display: grid; gap: 6px; align-content: start; border-top: 2px solid var(--ink); padding-top: 10px; }
+.principle p { font-size: 0.95rem; }
+
+/* Bird card */
+.birdcard { border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; background: var(--paper); }
+.birdcard h3 { font-size: 1.35rem; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; font-size: 0.9rem; }
+.kv dt { font-family: var(--f-mono); font-size: 0.74rem; color: var(--muted); padding-top: 2px; }
+.kv dd { margin: 0; }
+.hab { font-family: var(--f-mono); font-size: 0.72rem; padding: 1px 7px; border-radius: 4px; color: var(--paper); }
+.hab.forest { background: var(--forest); } .hab.grassland { background: var(--grass); } .hab.wetland { background: var(--wetland); }
+.strip { display: grid; gap: 4px; }
+.strip .cells { --cw: 15px; }
+.brackets { display: flex; gap: 2px; font-family: var(--f-mono); font-size: 0.62rem; color: var(--muted); }
+.brackets span { border-top: 1.5px solid var(--muted); padding-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: none; }
+.near { display: flex; flex-wrap: wrap; gap: 6px; }
+.near button { font: 0.82rem var(--f-body); background: var(--soft); color: var(--ink); border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+.near button small { font-family: var(--f-mono); color: var(--muted); margin-left: 6px; }
+
+/* Board */
+.board { display: grid; grid-template-columns: 74px repeat(5, minmax(86px, 1fr)); gap: 5px; min-width: 520px; }
+.board .rl { font-family: var(--f-mono); font-size: 0.68rem; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; font-weight: 600; }
+.slot { border-radius: 7px; min-height: 66px; padding: 6px 7px; display: grid; align-content: space-between; gap: 3px; font-size: 0.76rem; line-height: 1.2; border: 1px solid var(--rule); background: var(--paper); cursor: pointer; text-align: left; color: var(--ink); font-family: var(--f-body); position: relative; }
+.slot.empty { background: transparent; border-style: dashed; cursor: default; }
+.slot .sid { font-family: var(--f-mono); font-size: 0.6rem; color: var(--muted); }
+.slot .eggs { display: flex; gap: 2px; }
+.slot .eggs i { width: 8px; height: 10px; border-radius: 50%; border: 1.3px solid var(--muted); }
+.slot .eggs i.f { background: var(--ink); border-color: var(--ink); }
+.slot.forest { box-shadow: inset 3px 0 0 var(--forest); } .slot.grassland { box-shadow: inset 3px 0 0 var(--grass); } .slot.wetland { box-shadow: inset 3px 0 0 var(--wetland); }
+.slot.sel { outline: 2px solid var(--obs); }
+.slot.hl { outline: 2.5px solid var(--act); background: color-mix(in oklab, var(--act) 14%, var(--paper)); }
+.slot .badge { position: absolute; top: 4px; right: 5px; font-family: var(--f-mono); font-size: 0.66rem; font-weight: 600; color: var(--act); }
+.rl.forest { color: var(--forest); } .rl.grassland { color: var(--grass); } .rl.wetland { color: var(--wetland); }
+
+/* Composition bar */
+.comp { display: flex; height: 34px; border-radius: 6px; overflow: hidden; gap: 1px; background: var(--rule); }
+.comp div { display: flex; align-items: center; justify-content: center; font-family: var(--f-mono); font-size: 0.68rem; color: var(--paper); overflow: hidden; white-space: nowrap; min-width: 2px; }
+
+/* Actions table */
+.acts { display: grid; gap: 2px; }
+.act { display: grid; grid-template-columns: minmax(200px, 1fr) 444px 52px 64px; gap: 10px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--ink); text-align: left; font: inherit; width: 100%; }
+.act:hover { background: var(--soft); }
+.act.sel { border-color: var(--act); background: color-mix(in oklab, var(--act) 8%, var(--panel)); }
+.act .lbl { font-size: 0.84rem; line-height: 1.25; }
+.act .lbl small { display: block; font-family: var(--f-mono); font-size: 0.64rem; color: var(--muted); }
+.act .cells { --hot: var(--act); gap: 0; flex-wrap: nowrap; }
+.act .num { font-family: var(--f-mono); font-size: 0.74rem; text-align: right; font-variant-numeric: tabular-nums; }
+.act.head { cursor: default; font-family: var(--f-mono); font-size: 0.66rem; color: var(--muted); }
+.act.head:hover { background: transparent; }
+.taken { color: var(--act); font-weight: 600; }
+
+/* Charts */
+svg text { font-family: var(--f-mono); fill: var(--muted); }
+svg .ink { fill: var(--ink); }
+.stat { display: grid; gap: 2px; }
+.stat b { font-family: var(--f-display); font-size: 1.9rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.84rem; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 18px; }
+
+/* Diagrams */
+.diagram svg { display: block; width: 100%; height: auto; }
+.node rect { stroke-width: 1.4; }
+.node text.t { font-family: var(--f-display); font-weight: 700; font-size: 15px; fill: var(--ink); }
+.node text.s { font-family: var(--f-mono); font-size: 11px; fill: var(--muted); }
+.node.data rect { fill: color-mix(in oklab, var(--obs) 12%, var(--panel)); stroke: var(--obs); }
+.node.adata rect { fill: color-mix(in oklab, var(--act) 13%, var(--panel)); stroke: var(--act); }
+.node.layer rect { fill: color-mix(in oklab, var(--net) 10%, var(--panel)); stroke: var(--net); }
+.node.out rect { fill: var(--ink); stroke: var(--ink); }
+.node.out text.t { fill: var(--paper); } .node.out text.s { fill: color-mix(in oklab, var(--paper) 75%, var(--ink)); }
+.node.code rect { fill: var(--panel); stroke: var(--ink); }
+.node.planned rect { stroke-dasharray: 5 4; }
+.node.link { cursor: pointer; }
+.node.link:hover rect { stroke-width: 2.6; }
+.node.dim { opacity: 0.28; }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.edge.flow { stroke-dasharray: 4 5; animation: flow 1.4s linear infinite; }
+.edge.dim { opacity: 0.2; }
+.edge.hot { stroke: var(--net); stroke-width: 2.2; }
+@keyframes flow { to { stroke-dashoffset: -18; } }
+@media (prefers-reduced-motion: reduce) { .edge.flow { animation: none; } * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+.spec { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 640px; }
+.spec th, .spec td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.spec th { font-family: var(--f-mono); font-size: 0.7rem; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
+.spec td:first-child { font-family: var(--f-mono); font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+.spec td.on { background: color-mix(in oklab, var(--net) 7%, transparent); }
+.formula { font-family: var(--f-mono); font-size: clamp(0.9rem, 2.3vw, 1.15rem); padding: 16px; background: var(--paper); border-radius: 8px; border: 1px solid var(--rule); overflow-x: auto; white-space: nowrap; }
+.formula .term { border-bottom: 2.5px solid; padding-bottom: 2px; cursor: help; }
+.callout { border-left: 3px solid var(--net); padding: 4px 0 4px 16px; display: grid; gap: 6px; }
+.callout h3 { color: var(--net); }
+.steps { display: grid; gap: 8px; counter-reset: s; }
+.steps li { list-style: none; display: grid; grid-template-columns: 26px 1fr; gap: 8px; font-size: 0.92rem; }
+.steps li::before { counter-increment: s; content: counter(s); font-family: var(--f-mono); font-size: 0.72rem; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--muted); display: grid; place-items: center; color: var(--muted); }
+.steps li.net::before { border-color: var(--net); color: var(--net); }
+.steps li.slow::before { border-color: var(--act); color: var(--act); }
+.steps { padding: 0; margin: 0; }
+.bars { display: grid; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; font-size: 0.86rem; }
+.bar-row .track { height: 22px; background: var(--soft); border-radius: 4px; overflow: hidden; }
+.bar-row .fill { height: 100%; display: flex; align-items: center; padding-left: 8px; font-family: var(--f-mono); font-size: 0.7rem; color: var(--paper); white-space: nowrap; }
+.bar-row .out { font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); }
+/* The web app's bird card (src/wingspan/web/static/style.css), scoped under .gw. A card is
+   paper in both themes, like the physical one. */
+.gw { --paper: #fbf8f1; --sel: #2f6fb0; --display: "Patrick Hand SC", "Comic Sans MS", cursive; color: #2f2b25; font-family: Nunito, system-ui, sans-serif; }
+.gw .ico { width: 1em; height: 1em; display: inline-block; vertical-align: middle; flex: none; object-fit: contain; }
+.gw .tok .ico { width: 1.3em; height: 1.3em; vertical-align: -0.35em; }
+.gw .tok { white-space: nowrap; }
+.gw .card { position: relative; aspect-ratio: 5 / 7; container-type: inline-size; background: var(--paper); border-radius: 6% / 4.3%; box-shadow: 0 2px 6px rgba(40, 40, 30, 0.22), inset 0 0 0 1px rgba(0, 0, 0, 0.04); overflow: hidden; user-select: none; }
+.gw .c-tab { position: absolute; left: 6%; top: 0; width: 27%; height: 26%; background: #d2cdc3; border-radius: 0 0 4cqw 4cqw; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 3.5cqw 1cqw 2.5cqw; }
+.gw .c-habs { display: flex; }
+.gw .c-habs .ico { width: 10.5cqw; height: 10.5cqw; margin: 0 -0.9cqw; }
+.gw .c-cost { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 0.5cqw; }
+.gw .c-cost .ico { width: 6.6cqw; height: 6.6cqw; }
+.gw .c-cost .op { font: 800 4.2cqw Nunito; font-style: normal; color: #5f594f; margin: 0 0.3cqw; }
+.gw .c-name { position: absolute; left: 37%; right: 0; top: 5.5%; height: 14%; background: #fff; border: 0.6cqw solid #c6bfb2; border-right: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 2.5cqw; }
+.gw .c-name span { font: 8cqw/0.95 var(--display); }
+.gw .c-stats { position: absolute; left: 5%; top: 30%; width: 23%; display: flex; flex-direction: column; align-items: center; gap: 3cqw; }
+.gw .c-pts { display: flex; align-items: center; font: 12cqw/1 var(--display); color: #4a453d; }
+.gw .c-pts .ico { width: 6cqw; height: 12cqw; margin-left: 0.5cqw; }
+.gw .c-nest { width: 13cqw; height: 13cqw; display: grid; place-items: center; }
+.gw .c-nest:empty { visibility: hidden; }
+.gw .c-nest .ico { width: 13cqw; height: 13cqw; }
+.gw .c-eggs { display: grid; grid-template-columns: repeat(2, 5.6cqw); gap: 1.2cqw 1.8cqw; }
+.gw .egg { display: block; width: 5.6cqw; height: 7cqw; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #9a958b; }
+.gw .egg.laid { background: var(--egg); box-shadow: inset 0 0 0 0.5cqw rgba(90, 80, 60, 0.45), 0 0.4cqw 0.8cqw rgba(0, 0, 0, 0.25); transform: scale(1.3); }
+.gw .c-art { position: absolute; left: 28%; right: 4%; top: 22%; bottom: 33%; display: grid; place-items: center; }
+.gw .sil { width: 92%; height: 92%; fill: #9b978e; color: #9b978e; opacity: 0.5; filter: blur(0.9cqw); }
+.gw .c-wing { position: absolute; right: 5%; bottom: 33%; font: 5cqw var(--display); color: #6f6a60; border-bottom: 0.5cqw solid #c6bfb2; }
+.gw .c-power { position: absolute; left: 0; right: 0; bottom: 4.5%; height: 27%; padding: 2cqw 5cqw; display: flex; align-items: center; font: 4.9cqw/1.2 Nunito; overflow: hidden; }
+.gw .c-power b { font-weight: 800; text-transform: uppercase; }
+.gw .c-power.brown { background: #c98b4e; }
+.gw .c-power.pink { background: #e8a9ba; }
+.gw .c-power.white { background: #fffdf8; border-top: 0.5cqw solid #e2dac9; border-bottom: 0.5cqw solid #e2dac9; }
+.gw .c-power.none { background: transparent; }
+.gw .c-power .tok .ico { width: 1.3em; height: 1.3em; }
+.gw .c-cache { position: absolute; left: 30%; bottom: 35%; width: 13cqw; height: 13cqw; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #d7a86e, #9a6a37); color: #fff; font: 800 7cqw Nunito; display: grid; place-items: center; box-shadow: 0 0.6cqw 1.2cqw rgba(0, 0, 0, 0.3); }
+.gw .c-tuck { position: absolute; right: 4%; top: 23%; display: flex; align-items: center; font: 800 6.5cqw Nunito; color: #4d7453; }
+.gw .c-tuck .ico { width: 10cqw; height: 10cqw; }
+.gw .c-pending { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); background: var(--sel); color: #fff; font: 800 12cqw Nunito; border-radius: 999px; padding: 1cqw 5cqw; display: flex; align-items: center; gap: 1cqw; }
+.gw .c-pending .ico { width: 11cqw; height: 11cqw; }
+.shot { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.shot img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--rule); display: block; }
+.shot figcaption { font-size: 0.86rem; color: var(--muted); }
+.two-views { margin-top: 10px; }
+.bird-cols { grid-template-columns: minmax(0, 280px) minmax(0, 1fr); }
+.sets-hands { display: grid; gap: 22px; }
+.sets-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.sets-row > .scroll-x { flex: 1 1 520px; min-width: 0; }
+.sets-hand { display: grid; gap: 10px; min-width: 0; align-content: start; }
+.sets-hand h3 { font-size: 1rem; }
+.sets-cards { display: flex; gap: 10px; }
+.sets-cards .gw { width: 112px; flex: none; }
+.sets-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.sets-pick select { min-width: 0; flex: 0 1 300px; max-width: 100%; }
+.spec.sets-t { min-width: 0; font-size: 0.8rem; }
+.sets-t th, .sets-t td { text-align: center; padding: 5px 7px; font-variant-numeric: tabular-nums; }
+.sets-t th:first-child, .sets-t td:first-child { text-align: left; }
+.sets-t td.z { color: var(--hidden); }
+.sets-t td.det { background: color-mix(in oklab, var(--net) 7%, transparent); }
+.sets-t tr.sum td { font-weight: 700; border-top: 2px solid var(--ink); color: var(--ink); }
+.sets-t th.grp { text-align: center; border-bottom: 0; }
+.verdict { display: flex; gap: 8px; flex-wrap: wrap; }
+.verdict .chip { font-size: 0.8rem; padding: 4px 10px; }
+.verdict .same { background: color-mix(in oklab, var(--act) 25%, var(--soft)); }
+.verdict .diff { background: color-mix(in oklab, var(--good) 28%, var(--soft)); }
+.exp-grid { display: grid; grid-template-columns: minmax(120px, 0.6fr) 1fr 1fr; gap: 8px; }
+.exp-h { font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); align-self: end; }
+.exp-h.row { align-self: center; }
+.exp-cell { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; background: var(--paper); display: grid; gap: 4px; font-size: 0.9rem; }
+.exp-cell .arm { font-family: var(--f-display); }
+@media (max-width: 640px) { .exp-grid { grid-template-columns: 1fr; } .exp-h.corner { display: none; } }
+.s4-flow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.s4-flow .arrow { font-family: var(--f-mono); color: var(--muted); font-size: 1.3rem; }
+.s4-flow .gw { width: 112px; flex: none; }
+.s4-strip { display: grid; gap: 5px; min-width: 0; max-width: 100%; }
+.s4-strip .cells { max-width: 340px; }
+.s4-box { border: 1.4px solid var(--net); background: color-mix(in oklab, var(--net) 10%, var(--panel)); border-radius: 8px; padding: 10px 16px; text-align: center; font: 700 1.3rem var(--f-display); }
+.s4-box small { display: block; font: 0.7rem var(--f-mono); color: var(--muted); }
+.c.q { background: transparent; box-shadow: inset 0 0 0 1px var(--muted); opacity: 0.6; }
+.sets-t tr.pad td { color: var(--hidden); font-style: italic; border-top: 1px dashed var(--rule); }
+.s4-bars { display: grid; gap: 8px; }
+.s4-bar-row { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; font-size: 0.85rem; }
+.s4-bar { display: flex; height: 28px; gap: 2px; }
+.s4-bar div { display: flex; align-items: center; justify-content: center; font: 0.7rem var(--f-mono); color: var(--paper); white-space: nowrap; overflow: hidden; border-radius: 4px; min-width: 38px; }
+@media (max-width: 640px) { .s4-bar-row { grid-template-columns: 1fr; gap: 4px; } }
+footer { padding-block: 56px 72px; color: var(--muted); font-size: 0.86rem; }
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .act { grid-template-columns: 1fr 52px 60px; }
+  .act .cells { grid-column: 1 / -1; grid-row: 2; }
+  .bar-row { grid-template-columns: 1fr; gap: 4px; }
+  .anat { grid-template-columns: 1fr; }
+  .bird-cols { grid-template-columns: 1fr; }
+  .anat .lab { text-align: left; }
+}
+</style>
+
+<div id="tip" hidden></div>
+
+<header class="wrap hero">
+  <span class="eyebrow">Wingspan AI · plan step 2 of 6 · the observation and action encoder</span>
+  <h1>Wingspan as Tensors</h1>
+  <p class="lede">A neural network can't look at a bird card. It sees a row of numbers. This page follows one real decision from a recorded MCTS game, from the table to the numbers to the two networks that will learn from them. Every figure uses the real encoder and real data.</p>
+  <div class="legend">
+    <span><i style="background:var(--obs)"></i>observation data</span>
+    <span><i style="background:var(--act)"></i>action data</span>
+    <span><i style="background:var(--net)"></i>learned network</span>
+    <span><span class="tag-built">built</span> exists in the repo</span>
+    <span><span class="tag-planned">planned</span> steps 3–6</span>
+  </div>
+  <div class="fig two-views" id="two-views" hidden>
+    <div class="fig-title">Decision #116, two ways</div>
+    <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));align-items:start">
+      <figure class="shot"><img id="shot-hero" alt="The web UI at decision #116: player 2's board, the bird feeder and tray, and the prompt 'Lay 3 eggs'"><figcaption>What player 2 sees in our web app: their board, the feeder, the tray, their own hand and bonus card, and the prompt "Lay 3 eggs".</figcaption></figure>
+      <figure class="shot"><div id="hero-vec" style="display:grid;gap:8px"></div><figcaption>What the network sees: the same moment as 1,935 numbers between 0 and 1. Hover any cell for its name.</figcaption></figure>
+    </div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Sections"><div class="wrap" id="rail"></div></nav>
+
+<section id="map" style="border-top:0;margin-top:0;padding-top:28px">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">The map</span>
+      <h2>Two roads into one network</h2>
+      <p>Everything on this page fits into this picture. The <em class="k t-obs">observation</em> road turns the game state into one vector and squeezes it into a summary <code>h</code>. The <em class="k t-act">action</em> road turns each legal move into its own vector. The <em class="k t-net">network</em> answers two questions: how good is this position (the value), and which move should I make (the policy). Click any box to jump to it.</p>
+    </div>
+    <div class="fig diagram"><div class="scroll-x"><div id="map-svg" style="min-width:880px"></div></div>
+      <p class="fig-cap">Solid boxes exist in <code>src/wingspan/ai/encoding.py</code>. Dashed boxes are the plan: the replay dataset (step 3), the nets (step 4) and plugging them into MCTS (step 5).</p></div>
+  </div>
+</section>
+
+<section id="rules">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Ground rules</span>
+      <h2>Four rules every number follows</h2>
+      <p>An encoder is a contract between the game and the network. These four rules shape every later decision on the page.</p>
+    </div>
+    <div class="principles">
+      <div class="principle"><h3>Every number has a name</h3><p>Each block is built as a dictionary first, such as <code>{"forest_2_eggs": 0.33, …}</code>. The vector is its values in a fixed order. When the net does something strange, you can trace any input back to its meaning. Hover any cell on this page to see its name.</p></div>
+      <div class="principle"><h3>Everything lands in [0, 1]</h3><p>A wingspan in centimetres (up to 277) next to an egg count (up to 6) would make wingspan dominate early training, just because of its units. So each value is divided by a known maximum, and values above the cap saturate at 1.0.</p></div>
+      <div class="principle"><h3>Only what you could see</h3><p>Opponents' hands and bonus cards are zeros. Nothing depends on deck order. A test re-deals every hidden card and asserts the encoding doesn't move. If it leaked, the net would learn to cheat, and MCTS with re-dealt hidden cards would disagree with it.</p></div>
+      <div class="principle"><h3>Same layout for every player</h3><p>"Me" and each opponent use the identical 847-number layout. One set of weights can read any player, and "me" always comes first. So the net learns "my position" rather than "seat 2's position".</p></div>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Scaling, made visible: wingspan of all 170 birds</div>
+      <div class="scroll-x"><div id="wing-svg" style="min-width:560px"></div></div>
+      <p class="fig-cap">Top: dividing by 300 cm squeezes most birds into the left third, so the net would barely tell a sparrow from a jay. Bottom: <code>log(wingspan) / log(300)</code>, which the encoder uses, spreads them out. The cost: no bird ever goes below about 0.4.</p>
+    </div>
+  </div>
+</section>
+
+<section id="birds">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Block 0 · static, computed once</span>
+      <h2>A bird becomes 45 numbers</h2>
+      <p>Cards never change, so each of the 170 birds gets one fixed row: points, egg limit, wingspan, nest, habitats, food cost, power color and power template. That row is reused wherever the bird appears: on a board, in a hand, in the tray, or inside an action.</p>
+    </div>
+    <div class="fig">
+      <div class="row"><label class="ctl" for="bird-select">bird</label><select id="bird-select"></select></div>
+      <div class="cols bird-cols">
+        <div id="bird-card"></div>
+        <div style="display:grid;gap:12px;align-content:start;min-width:0">
+          <div class="strip scroll-x" id="bird-strip"></div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Nearest birds by these 45 numbers</div><div class="near" id="bird-near"></div></div>
+        </div>
+      </div>
+      <p class="fig-cap">Left: the card as our web app draws it. Right: the same card as the network reads it. Darker cells are closer to 1. Notice what the right side can't hold: the power's text. The net only sees its color and which of 21 templates it uses. An either/or cost ("1 invertebrate <i>or</i> 1 fruit") is stored as the average over the options, 0.5 each, plus the <code>cost_is_or</code> flag. The nearest-bird list shows the point of using features: birds that play alike end up close together, so what the net learns about one transfers to its neighbours.</p>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between">
+        <div class="fig-title">All 170 birds in 3D</div>
+        <div class="row"><span class="eyebrow">color by</span><div class="seg" id="pca-seg"></div></div>
+      </div>
+      <canvas id="pca" style="width:100%;height:min(70vh,560px);display:block;touch-action:none;cursor:grab" role="img" aria-label="3D scatter of the 170 birds after PCA of their 45 features"></canvas>
+      <div class="legend" id="pca-legend"></div>
+      <p class="fig-cap" id="pca-cap"></p>
+    </div>
+    <div class="cols">
+      <div class="prose">
+        <h3>Why features instead of a learned ID</h3>
+        <p style="margin-top:.6em">The common alternative is an embedding table: bird #95 looks up a learned vector. It can learn anything, including power details we left out, but it learns each bird separately. With about 2,500 games and 170 birds, many birds appear in a few hundred positions at most. Features generalize from day one: a bowl-nest, 4-egg grassland bird looks like every other one.</p>
+      </div>
+      <div class="prose">
+        <h3>What v1 leaves out</h3>
+        <p style="margin-top:.6em">The net sees a power's <i>color</i> (when it fires) and its <i>template</i> (which of 21 effect kinds). It doesn't see the parameters: which food, which habitat, how many. Two birds with "gain 1 seed" and "gain 2 fish" look identical apart from their cost and habitat. A learned embedding added on top of the features is the cheap fix later.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="player">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Block 1 · one per player</span>
+      <h2>A player is 847 numbers, and 87% of them are the board</h2>
+      <p>The example is decision <b>#116</b> of a real game from the <code>mcts_joint_v2</code> tuning study: player 2 in round 3, about to place three eggs. They won 80–73. The board has 15 slots. Each slot holds 4 dynamic numbers (occupied, eggs, cached food, tucked cards) followed by the 45 static numbers of whichever bird sits there. Where a slot is (its habitat, its egg cost) is never stored as a value. The column position says it.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">What the 847 numbers are spent on, to scale</div>
+      <div class="comp" id="comp"></div>
+      <div class="legend" id="comp-legend"></div>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between"><div class="fig-title">The board behind the numbers</div><div class="seg" data-pick></div></div>
+      <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))">
+        <div style="min-width:0"><div class="eyebrow" style="margin-bottom:6px">You · player 2 · the viewer</div><div class="scroll-x" id="board-me"></div></div>
+        <div style="min-width:0"><div class="eyebrow" style="margin-bottom:6px">Opponent · player 1</div><div class="scroll-x" id="board-opp"></div></div>
+      </div>
+      <div id="slot-inspect"></div>
+      <p class="fig-cap">Click a bird to see the 49 numbers of its slot. Filled ovals are eggs; hollow ones are the room left under the egg limit.</p>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between">
+        <div class="fig-title">The whole player block, in vector order</div>
+        <div class="seg" id="view-seg"></div>
+      </div>
+      <div class="scroll-x"><div class="anat" id="anat-player" style="min-width:560px"></div></div>
+      <p class="fig-cap">Each row is one group, in the order the vector stores them. Hatched cells are hidden from this viewer and encoded as 0. Switch to "Your block, as the opponent sees it": your hand and bonus card disappear, but <code>hand_size</code> and <code>bonus_card_count</code> stay, because everyone at the table can count cards.</p>
+    </div>
+    <div class="cols">
+      <div class="prose">
+        <h3>Row summaries are free hints</h3>
+        <p style="margin-top:.6em">Each habitat row adds 4 numbers: what its action yields right now, whether it offers the "trade one for one more" bonus, the egg cost of its next empty spot, and how full it is. The net could derive all of these from occupancy. Deriving them takes capacity and data we don't have much of, and a test checks each one against what the engine does.</p>
+      </div>
+      <div class="prose">
+        <h3><code>score_now</code></h3>
+        <p style="margin-top:.6em">Bird points + eggs + cached food + tucked cards + banked round goals: everything anyone can count, scaled by 120. The value net would otherwise have to add up about 700 inputs to get the single most predictive number for who wins. It's computed from the board, because <code>player.score</code> is only refreshed at the end of a turn.</p>
+      </div>
+      <div class="prose">
+        <h3>Turns are counted, not just scaled</h3>
+        <p style="margin-top:.6em">A cube is one turn, so 5 cubes means exactly 5 more turns this round, and the encoder scales them by 8, the most a round ever starts with. Scaling alone keeps the information (the first layer can undo a division). It doesn't make "exactly the last turn" easy to find, and planning backwards from the end of the game is what strong play needs. So three columns state it directly: <code>turns_left_game</code> (this round's cubes plus every later round's allotment, over 26), and flags for exactly one turn left in the round and in the game. The cube is spent when the main action completes, so while choosing, "one turn left" means "this is my last turn".</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="bags">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">A design choice worth understanding</span>
+      <h2>Hands and trays are bags: summed, not listed</h2>
+      <p>A hand can hold 0 to 12+ birds, but the vector needs a fixed width. The encoder adds the bird rows together and divides by 12, so <code>hand_points</code> means "total points in hand, as a fraction of a full hand of maximum birds". Order doesn't matter and the width is fixed. Something is lost, though.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Two different hands, one identical points column</div>
+      <div class="scroll-x"><div id="bag-svg" style="min-width:560px"></div></div>
+      <p class="fig-cap">Both hands hold 3 birds and 12 points, so <code>hand_size</code> and <code>hand_points</code> come out exactly equal. The left hand has one 9-point bird you may want to build toward; the right has three average ones. Other columns (cost, habitat) differ, but nothing says which points go with which cost. The same happens with properties: a grassland-bowl bird plus a wetland-cavity bird sums to exactly the same habitat and nest columns as a wetland-bowl bird plus a grassland-cavity bird. If a bonus rewards bowl birds in the wetland, only the second hand has one, and the bag can't say so.</p>
+    </div>
+    <p class="prose">The fix, a <b>set encoder</b>, gets its own section after Actions, because moves that name several birds have the same problem. <a href="#sets">Jump to Sets</a>.</p>
+  </div>
+</section>
+
+<section id="shared">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Block 2 · one per observation</span>
+      <h2>The table, and the question being asked</h2>
+      <p>The shared block holds 241 numbers. <b>Public</b> (124) is the table: tray, bird feeder, deck and discard sizes, the round, and the four round goals. <b>Pending</b> (113) is what the game is asking right now. <b>Players</b> (4) is the player count.</p>
+      <p>The pending block is the subtle one. Decisions #115 to #118 below come from the same player a few seconds apart, on almost the same board. #115 asks which action to take, #116 where the eggs go, #117 whether to run the power that laying eggs triggered, and #118 which bird that power should target. Without the pending block, the net would see four nearly identical inputs and have to produce four different kinds of answer.</p>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between"><div class="fig-title">The shared block, decision by decision</div><div class="seg" data-pick></div></div>
+      <figure class="shot" id="shot-shared-wrap" hidden><img id="shot-shared" alt=""><figcaption>The web app at the same moment, from player 2's seat. The prompt bar along the bottom, and the choice panel when a power is resolving, are what the pending block encodes.</figcaption></figure>
+      <div id="pending-chips" class="chips"></div>
+      <div class="scroll-x"><div class="anat" id="anat-shared" style="min-width:560px"></div></div>
+      <p class="fig-cap">Cells outlined in <span class="t-net">berry</span> changed since the previous decision. Flip from #115 to #116: the public rows barely move, while phase, counters and power state change. At #117 a power is queued but hasn't started, so the active power switches on while the power step is still "none"; at #118 the step moves to "select bird". The chips above list every non-zero pending number.</p>
+    </div>
+  </div>
+</section>
+
+<section id="actions">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Block 3 · one per legal move</span>
+      <h2>Each legal move becomes 146 numbers</h2>
+      <p>The obvious design is one output per possible move in the whole game. But the set of moves in Wingspan is huge and mostly empty: a huge space of egg distributions, of which at most 81 are legal at a time. So instead we <b>describe each legal move</b> with a vector and let the network <b>score</b> each one. The number of legal moves can vary freely, from 2 to 192 in our data.</p>
+      <p>An action vector has two parts. A one-hot <b>kind</b> (37 options) says what is being done, and the rest says <b>to what</b>: which birds (their averaged features, a choice the Sets section revisits), which bonus card, which board spots, which habitat, which foods, how many eggs or cards.</p>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between"><div class="fig-title">The legal moves at this decision, with MCTS's verdict</div><div class="seg" data-pick></div></div>
+      <div class="scroll-x"><div class="acts" id="acts" style="min-width:820px"></div></div>
+      <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))">
+        <div style="min-width:0"><div class="eyebrow" style="margin-bottom:6px">Spots this move touches (<code>action_spot_*</code>)</div><div class="scroll-x" id="act-board"></div></div>
+        <div style="min-width:0"><div class="eyebrow" style="margin-bottom:6px">Non-zero numbers of the selected move</div><div class="chips" id="act-chips"></div></div>
+      </div>
+      <p class="fig-cap">The column stripes are, in order: kind 37 · birds 45 · bird count 1 · bonus 32 · spot 15 · habitat 3 · food 5 · food given 5 · eggs, deck cards, targets-self 3. The <b>taken</b> move is the one MCTS played, the one with the most visits.</p>
+    </div>
+    <div class="callout prose">
+      <h3>Why spots matter: lining actions up with the board</h3>
+      <p>"Lay 2 eggs on bird #95" says nothing about <i>where</i> #95 sits. To judge it, the net needs that slot's current eggs, its row and the round goal ("eggs in forest"). With only bird features, it would have to match a 45-number pattern against 15 slots, and MLPs are poor at learned equality tests. With <code>action_spot_forest_2 = 2/5</code>, the action points at the same position the observation uses for <code>forest_2_*</code>. The net learns one rule per slot instead of one per bird-and-slot pair. A card in hand has no spot, so a tuck or discard leaves these 15 numbers at zero.</p>
+    </div>
+  </div>
+</section>
+
+<section id="sets">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Keeping cards apart · experiment EXP-010 <span class="tag-planned">planned</span></span>
+      <h2>Set encoders: transform each card, then add</h2>
+      <p>The summed hand and the averaged birds of a move have the same flaw: adding cards together mixes up their properties. This section builds the fix one step at a time. First the failure, live. Then why no linear layer can repair it, why a single ReLU unit can, and how the fix plugs into the networks.</p>
+    </div>
+
+    <div class="fig">
+      <div class="fig-title">Step 1 · Two hands, one sum</div>
+      <div class="sets-hands" id="sets-hands"></div>
+      <div class="verdict" id="sets-verdict"></div>
+      <p class="fig-cap">Pick any two birds for each hand. The left half of each table is what the encoder adds up today: four of the 45 columns. The right half is four <b>detector units</b>, computed per card <i>before</i> adding. Each one is <code>ReLU(habitat + nest − 1)</code>: it fires only when the habitat and the nest are on the same card. With the default hands, the raw sums come out identical, so the network can't know that only hand B holds a bowl bird for the wetland. The detector sums differ, so after adding, that fact is still there.</p>
+    </div>
+
+    <div class="cols">
+      <div class="fig">
+        <div class="fig-title">Step 2 · Why a linear layer can't fix it</div>
+        <div class="scroll-x"><table class="spec sets-t" id="sets-linear"></table></div>
+        <p class="fig-cap">One unit, <code>wetland + bowl − 1</code>, on the hands above, with and without the ReLU. Without it, the card values just add up: <code>Σ(w·xᵢ + b) = w·Σxᵢ + n·b</code>. That depends only on the raw sums and the card count, so two hands with equal sums get equal outputs, whatever the weights. The ReLU clips the negative card to 0 <i>before</i> the sum, and that clip is what keeps the cards apart.</p>
+      </div>
+      <div class="fig">
+        <div class="fig-title">Step 3 · One ReLU unit is an AND gate</div>
+        <div class="scroll-x"><table class="spec sets-t" id="sets-and"></table></div>
+        <p class="fig-cap">With weights +1, +1 and bias −1, the unit only exceeds 0 when both inputs are 1. That's why a hidden layer of such units can detect any "property X <i>and</i> property Y on this card". In the real network nobody writes these weights: φ has 64 outputs, and training finds whichever combinations help predict MCTS's choices and the game result.</p>
+      </div>
+    </div>
+
+    <div class="fig">
+      <div class="fig-title">Step 4a · One card: 45 numbers in, 64 out</div>
+      <div class="s4-flow" id="s4-card"></div>
+      <p class="fig-cap">Every bird has a fixed row of 45 numbers in the bird table: points, egg limit, wingspan, nest, habitats, cost, power colour and template. The hand is stored as bird ids, and looking an id up gives that bird's <b>row [45]</b>. φ (phi) is a small network, 45 → 64 → 64, with about 7,000 weights. It turns the row into 64 new numbers. Think of them as 64 questions it asks about the card. Nobody chooses the questions; training does. Here the four detectors from Step 1 stand in for 4 of them, and the dashed cells are the other 60.</p>
+    </div>
+
+    <div class="fig">
+      <div class="fig-title">Step 4b · A whole hand: the same φ on every card, then Σ</div>
+      <div class="scroll-x"><table class="spec sets-t" id="s4-hand"></table></div>
+      <p class="fig-cap">Hand B from Step 1, one row per card. Every card goes through the same φ, with the same weights. Σ then adds the outputs column by column, so the first column of the result means "how many cards in this hand answered question 1". A hand of 1 card or 17 still comes out as 64 numbers.</p>
+      <p class="fig-cap">The last row is <b>padding</b>. Training works on a batch of decisions at once, stored as one rectangular block of numbers, so shorter hands get dummy rows up to the longest hand in the batch, plus a <b>mask</b>: 1 for a real card, 0 for padding. φ of a dummy row isn't zero, because each layer adds a constant, so φ's output is multiplied by the mask before the sum. When the bot plays one decision at a time, there's no padding at all.</p>
+    </div>
+
+    <div class="fig diagram">
+      <div class="fig-title">Step 4c · Joining the rest: concat, then the MLPs</div>
+      <div class="s4-bars" id="s4-bars"></div>
+      <div class="scroll-x"><div id="sets-svg" style="min-width:900px"></div></div>
+      <p class="fig-cap"><b>Concat</b> puts two lists end to end. The 1,935 observation numbers are followed by the hand's 64, giving one list of 1,999 (the bars above, to scale). Nothing is added here: the adding happened across cards, in 4b. The next network needs one input list, so its first layer simply gets 64 more inputs, each with its own weights.</p>
+      <p class="fig-cap">An <b>MLP</b> (multi-layer perceptron) is a stack of simple steps: multiply the list by a table of weights, add constants, set negatives to zero (ReLU), and repeat. The <b>trunk MLP</b> reads the whole position once per decision and compresses it into <code>h</code>, 256 numbers. It's called the trunk because the value head and the policy head branch off it, like branches off a tree. The <b>action MLP</b> turns each legal move, together with the 64 numbers from its own set encoder φₐ, into <code>aₖ</code>: 256 numbers in the same space as <code>h</code>. It runs once per legal move, with the same weights each time. The policy then scores each move as <code>h · aₖ</code>.</p>
+      <p class="fig-cap">All of it trains together. On every batch, the error flows back from the loss through the heads, the trunk, the concat and the sum into φ, and every weight moves a little. φ isn't trained separately, and nobody tells it what to detect.</p>
+    </div>
+
+    <div class="cols">
+      <div class="fig">
+        <div class="fig-title">Step 5 · Sum, mean or max?</div>
+        <div class="scroll-x"><table class="spec sets-t" id="sets-pool"></table></div>
+        <p class="fig-cap">The "wetland ∧ bowl" detector over three hands, pooled three ways. <b>Sum</b> counts the matching cards. <b>Mean</b> divides by hand size, so one match in a hand of one looks like two in a hand of two. <b>Max</b> only says "at least one". The hand uses sum. An egg distribution lists a bird once per egg, so sum also counts eggs.</p>
+      </div>
+      <div class="callout prose">
+        <h3>Three properties for free</h3>
+        <p><b>Order doesn't matter.</b> Addition doesn't care which card comes first, so shuffling a hand changes nothing.</p>
+        <p><b>Any number of cards.</b> A 17-card hand is 17 rows. Nothing is divided by a cap, so nothing saturates. The cap question for <code>hand_size</code> doesn't apply here.</p>
+        <p><b>Nothing is lost in principle.</b> Zaheer et al. (2017) proved that any calculation on a set, meaning one whose answer can't depend on the order of the items, can be done in three steps: apply the same function φ to each item, add up the results, then apply a second function ρ (rho) to the total. Think of an election: φ turns each ballot into tally marks, the tallies are added, and ρ reads the totals to decide. Here the trunk MLP plays ρ. The proof assumes φ has enough outputs to count everything that matters; 64 is a practical bet, not a guarantee.</p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="prose">
+        <h3>Where it applies, and where it doesn't</h3>
+        <p style="margin-top:.6em"><b>Applies:</b> the hand and the tray in the observation, and every move that names several birds. Keeping 2 of 5 birds at setup is one of 64 options, and today all 64 are told apart only by the <i>average</i> of the kept birds. Taking 2 birds from the tray and spreading eggs over several birds work the same way.</p>
+        <p style="margin-top:.6em"><b>Doesn't apply:</b> bonus cards and the board. Each bonus card has its own identity column, so adding cards just lists which ones you hold, and a card's identity fixes all its parameters. Each board slot has its own 49 columns, so nothing on the board is added together.</p>
+      </div>
+      <div class="prose">
+        <h3>What it still can't see</h3>
+        <p style="margin-top:.6em">φ looks at one card at a time. Two birds that only matter together, like two birds that need the same scarce food, are combined after the sum, by the trunk, from the pooled detectors. So is the link between a card and the board: "does this bird fit my open wetland slot". <b>Attention</b> (a set transformer) lets each card look at the other cards and at the board slots before pooling. It's the next step if EXP-010 shows that sets matter.</p>
+      </div>
+    </div>
+
+    <div class="fig">
+      <div class="fig-title">EXP-010 · Four networks, one question each</div>
+      <div class="exp-grid">
+        <div class="exp-h corner"></div>
+        <div class="exp-h">Moves: averaged birds</div>
+        <div class="exp-h">Moves: + Σ φₐ over the move's birds</div>
+        <div class="exp-h row">Observation: summed hand and tray</div>
+        <div class="exp-cell"><b class="arm">(a) baseline</b><p>The plain network: flat 1,935-number observation and 146-number moves.</p></div>
+        <div class="exp-cell"><b class="arm">(c) moves only</b><p>Expected: better at <code>select_initial_cards</code> and <code>draw_cards</code>; no change at <code>main_turn</code>.</p></div>
+        <div class="exp-h row">Observation: + Σ φ over hand and tray</div>
+        <div class="exp-cell"><b class="arm">(b) observation only</b><p>Expected: better main-turn choices and value error; no change at <code>select_initial_cards</code>.</p></div>
+        <div class="exp-cell"><b class="arm">(d) both</b><p>If its gain over (a) equals the gains of (b) and (c) added, the two effects are independent.</p></div>
+      </div>
+      <p class="fig-cap">All four train on the same 2,550 games with the same split, sizes and seeds, three seeds each. The summed and averaged columns stay in every arm, so each set encoder only <i>adds</i> information, and any difference measures what keeping cards apart is worth. <b>Control:</b> <code>play_bird</code> names one bird, so nothing is mixed there. If an arm improves on it anyway, the gain comes from somewhere else, such as extra parameters.</p>
+    </div>
+  </div>
+</section>
+
+<section id="targets">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Step 3 · the replay dataset <span class="tag-planned">planned</span></span>
+      <h2>One training example, and a surprise in the labels</h2>
+      <p><code>decisions.parquet</code> stores, for every decision with more than one legal move, the move strings, the MCTS visit counts and the mean value of each child. It doesn't store the state, so the dataset builder replays the game from <code>game_seed</code>, auto-applies forced single-legal steps, and encodes the state at each recorded decision. I replayed 10 games this way and every legal-move set matched exactly.</p>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between"><div class="fig-title">What MCTS said about this decision (1,500 simulations)</div><div class="seg" data-pick></div></div>
+      <div class="cols">
+        <div style="min-width:0"><div class="eyebrow">Visits per move · dashed line = perfectly uniform</div><div class="scroll-x"><div id="visits-svg" style="min-width:300px"></div></div></div>
+        <div style="min-width:0"><div class="eyebrow">Mean value Q per move · note the zoomed axis</div><div class="scroll-x"><div id="q-svg" style="min-width:300px"></div></div></div>
+      </div>
+      <div class="stats" id="ex-stats"></div>
+    </div>
+    <div class="callout prose">
+      <h3>The visit counts are almost exactly uniform</h3>
+      <p>Across a 60,000-decision sample, the median normalized entropy of the visit distribution is <b>0.999</b>, where 1.0 means perfectly uniform. That holds in every phase. The reason is in the UCT formula MCTS uses to pick which child to explore: <code>Q + c·√(ln N / n)</code>. The values of sibling moves differ by about <b>0.012</b> (median), while the exploration bonus is about <b>0.5</b>. Exploration wins every comparison, so MCTS spreads its 1,500 simulations evenly and the final pick comes down to tiny differences in Q.</p>
+      <p>This has two consequences. For training, raw visit counts as the policy target would teach the net to play uniformly at random. For the engine, it probably explains why tuning the exploration constant came out flat: every value in the 0.3–8 range was too large compared with the Q differences.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Exploration bonus vs value spread at this decision, to scale</div>
+      <div id="uct-bars" class="bars"></div>
+      <p class="fig-cap">Bonus computed with the reference arm's <code>c = 2.27</code>, N = 1,500 parent visits and the average child visit count. A child would need Q higher by roughly the bonus gap before UCT would stop visiting its siblings.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Most-visited share vs uniform share, by phase (median)</div>
+      <div class="scroll-x"><div id="phase-svg" style="min-width:520px"></div></div>
+      <p class="fig-cap">If MCTS had strong opinions, the dark dot would sit far to the right of the hollow one. It never does. Measured on 60k sampled decisions of <code>mcts_joint_v2</code>.</p>
+    </div>
+    <div class="fig">
+      <div class="row" style="justify-content:space-between">
+        <div class="fig-title">Choosing the policy target</div>
+        <div class="seg" id="target-seg"></div>
+      </div>
+      <label class="ctl" for="tau">temperature τ <input type="range" id="tau" min="-3.3" max="-1" step="0.05" value="-2.3"><span id="tau-out"></span></label>
+      <div class="scroll-x"><div id="target-svg" style="min-width:300px"></div></div>
+      <p class="fig-cap" id="target-cap"></p>
+    </div>
+    <div class="cols">
+      <div class="prose">
+        <h3>Value targets</h3>
+        <p style="margin-top:.6em">Every decision in a game shares that game's result: <b>z = +1</b> for the winner and −1 for the loser. The final <b>score difference</b> (here +7, scaled by 50) is a second, richer target: a 1-point loss and a 30-point loss are both z = −1 but very different positions. The root value MCTS stored isn't used, because the study's arms used three different value functions, so it comes on three different scales.</p>
+      </div>
+      <div class="prose">
+        <h3>What one example looks like on disk</h3>
+        <p style="margin-top:.6em"><code>obs</code> [1,935] float16 · <code>actions</code> [K, 146] float16, stored ragged with an offset per decision · <code>pi</code> [K] · <code>z</code>, <code>score_diff</code> · <code>game_id</code>, phase, round. Train and validation are split <b>by game</b>. Neighbouring positions of one game are nearly identical, so splitting by row would let validation peek at training data.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="nets">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Step 4 · the networks <span class="tag-planned">planned</span></span>
+      <h2>Two heads, built apart, then merged</h2>
+      <p>The plan is to train a <b>value net</b> first, then a <b>policy net</b>, and only then merge them into one network with a shared trunk and two heads, as AlphaZero does. Building them apart means each failure has one cause. If the merged net plays badly, you won't know which half is wrong. Pick a stage below.</p>
+    </div>
+    <div class="fig diagram">
+      <div class="row" style="justify-content:space-between"><div class="seg" id="net-seg"></div><span class="eyebrow" id="net-params"></span></div>
+      <div class="scroll-x"><div id="net-svg" style="min-width:860px"></div></div>
+      <p class="fig-cap" id="net-cap"></p>
+    </div>
+    <div class="fig"><div class="scroll-x"><table class="spec" id="spec"></table></div></div>
+    <div class="cols">
+      <div class="prose">
+        <h3>The policy head is a tiny attention step</h3>
+        <p style="margin-top:.6em">The observation trunk produces <code>h</code>, a 256-number summary of the situation. The action MLP turns each legal move into <code>aₖ</code> in the same 256-dimensional space. The score of move <i>k</i> is the dot product <code>h · aₖ</code>. This is the query–key product from transformer attention: <code>h</code> asks "what kind of move is good here?", each <code>aₖ</code> answers "this is what I am", and the dot product measures how well they match. A softmax over the K scores gives the policy.</p>
+      </div>
+      <div class="prose">
+        <h3>Why the value net needs more care</h3>
+        <p style="margin-top:.6em">The policy net gets one label per decision: 438,686 of them. The value net gets one label per <i>game</i>, shared by about 170 decisions that all look alike. So it effectively sees 2,550 outcomes, which is easy to memorize. Hence the score-difference target, a small network, weight decay, and a game-level split. In the merged net, the value loss is usually down-weighted so it can't drag the shared trunk into overfitting.</p>
+      </div>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Batching moves of different counts: pad, then mask</div>
+      <div class="scroll-x"><div id="mask-svg" style="min-width:560px"></div></div>
+      <p class="fig-cap">A batch of the four example decisions has 3, 14, 2 and 4 legal moves. They're padded to 14 so the batch is one tensor, [4, 14, 146]. Before the softmax, padded slots get a score of −∞, so they receive exactly 0 probability and 0 gradient. In the data, 98.5% of decisions have 20 moves or fewer; the rare 64-to-192-move decisions can go in their own batches.</p>
+    </div>
+  </div>
+</section>
+
+<section id="mcts">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Step 5 · plugging the nets into search <span class="tag-planned">planned</span></span>
+      <h2>Where the two heads go inside MCTS</h2>
+      <p>The nets don't replace search; they make each simulation smarter and cheaper. The <b>policy</b> tells MCTS which children deserve visits before it has tried them. The <b>value</b> replaces the random rollout to the end of the game with one forward pass.</p>
+    </div>
+    <div class="cols">
+      <div class="fig"><div class="fig-title">One simulation today <span class="tag-built">built</span></div>
+        <ol class="steps">
+          <li><span><b>Select</b> a path down the tree using UCT: <code>Q + c·√(ln N / n)</code>. Every child starts equal.</span></li>
+          <li><span><b>Expand</b> a new child (progressive widening limits how many).</span></li>
+          <li class="slow"><span><b>Roll out</b> with random moves to the end of the game: about 150 more decisions, all random.</span></li>
+          <li><span><b>Back up</b> the final result into every node on the path, one value per player.</span></li>
+        </ol></div>
+      <div class="fig"><div class="fig-title">One simulation with the nets <span class="tag-planned">planned</span></div>
+        <ol class="steps">
+          <li class="net"><span><b>Select</b> using PUCT, where the policy's prior P(s,a) decides which children look promising before any visit.</span></li>
+          <li class="net"><span><b>Expand</b> a child and evaluate the net once: P for its moves, v for the position.</span></li>
+          <li class="net"><span><b>No rollout.</b> The value head's v stands in for "play randomly to the end and see".</span></li>
+          <li><span><b>Back up</b> v exactly as before.</span></li>
+        </ol></div>
+    </div>
+    <div class="formula" id="puct"></div>
+    <p class="fig-cap prose" id="puct-cap">Hover a term to see what it does.</p>
+    <div class="callout prose">
+      <h3>The uniform visits matter here too</h3>
+      <p>PUCT has the same scale problem as UCT. If Q differences are about 0.01 and the bonus is about 0.5, the policy prior will dominate and the value head will barely steer. AlphaZero-style implementations normalize Q to [0, 1] using the minimum and maximum values seen in the tree (MuZero does this). Then <code>c</code> means the same thing in every position. It's a small change, and probably worth testing on the current UCT before any network exists.</p>
+    </div>
+    <div class="fig diagram">
+      <div class="fig-title">The loop this all builds toward (step 6)</div>
+      <div class="scroll-x"><div id="loop-svg" style="min-width:620px"></div></div>
+      <p class="fig-cap">Each lap, a stronger search produces better labels, which trains a stronger net, which makes a stronger search. The first lap starts from plain MCTS games because training from random self-play would cost more compute than a laptop and a homelab can spare (hypotheses H6/H7).</p>
+    </div>
+  </div>
+</section>
+
+<section id="budget">
+  <div class="wrap">
+    <div class="sec-head prose">
+      <span class="eyebrow">Reality check</span>
+      <h2>The data budget</h2>
+      <p>All of this runs on an 8 GB laptop. The numbers that decide what is feasible:</p>
+    </div>
+    <div class="fig"><div class="bars" id="budget-bars"></div>
+      <p class="fig-cap">Bars within each pair are to scale. There are plenty of positions but few independent outcomes. A float32 copy of the observations would need 3.4 GB, so the builder writes float16 to a disk-backed array (a memmap) and training reads batches from it.</p></div>
+  </div>
+</section>
+
+<footer class="wrap prose">
+  <p>Built from <code>src/wingspan/ai/encoding.py</code> (player 847 · shared 241 · action 146 numbers) and decisions #115 to #118 of game <span class="mono" id="gid"></span>, replayed from <code>experiments/tuning/mcts_joint_v2</code>. Visit-entropy and Q-spread figures come from a 60k-decision sample of the same study.</p>
+</footer>
+
+<script>
+const D = /*__DATA__*/null;
+const SHOTS = /*__SHOTS__*/null; // decision idx -> screenshot data URI (lab/explainer/screenshots.py)
+const NS = 'http://www.w3.org/2000/svg';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v; else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+}
+function s(tag, attrs = {}, ...kids) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+}
+const fmt = (v, d = 3) => (+v).toFixed(d).replace(/\.?0+$/, '') || '0';
+const BY_ID = Object.fromEntries(D.birds.map(b => [b.id, b]));
+const BN = D.names.bird, PN = D.names.player, SN = D.names.shared, AN = D.names.action;
+const HAB = ['forest', 'grassland', 'wetland'];
+const HAB_LABEL = { forest: 'Forest', grassland: 'Grassland', wetland: 'Wetland' };
+let cur = 1; // index into D.snaps; #116 by default
+const snap = () => D.snaps[cur];
+
+/* ---------- tooltip ---------- */
+const tip = $('#tip');
+function placeTip(e) {
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 16;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 12;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 12;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+document.addEventListener('pointerover', e => {
+  const c = e.target.closest?.('[data-n]');
+  if (!c) { tip.hidden = true; return; }
+  tip.replaceChildren(h('b', {}, c.dataset.n), c.dataset.v != null ? h('span', {}, c.dataset.v) : null);
+  tip.hidden = false; placeTip(e);
+});
+document.addEventListener('pointerout', e => {
+  if (e.target.closest?.('[data-n]') !== e.relatedTarget?.closest?.('[data-n]')) tip.hidden = true;
+});
+document.documentElement.addEventListener('pointerleave', () => { tip.hidden = true; });
+document.addEventListener('pointermove', e => { if (!tip.hidden) placeTip(e); });
+document.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+
+/* ---------- heatmap cells ---------- */
+function cell(name, v, { hot, hidden, changed, cw } = {}) {
+  const p = v > 0 ? Math.round(18 + 82 * Math.min(v, 1)) : 0;
+  const style = `--p:${p}%` + (hot ? `;--hot:var(${hot})` : '') + (cw ? `;--cw:${cw}px` : '');
+  return h('span', { class: 'c' + (hidden ? ' hid' : '') + (changed ? ' chg' : ''), style, 'data-n': name, 'data-v': hidden ? 'hidden from this viewer → 0' : fmt(v) });
+}
+function cells(names, vals, opts = {}) {
+  return h('div', { class: 'cells' }, names.map((n, i) => cell(n, vals[i], {
+    hot: opts.hot, hidden: opts.hidden?.(n), changed: opts.changed?.(i), cw: opts.cw })));
+}
+
+/* ---------- rail ---------- */
+const SECTIONS = [['map', 'Map'], ['rules', 'Rules'], ['birds', 'Birds'], ['player', 'Player'], ['bags', 'Bags'], ['shared', 'Table'], ['actions', 'Actions'], ['sets', 'Sets'], ['targets', 'Labels'], ['nets', 'Networks'], ['mcts', 'Search'], ['budget', 'Budget']];
+$('#rail').append(...SECTIONS.map(([id, t]) => h('a', { href: '#' + id, 'data-sec': id }, t)));
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) $$('#rail a').forEach(a => a.classList.toggle('on', a.dataset.sec === e.target.id));
+}), { rootMargin: '-40% 0px -55% 0px' });
+SECTIONS.forEach(([id]) => io.observe(document.getElementById(id)));
+
+/* ---------- diagram DSL ---------- */
+function diagram(W, H, nodes, edges, { onNode, dimmed = new Set(), hotEdges = new Set() } = {}) {
+  const N = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  svg.append(s('defs', {}, s('marker', { id: 'arr' + W + H, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' },
+    s('path', { d: 'M0,0 L10,5 L0,10 z', fill: 'var(--muted)' }))));
+  for (const [a, b, o = {}] of edges) {
+    const A = N[a], B = N[b];
+    const port = (n, side) => side === 'bottom' ? [n.x + n.w / 2, n.y + n.h] : side === 'top' ? [n.x + n.w / 2, n.y] : side === 'left' ? [n.x, n.y + n.h / 2] : [n.x + n.w, n.y + n.h / 2];
+    const [x1, y1] = port(A, o.from || 'right'), [x2, y2] = port(B, o.to || 'left');
+    const vert = (o.from === 'bottom' || o.from === 'top');
+    const d = vert ? `M${x1},${y1} C${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}` : `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
+    const key = a + '>' + b;
+    svg.append(s('path', { d, class: 'edge flow' + (dimmed.has(a) || dimmed.has(b) ? ' dim' : '') + (hotEdges.has(key) ? ' hot' : ''), 'marker-end': `url(#arr${W}${H})` }));
+    if (o.label) svg.append(s('text', { x: (x1 + x2) / 2, y: Math.min(y1, y2) + (vert ? (y2 - y1) / 2 : -7), 'text-anchor': 'middle', 'font-size': 11 }, o.label));
+  }
+  for (const n of nodes) {
+    const g = s('g', { class: `node ${n.kind}${n.planned || n.dashed ? ' planned' : ''}${n.go || onNode ? ' link' : ''}${dimmed.has(n.id) ? ' dim' : ''}`, tabindex: n.go ? 0 : null, role: n.go ? 'link' : null });
+    g.append(s('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: 8 }));
+    const ty = n.sub ? n.y + n.h / 2 - 3 : n.y + n.h / 2 + 5;
+    g.append(s('text', { class: 't', x: n.x + n.w / 2, y: ty, 'text-anchor': 'middle' }, n.label));
+    if (n.sub) g.append(s('text', { class: 's', x: n.x + n.w / 2, y: n.y + n.h / 2 + 14, 'text-anchor': 'middle' }, n.sub));
+    if (n.planned) g.append(s('text', { x: n.x + n.w - 6, y: n.y - 5, 'text-anchor': 'end', 'font-size': 9.5, fill: 'var(--net)', style: 'fill:var(--net);letter-spacing:.06em' }, 'PLANNED'));
+    if (n.tip) { g.setAttribute('data-n', n.label); g.setAttribute('data-v', n.tip); }
+    if (n.go) {
+      const go = () => document.getElementById(n.go).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      g.addEventListener('click', go); g.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    }
+    svg.append(g);
+  }
+  return svg;
+}
+
+/* ---------- map ---------- */
+(function map() {
+  const nodes = [
+    { id: 'st', x: 10, y: 52, w: 130, h: 58, label: 'GameState', sub: 'the real table', kind: 'code', go: 'player', tip: 'Engine dataclass: boards, hands, feeder, deck…' },
+    { id: 'eo', x: 172, y: 52, w: 136, h: 58, label: 'encode_obs', sub: 'viewer-relative', kind: 'code', go: 'rules', tip: 'Only what the viewer could see' },
+    { id: 'ob', x: 340, y: 52, w: 178, h: 58, label: 'obs [1935]', sub: 'me 847 · opp 847 · 241', kind: 'data', go: 'player', tip: 'me + opponent + shared table/pending' },
+    { id: 'tr', x: 552, y: 52, w: 140, h: 58, label: 'Trunk MLP', sub: '1935 → 512 → 256', kind: 'layer', planned: true, go: 'nets' },
+    { id: 'hh', x: 724, y: 52, w: 92, h: 58, label: 'h', sub: '[256]', kind: 'data', planned: true, go: 'nets', tip: 'A learned summary of the position' },
+    { id: 'vh', x: 856, y: 10, w: 136, h: 52, label: 'Value head', sub: '256 → 1, 1', kind: 'layer', planned: true, go: 'nets' },
+    { id: 'vo', x: 1024, y: 10, w: 146, h: 52, label: 'v, score Δ', sub: 'who is winning?', kind: 'out', planned: true, go: 'targets' },
+    { id: 'la', x: 10, y: 232, w: 130, h: 58, label: 'Legal moves', sub: 'K of them (2–192)', kind: 'code', go: 'actions', tip: 'get_actions(state)' },
+    { id: 'ea', x: 172, y: 232, w: 136, h: 58, label: 'encode_action', sub: 'kind + what it touches', kind: 'code', go: 'actions' },
+    { id: 'ak', x: 340, y: 232, w: 178, h: 58, label: 'moves [K × 146]', sub: 'one row per legal move', kind: 'adata', go: 'actions' },
+    { id: 'am', x: 552, y: 232, w: 140, h: 58, label: 'Action MLP', sub: '146 → 256 → 256', kind: 'layer', planned: true, go: 'nets' },
+    { id: 'av', x: 724, y: 232, w: 92, h: 58, label: 'aₖ', sub: '[K × 256]', kind: 'adata', planned: true, go: 'nets' },
+    { id: 'dp', x: 856, y: 142, w: 136, h: 58, label: 'h · aₖ', sub: 'one score per move', kind: 'layer', planned: true, go: 'nets', tip: 'Dot product: query meets keys' },
+    { id: 'po', x: 1024, y: 142, w: 146, h: 58, label: 'π = softmax', sub: 'which move?', kind: 'out', planned: true, go: 'targets' },
+  ];
+  const edges = [['st', 'eo'], ['eo', 'ob'], ['ob', 'tr'], ['tr', 'hh'], ['hh', 'vh'], ['vh', 'vo'], ['la', 'ea'], ['ea', 'ak'], ['ak', 'am'], ['am', 'av'], ['hh', 'dp', { from: 'bottom', to: 'left' }], ['av', 'dp', { from: 'top', to: 'left' }], ['dp', 'po'], ['st', 'la', { from: 'bottom', to: 'top' }]];
+  $('#map-svg').append(diagram(1180, 300, nodes, edges));
+})();
+
+/* ---------- wingspan scaling ---------- */
+(function wing() {
+  const W = 760, H = 150, x0 = 120, x1 = 740;
+  const ws = D.birds.map(b => Math.exp(b.vec[BN.indexOf('wingspan')] * Math.log(300)));
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}` });
+  const lane = (y, label, f) => {
+    svg.append(s('text', { x: 0, y: y + 4, 'font-size': 11, class: 'ink' }, label));
+    svg.append(s('line', { x1: x0, x2: x1, y1: y, y2: y, stroke: 'var(--rule)' }));
+    [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+      svg.append(s('line', { x1: x0 + t * (x1 - x0), x2: x0 + t * (x1 - x0), y1: y + 8, y2: y + 13, stroke: 'var(--muted)' }));
+      svg.append(s('text', { x: x0 + t * (x1 - x0), y: y + 25, 'text-anchor': 'middle', 'font-size': 10 }, t));
+    });
+    ws.forEach((w, i) => svg.append(s('circle', { cx: x0 + f(w) * (x1 - x0), cy: y + ((i * 37) % 9) - 4, r: 3.2, fill: 'var(--obs)', 'fill-opacity': 0.55, 'data-n': D.birds[i].name, 'data-v': `${Math.round(w)} cm → ${fmt(f(w))}` })));
+  };
+  lane(30, 'cm / 300', w => w / 300);
+  lane(100, 'log(cm)/log(300)', w => Math.log(w) / Math.log(300));
+  $('#wing-svg').append(svg);
+})();
+
+/* ---------- bird explorer ---------- */
+const birdGroups = [['points', 1], ['egg limit', 1], ['wing', 1], ['nest', 5], ['habitat', 3], ['cost', 8], ['power color', 4], ['power template (0 = none)', 22]];
+function bracketRow(groups, cw, gap = 2) {
+  return h('div', { class: 'brackets' }, groups.map(([t, n]) => h('span', { style: `width:${n * cw + (n - 1) * gap}px`, title: t }, t)));
+}
+/* The web app's bird card (cardHtml and helpers in src/wingspan/web/static/app.js, icons.js) */
+const icon = name => D.icons[name] ? `<img class="ico" src="${D.icons[name]}" alt="${name}" draggable="false">` : null;
+function tok(text) {
+  const esc = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return esc.replace(/\[([a-z_ ]+)\]/g, (m, name) => { const i = icon(name); return i ? `<span class="tok" title="${name}">${i}</span>` : `<b>${name}</b>`; });
+}
+const SILHOUETTES = {
+  perched: `<path d="M30 70C20 60 22 40 38 34c2-12 14-18 22-12 6 3 8 6 14 7l-8 4c4 12 0 27-12 35l10 18h-6L48 72l-4 2 2 14h-6V74c-4 0-8-1-10-4z"/><path d="M31 69 11 84l7 2 18-12z"/>`,
+  wader: `<path d="M22 50c3-12 26-17 40-11 4-8 2-16 6-22 4-4 10-3 11 1l15 4H79c-5 3-7 11-9 21-4 12-20 16-32 14l-16 6z"/><path d="M46 57l-3 38M55 57l4 38" stroke="currentColor" stroke-width="3"/>`,
+  flying: `<path d="M50 44C40 29 20 22 3 26c15 6 25 14 37 26 4 4 8 6 10 10 2-4 6-6 10-10 12-12 22-20 37-26-17-4-37 3-47 18z"/><circle cx="50" cy="40" r="5"/>`,
+};
+function silhouetteFor(b) {
+  const shape = b.wingspan >= 100 ? 'flying' : b.habitats.length === 1 && b.habitats[0] === 'wetland' && b.wingspan >= 55 ? 'wader' : 'perched';
+  return `<svg class="sil" viewBox="0 0 100 100" aria-hidden="true">${SILHOUETTES[shape]}</svg>`;
+}
+const costHtml = b => b.cost.map(alt => alt.flatMap(([f, n]) => Array(n).fill(icon(f))).join('<i class="op">+</i>')).join('<i class="op">/</i>');
+function cardHtml(id) {
+  const b = D.cards[id], p = b.power;
+  const eggs = Array.from({ length: b.eggs }, () => '<i class="egg"></i>').join('');
+  return `<div class="card" data-bird="${id}">
+    <div class="c-tab"><div class="c-habs">${b.habitats.map(icon).join('')}</div><div class="c-cost">${costHtml(b)}</div></div>
+    <div class="c-name"><span style="font-size:${b.name.length > 18 ? 6.4 : b.name.length > 13 ? 7.4 : 8.4}cqw">${b.name}</span></div>
+    <div class="c-stats">
+      <div class="c-pts">${b.points}${icon('points')}</div>
+      <div class="c-nest" title="${b.nest} nest">${b.nest === 'none' ? '' : icon(b.nest === 'wild' ? 'star' : b.nest)}</div>
+      <div class="c-eggs">${eggs}</div>
+    </div>
+    <div class="c-art">${silhouetteFor(b)}</div>
+    <div class="c-wing">${b.wingspan}cm</div>
+    <div class="c-power ${p ? p.color : 'none'}">${p ? `<div>${p.predator ? tok('[predator]') + ' ' : ''}<b>${p.trigger}:</b> ${tok(p.text)}</div>` : ''}</div>
+  </div>`;
+}
+/* ---------- 3D map of the birds (PCA of the 45 features, computed in build.py) ---------- */
+const pca = (() => {
+  const cv = $('#pca'), ctx = cv.getContext('2d');
+  const P = D.pca, ids = D.birds.map(b => b.id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const vec = (id, name) => BY_ID[id].vec[BN.indexOf(name)];
+  const SCHEMES = {
+    habitat: { label: 'Habitat', keys: [['forest', '--forest'], ['grassland', '--grass'], ['wetland', '--wetland'], ['several', '--muted']],
+      of: id => { const hs = HAB.filter(x => vec(id, 'habitat_' + x)); return hs.length === 1 ? hs[0] : 'several'; } },
+    power: { label: 'Power color', keys: [['brown', '--act'], ['white', '--obs'], ['pink', '--net'], ['none', '--muted']],
+      of: id => ['brown', 'white', 'pink', 'none'].find(c => vec(id, 'power_color_' + c)) },
+    nest: { label: 'Nest', keys: [['bowl', '--act'], ['cavity', '--wetland'], ['ground', '--grass'], ['platform', '--net'], ['wild', '--obs'], ['none', '--muted']],
+      of: id => ['bowl', 'cavity', 'ground', 'platform', 'wild'].find(n => vec(id, 'nest_' + n)) || 'none' },
+  };
+  let scheme = 'habitat', yaw = 0.7, pitch = -0.35, auto = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let hover = null, selected = null, near = [], drag = null, pts = [];
+  const all = ids.map(id => P.coords[id]);
+  const scale = 1 / Math.max(...all.flat().map(Math.abs));
+  function draw() {
+    const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const R = Math.min(W, H) * 0.42, cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const proj = ([x, y, z]) => {
+      const x1 = x * cy + z * sy, z1 = -x * sy + z * cy, y1 = y * cp - z1 * sp, z2 = y * sp + z1 * cp;
+      const f = 3 / (3 + z2);
+      return [W / 2 + x1 * R * f, H / 2 - y1 * R * f, z2, f];
+    };
+    ctx.font = '11px ' + css('--f-mono'); ctx.lineWidth = 1;
+    ['PC1', 'PC2', 'PC3'].forEach((name, k) => {
+      const e = [0, 0, 0]; e[k] = 1.1;
+      const [x0, y0] = proj([0, 0, 0]), [x1, y1] = proj(e), [x2, y2] = proj(e.map(v => -v));
+      ctx.strokeStyle = css('--rule'); ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.fillStyle = css('--muted'); ctx.fillText(`${name} ${Math.round(P.var[k] * 100)}%`, x1 + 4, y1);
+    });
+    const sc = SCHEMES[scheme], color = Object.fromEntries(sc.keys.map(([k, v]) => [k, css(v)]));
+    pts = ids.map(id => { const [x, y, z, f] = proj(P.coords[id].map(v => v * scale)); return { id, x, y, z, f }; }).sort((a, b) => b.z - a.z);
+    const nearSet = new Set(near);
+    for (const p of pts) {
+      const on = p.id === selected, nb = nearSet.has(p.id);
+      ctx.globalAlpha = selected == null || on || nb ? 0.9 : 0.35;
+      ctx.fillStyle = color[sc.of(p.id)];
+      ctx.beginPath(); ctx.arc(p.x, p.y, (on ? 7 : nb ? 5.5 : 4) * p.f, 0, 7); ctx.fill();
+      if (on || nb || p.id === hover) {
+        ctx.globalAlpha = 1; ctx.strokeStyle = css('--ink'); ctx.lineWidth = on ? 2 : 1; ctx.stroke(); ctx.lineWidth = 1;
+        ctx.fillStyle = css('--ink'); ctx.fillText(BY_ID[p.id].name, p.x + 8, p.y - 6);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  function loop() { if (auto && !drag) { yaw += 0.003; draw(); } requestAnimationFrame(loop); }
+  const at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const pick = ([x, y]) => { let best = null, bd = 100; for (const p of pts) { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = p.id; } } return best; };
+  cv.addEventListener('pointerdown', e => { drag = { xy: at(e), moved: false }; auto = false; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; });
+  cv.addEventListener('pointermove', e => {
+    const xy = at(e);
+    if (drag) {
+      const dx = xy[0] - drag.xy[0], dy = xy[1] - drag.xy[1];
+      if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+      yaw += dx * 0.01; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.01)); drag.xy = xy;
+    } else hover = pick(xy);
+    draw();
+  });
+  cv.addEventListener('pointerup', e => {
+    if (drag && !drag.moved) { const id = pick(at(e)); if (id != null) { $('#bird-select').value = id; renderBird(id); } }
+    drag = null; cv.style.cursor = 'grab';
+  });
+  cv.addEventListener('pointerleave', () => { hover = null; draw(); });
+  addEventListener('resize', draw);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
+  const seg = $('#pca-seg');
+  const legend = () => $('#pca-legend').replaceChildren(...SCHEMES[scheme].keys.map(([k, v]) => h('span', {}, h('i', { style: `background:var(${v})` }), k)));
+  Object.entries(SCHEMES).forEach(([k, sc]) => seg.append(h('button', { 'aria-pressed': k === scheme, onclick: e => { scheme = k; $$('#pca-seg button').forEach(b => b.setAttribute('aria-pressed', b === e.currentTarget)); legend(); draw(); } }, sc.label)));
+  legend();
+  const axis = k => P.axes[k].map(([n, w]) => `${w > 0 ? '+' : '−'}${n}`).join(', ');
+  $('#pca-cap').textContent = `PCA finds the three directions along which the birds' 45 numbers vary most, and places each bird by its position along them. Drag to rotate; click a bird to select it in the explorer above. The selected bird's six nearest neighbours in the full 45 dimensions are outlined. When an outlined one sits far away in this plot, that's the ${Math.round((1 - P.var.reduce((a, b) => a + b, 0)) * 100)}% of the variation three axes can't show. What drives each axis: PC1 ${axis(0)} · PC2 ${axis(1)} · PC3 ${axis(2)}.`;
+  requestAnimationFrame(loop);
+  return { select(id, nearIds) { selected = id; near = nearIds; draw(); } };
+})();
+
+function renderBird(id) {
+  const b = BY_ID[id];
+  $('#bird-card').replaceChildren(h('div', { class: 'gw', style: 'width:min(100%,280px)', html: cardHtml(id) }));
+  $('#bird-strip').replaceChildren(h('div', { style: 'min-width:max-content;display:grid;gap:4px' }, cells(BN, b.vec, { cw: 15 }), bracketRow(birdGroups, 15)));
+  const d = D.birds.filter(o => o.id !== id).map(o => [o, Math.hypot(...o.vec.map((x, i) => x - b.vec[i]))]).sort((a, c) => a[1] - c[1]).slice(0, 6);
+  pca.select(id, d.map(([o]) => o.id));
+  $('#bird-near').replaceChildren(...d.map(([o, dist]) => h('button', { onclick: () => { $('#bird-select').value = o.id; renderBird(o.id); } }, o.name, h('small', {}, fmt(dist, 2)))));
+}
+(function birds() {
+  const sel = $('#bird-select');
+  [...D.birds].sort((a, b) => a.name.localeCompare(b.name)).forEach(b => sel.append(h('option', { value: b.id }, b.name)));
+  const robin = D.birds.find(b => b.name === 'American Robin') || D.birds[0];
+  sel.value = robin.id; renderBird(robin.id);
+  sel.addEventListener('change', () => renderBird(+sel.value));
+})();
+
+/* ---------- player block ---------- */
+function playerGroup(n) {
+  let m = n.match(/^(forest|grassland|wetland)_(\d)_/);
+  if (m) return 'slot:' + m[1] + '_' + m[2];
+  m = n.match(/^(forest|grassland|wetland)_/);
+  if (m) return 'rows:' + m[1];
+  if (n.startsWith('food_')) return 'food';
+  if (n.startsWith('hand_')) return 'hand';
+  if (n.startsWith('held_') || n.startsWith('bonus_')) return 'bonus';
+  if (n.startsWith('round_goal_points') || n.startsWith('goal_progress')) return 'goals';
+  if (n === 'score_now') return 'score';
+  return 'turn';
+}
+const hiddenToOthers = n => (n.startsWith('hand_') && n !== 'hand_size') || n.startsWith('held_') || n === 'bonus_progress' || n === 'bonus_points_now';
+function groupsOf(names, fn) {
+  const out = [];
+  names.forEach((n, i) => { const g = fn(n); if (!out.length || out.at(-1).g !== g) out.push({ g, idx: [] }); out.at(-1).idx.push(i); });
+  return out;
+}
+const PG = groupsOf(PN, playerGroup);
+const groupLabel = g => {
+  const [k, v] = g.split(':');
+  if (k === 'slot') return h('span', {}, h('b', {}, v), ' slot');
+  if (k === 'rows') return h('span', {}, h('b', {}, v), ' row summary');
+  return h('b', {}, { food: 'food', hand: 'hand (bag)', bonus: 'bonus cards', goals: 'round goals', score: 'score_now', turn: 'cubes, turns left, first player' }[k] || k);
+};
+(function comp() {
+  const parts = [
+    ['Forest slots', 245, 'var(--forest)'], ['Grassland slots', 245, 'var(--grass)'], ['Wetland slots', 245, 'var(--wetland)'],
+    ['Row summaries', 12, 'var(--muted)'], ['Food', 5, 'var(--obs)'], ['Hand', 46, 'var(--act)'], ['Bonus', 35, 'var(--net)'],
+    ['Goals', 8, 'var(--ink)'], ['Score', 1, 'var(--obs)'], ['Turns · first', 5, 'var(--muted)']];
+  const total = parts.reduce((a, p) => a + p[1], 0);
+  $('#comp').append(...parts.map(([l, n, c]) => h('div', { style: `flex:${n};background:${c}`, 'data-n': l, 'data-v': `${n} numbers · ${fmt(100 * n / total, 1)}%` }, n >= 40 ? `${l} ${n}` : '')));
+  $('#comp-legend').append(...parts.map(([l, n, c]) => h('span', {}, h('i', { style: `background:${c}` }), `${l} ${n}`)), h('span', {}, h('b', {}, `= ${total}`)));
+})();
+
+function boardEl(board, { hl = {}, onPick, selSlot } = {}) {
+  const g = h('div', { class: 'board' });
+  HAB.forEach((hab, r) => {
+    g.append(h('div', { class: 'rl ' + hab }, HAB_LABEL[hab]));
+    for (let c = 0; c < 5; c++) {
+      const b = board[r * 5 + c], sid = `${hab}_${c}`;
+      if (!b) { g.append(h('div', { class: 'slot empty' + (hl[sid] ? ' hl' : '') }, h('span', { class: 'sid' }, sid))); continue; }
+      const eggs = h('span', { class: 'eggs' }, Array.from({ length: b.limit }, (_, i) => h('i', { class: i < b.eggs ? 'f' : '' })));
+      const extra = [b.cached ? `${b.cached} cached` : null, b.tucked ? `${b.tucked} tucked` : null].filter(Boolean).join(' · ');
+      g.append(h('button', { class: `slot ${hab}` + (hl[sid] ? ' hl' : '') + (selSlot === sid ? ' sel' : ''), onclick: onPick ? () => onPick(sid, b) : null, 'aria-label': `${b.name} in ${sid}` },
+        h('span', { class: 'sid' }, sid), h('span', {}, b.name), eggs, extra ? h('span', { class: 'sid' }, extra) : null,
+        hl[sid] ? h('span', { class: 'badge' }, '+' + Math.round(hl[sid] * 5)) : null));
+    }
+  });
+  return g;
+}
+let selSlot = null;
+function renderBoards() {
+  const sn = snap();
+  const pick = (who) => (sid, b) => { selSlot = who + ':' + sid; renderBoards(); inspectSlot(who, sid, b); };
+  $('#board-me').replaceChildren(boardEl(sn.boards[0], { onPick: pick('me'), selSlot: selSlot?.startsWith('me:') ? selSlot.slice(3) : null }));
+  $('#board-opp').replaceChildren(boardEl(sn.boards[1], { onPick: pick('opp'), selSlot: selSlot?.startsWith('opp:') ? selSlot.slice(4) : null }));
+}
+function inspectSlot(who, sid, b) {
+  const vec = who === 'me' ? snap().me : snap().opp;
+  const idx = PN.map((n, i) => [n, i]).filter(([n]) => n.startsWith(sid + '_'));
+  const names = idx.map(([n]) => n), vals = idx.map(([, i]) => vec[i]);
+  $('#slot-inspect').replaceChildren(h('div', { style: 'display:grid;gap:6px' },
+    h('div', { class: 'eyebrow' }, `${who === 'me' ? 'Your' : "Opponent's"} ${sid}: ${b.name} · 4 dynamic + 45 static = 49 numbers`),
+    h('div', { class: 'scroll-x' }, h('div', { style: 'min-width:max-content;display:grid;gap:4px' }, cells(names, vals, { cw: 13 }),
+      bracketRow([['state', 4], ...birdGroups], 13)))));
+}
+let viewMode = 'me';
+function renderAnatPlayer() {
+  const sn = snap();
+  const vec = viewMode === 'opp' ? sn.opp : sn.me;
+  const hide = viewMode === 'meAsOpp' ? hiddenToOthers : (viewMode === 'opp' ? hiddenToOthers : () => false);
+  const box = $('#anat-player'); box.replaceChildren();
+  PG.forEach(({ g, idx }) => {
+    box.append(h('div', { class: 'lab' }, groupLabel(g), ` · ${idx.length}`),
+      cells(idx.map(i => PN[i]), idx.map(i => vec[i]), { hidden: hide, cw: 9 }));
+  });
+}
+(function viewSeg() {
+  const seg = $('#view-seg');
+  [['me', 'Your block'], ['meAsOpp', 'Your block, as the opponent sees it'], ['opp', "Opponent's block, as you see it"]].forEach(([k, t]) =>
+    seg.append(h('button', { 'aria-pressed': k === viewMode, onclick: e => { viewMode = k; $$('#view-seg button').forEach(b => b.setAttribute('aria-pressed', b === e.currentTarget)); renderAnatPlayer(); } }, t)));
+})();
+
+/* ---------- bag demo ---------- */
+(function bag() {
+  const pts = b => Math.round(b.vec[0] * 9);
+  const pick = (p, skip = []) => D.birds.find(b => pts(b) === p && !skip.includes(b.id));
+  const a1 = pick(9), a2 = pick(1), a3 = pick(2);
+  const b1 = pick(4), b2 = pick(4, [b1.id]), b3 = pick(4, [b1.id, b2.id]);
+  const W = 760, H = 230, svg = s('svg', { viewBox: `0 0 ${W} ${H}` });
+  const unit = 13;
+  const hand = (x, title, birds) => {
+    svg.append(s('text', { x, y: 16, class: 'ink', 'font-size': 12 }, title));
+    birds.forEach((b, i) => {
+      const y = 34 + i * 30;
+      svg.append(s('rect', { x, y, width: 150, height: 24, rx: 4, fill: 'var(--soft)', 'data-n': b.name, 'data-v': `${pts(b)} points` }));
+      svg.append(s('text', { x: x + 8, y: y + 16, 'font-size': 11, class: 'ink' }, b.name.length > 19 ? b.name.slice(0, 18) + '…' : b.name));
+      svg.append(s('rect', { x: x + 160, y: y + 4, width: pts(b) * unit, height: 16, rx: 2, fill: 'var(--act)', 'fill-opacity': 0.75 }));
+      svg.append(s('text', { x: x + 166 + pts(b) * unit, y: y + 16, 'font-size': 10 }, pts(b) + ' pt'));
+    });
+    let off = 0;
+    svg.append(s('text', { x, y: 146, 'font-size': 11 }, 'summed into the vector:'));
+    birds.forEach((b, i) => { svg.append(s('rect', { x: x + off, y: 156, width: pts(b) * unit, height: 22, fill: 'var(--act)', 'fill-opacity': 0.45 + 0.2 * i, stroke: 'var(--panel)' })); off += pts(b) * unit; });
+    svg.append(s('text', { x, y: 200, 'font-size': 11, class: 'ink' }, 'hand_points = (9+1+2)/9/12 = 0.111'.replace('(9+1+2)', `(${birds.map(pts).join('+')})`)));
+    svg.append(s('text', { x, y: 218, 'font-size': 11 }, 'hand_size = 3/12 = 0.25'));
+  };
+  hand(10, 'Hand A: one star, two fillers', [a1, a2, a3]);
+  hand(400, 'Hand B: three average birds', [b1, b2, b3]);
+  $('#bag-svg').append(svg);
+})();
+
+/* ---------- shared block ---------- */
+function sharedGroup(n) {
+  if (n.startsWith('tray_')) return 'public:tray';
+  if (n.startsWith('feeder_')) return 'public:feeder';
+  if (n === 'deck_size' || n === 'discard_size') return 'public:deck, discard';
+  if (/^round_\d$/.test(n)) return 'public:round';
+  if (/^goal_r\d_/.test(n)) return 'public:goal r' + n[6];
+  if (n === 'scoring_green') return 'public:green scoring';
+  if (n.startsWith('phase_')) return 'pending:phase';
+  if (n.startsWith('viewer_')) return 'pending:whose move';
+  if (['food_needed', 'eggs_needed', 'cards_needed', 'amount_to_discard', 'base_amount'].includes(n)) return 'pending:counters';
+  if (n === 'powers_left' || n === 'end_turn_discards') return 'pending:queues';
+  if (n.startsWith('active_power_template_')) return 'pending:active power';
+  if (n.startsWith('power_step_')) return 'pending:power step';
+  if (n.startsWith('paying_for_')) return 'pending:paying for (bird)';
+  if (n.startsWith('payment')) return 'pending:payment';
+  return 'players:player count';
+}
+const SG = groupsOf(SN, sharedGroup);
+function renderShared() {
+  const sn = snap(), prev = D.snaps[cur - 1];
+  const box = $('#anat-shared'); box.replaceChildren();
+  let blk = null;
+  const BLK = { public: 'Public · 124', pending: 'Pending · 113', players: 'Players · 4' };
+  SG.forEach(({ g, idx }) => {
+    const [b, label] = g.split(':');
+    if (b !== blk) { blk = b; box.append(h('div', { class: 'blk' }, BLK[b])); }
+    box.append(h('div', { class: 'lab' }, h('b', {}, label), ` · ${idx.length}`),
+      cells(idx.map(i => SN[i]), idx.map(i => sn.shared[i]), { cw: 9, changed: prev ? (j => Math.abs(prev.shared[idx[j]] - sn.shared[idx[j]]) > 1e-9) : null }));
+  });
+  if (SHOTS?.[sn.idx]) {
+    $('#shot-shared-wrap').hidden = false;
+    $('#shot-shared').src = SHOTS[sn.idx];
+    $('#shot-shared').alt = `The web UI at decision #${sn.idx} (${sn.phase.replace(/_/g, ' ')})`;
+  }
+  const nz = SN.map((n, i) => [n, sn.shared[i]]).filter(([n, v]) => v && sharedGroup(n).startsWith('pending'));
+  $('#pending-chips').replaceChildren(h('span', { class: 'eyebrow', style: 'align-self:center;margin-right:4px' }, `#${sn.idx} pending ≠ 0:`), ...nz.map(([n, v]) => h('span', { class: 'chip' }, n, ' ', h('b', {}, fmt(v)))));
+}
+
+/* ---------- actions ---------- */
+const AGROUPS = [['kind', 37], ['birds', 45], ['n', 1], ['bonus', 32], ['spot', 15], ['hab', 3], ['food', 5], ['given', 5], ['e·d·s', 3]];
+function actLabel(str) {
+  const nm = id => BY_ID[id]?.name ?? '#' + id;
+  let m;
+  if ((m = str.match(/^SimpleAction\(type='(\w+)'\)/))) return m[1].replace(/_/g, ' ');
+  if ((m = str.match(/^EggMapAction\(type='(\w+)', items=\((.*)\)\)$/))) return [...m[2].matchAll(/\((\d+), (\d+)\)/g)].map(x => `${x[2]} on ${nm(+x[1])}`).join(', ');
+  if ((m = str.match(/^IdAction\(type='(\w+)', id=(\d+)\)/))) return `${m[1].replace(/_/g, ' ')}: ${nm(+m[2])}`;
+  if ((m = str.match(/^SelectDieAction\(die_index=(\d+), food_type='(\w+)'\)/))) return `take ${m[2]} (die ${m[1]})`;
+  return str;
+}
+let selAct = null;
+function renderActions() {
+  const sn = snap();
+  if (selAct == null || !sn.actions[selAct]) selAct = sn.actions.findIndex(a => a.s === sn.taken);
+  const box = $('#acts'); box.replaceChildren();
+  const stripe = h('div', { class: 'cells', style: 'gap:0;flex-wrap:nowrap' });
+  AGROUPS.forEach(([t, n], gi) => { for (let i = 0; i < n; i++) stripe.append(h('span', { class: 'c', style: `--cw:3px;height:6px;--p:${gi % 2 ? 70 : 25}%;--hot:var(--muted)`, 'data-n': t, 'data-v': AN[AGROUPS.slice(0, gi).reduce((a, g) => a + g[1], 0) + i] })); });
+  box.append(h('div', { class: 'act head' }, h('span', {}, `move (#${sn.idx}, ${sn.phase.replace(/_/g, ' ')})`), stripe, h('span', { class: 'num' }, 'visits'), h('span', { class: 'num' }, 'Q')));
+  sn.actions.forEach((a, i) => {
+    box.append(h('button', { class: 'act' + (i === selAct ? ' sel' : ''), onclick: () => { selAct = i; renderActions(); } },
+      h('span', { class: 'lbl' }, actLabel(a.s), h('small', {}, a.kind + (a.s === sn.taken ? '  ← taken' : ''))),
+      cells(AN, a.vec, { hot: '--act', cw: 3 }),
+      h('span', { class: 'num' + (a.s === sn.taken ? ' taken' : '') }, a.visits), h('span', { class: 'num' }, fmt(a.q, 4))));
+  });
+  const a = sn.actions[selAct];
+  const hl = {};
+  AN.forEach((n, i) => { if (n.startsWith('action_spot_') && a.vec[i]) hl[n.slice(12)] = a.vec[i]; });
+  $('#act-board').replaceChildren(boardEl(sn.boards[0], { hl }));
+  $('#act-chips').replaceChildren(...AN.map((n, i) => [n, a.vec[i]]).filter(([, v]) => v).map(([n, v]) => h('span', { class: 'chip' }, n.replace(/^action_/, ''), ' ', h('b', {}, fmt(v)))));
+}
+
+/* ---------- targets ---------- */
+function barChart(el, vals, { W = 420, H = 190, ymin = 0, ymax, color = 'var(--act)', ref, labels, fmtv = v => fmt(v), highlight = -1 } = {}) {
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}` });
+  const L = 44, R = 8, T = 10, B = 26, n = vals.length;
+  const y = v => T + (H - T - B) * (1 - (v - ymin) / (ymax - ymin));
+  const ticks = 4;
+  for (let t = 0; t <= ticks; t++) {
+    const v = ymin + (ymax - ymin) * t / ticks;
+    svg.append(s('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: 'var(--rule)' }));
+    svg.append(s('text', { x: L - 6, y: y(v) + 3.5, 'text-anchor': 'end', 'font-size': 10 }, fmtv(v)));
+  }
+  const bw = (W - L - R) / n;
+  vals.forEach((v, i) => {
+    svg.append(s('rect', { x: L + i * bw + bw * 0.15, y: y(v), width: bw * 0.7, height: Math.max(0, y(ymin) - y(v)), rx: 1.5, fill: i === highlight ? color : `color-mix(in oklab, ${color} 45%, var(--panel))`, 'data-n': labels?.[i] ?? '', 'data-v': fmtv(v) }));
+  });
+  if (ref != null) svg.append(s('line', { x1: L, x2: W - R, y1: y(ref), y2: y(ref), stroke: 'var(--ink)', 'stroke-dasharray': '4 4' }));
+  svg.append(s('text', { x: L, y: H - 8, 'font-size': 10 }, `${n} legal moves →`));
+  el.replaceChildren(svg);
+}
+let targetMode = 'q';
+function softmax(xs, t) { const m = Math.max(...xs), e = xs.map(x => Math.exp((x - m) / t)), z = e.reduce((a, b) => a + b, 0); return e.map(x => x / z); }
+const entropyN = p => p.length < 2 ? 0 : -p.reduce((a, x) => a + (x > 0 ? x * Math.log(x) : 0), 0) / Math.log(p.length);
+function renderTargets() {
+  const sn = snap(), acts = sn.actions, K = acts.length;
+  const taken = acts.findIndex(a => a.s === sn.taken);
+  const labels = acts.map(a => actLabel(a.s));
+  const vis = acts.map(a => a.visits);
+  barChart($('#visits-svg'), vis, { ymax: Math.ceil(Math.max(...vis) * 1.15 / 50) * 50, ref: 1500 / K, labels, highlight: taken, fmtv: v => Math.round(v) });
+  const qs = acts.map(a => a.q), qlo = Math.min(...qs), qhi = Math.max(...qs), pad = Math.max(0.002, (qhi - qlo) * 0.25);
+  barChart($('#q-svg'), qs, { ymin: +(qlo - pad).toFixed(3), ymax: +(qhi + pad).toFixed(3), labels, highlight: taken, color: 'var(--obs)', fmtv: v => v.toFixed(3) });
+  const pv = vis.map(v => v / 1500);
+  const won = D.final[sn.viewer]?.winner, my = D.final[sn.viewer]?.score, their = D.final[1 - sn.viewer]?.score;
+  $('#ex-stats').replaceChildren(
+    h('div', { class: 'stat' }, h('b', {}, fmt(entropyN(pv), 3)), h('span', {}, 'normalized entropy of visits (1 = uniform)')),
+    h('div', { class: 'stat' }, h('b', {}, fmt(qhi - qlo, 4)), h('span', {}, 'spread of Q across the moves')),
+    h('div', { class: 'stat' }, h('b', {}, (won ? '+1' : '−1')), h('span', {}, `value target z: player ${sn.viewer + 1} ${won ? 'won' : 'lost'} ${my}–${their}`)),
+    h('div', { class: 'stat' }, h('b', {}, (my - their > 0 ? '+' : '') + fmt((my - their) / 50, 2)), h('span', {}, `score-diff target: (${my} − ${their}) / 50`)));
+  const meanN = 1500 / K, bonus = 2.27 * Math.sqrt(Math.log(1500) / meanN), spread = qhi - qlo;
+  const max = bonus;
+  $('#uct-bars').replaceChildren(
+    h('div', { class: 'bar-row' }, h('span', {}, 'Exploration bonus'), h('div', { class: 'track' }, h('div', { class: 'fill', style: `width:100%;background:var(--net)` }, `c·√(ln N / n) ≈ ${fmt(bonus, 3)}`))),
+    h('div', { class: 'bar-row' }, h('span', {}, 'Q spread (best − worst)'), h('div', { class: 'track', style: 'display:flex;align-items:center;gap:8px;background:var(--soft)' }, h('div', { class: 'fill', style: `width:${Math.max(0.4, 100 * spread / max)}%;background:var(--obs);padding:0` }), h('span', { class: 'out' }, `${fmt(spread, 4)}  (${fmt(100 * spread / max, 1)}% of the bonus)`))));
+  // target choice
+  const t = Math.pow(10, +$('#tau').value);
+  $('#tau-out').textContent = t.toFixed(4);
+  $('#tau').disabled = targetMode !== 'q';
+  let p, cap;
+  if (targetMode === 'visits') { p = pv; cap = 'Raw visits divided by 1,500. Close to uniform, so the net would learn "every move is about equally good". It throws away the one thing MCTS did learn: which Q came out on top.'; }
+  else if (targetMode === 'onehot') { p = acts.map((_, i) => +(i === taken)); cap = 'All probability on the move MCTS played. It\'s a sharp, simple label, but it treats a near-tie as certain and ignores that the runner-up was 0.001 behind. It\'s how AlphaGo\'s first supervised policy was trained (on human moves).'; }
+  else { p = softmax(qs, t); cap = `softmax(Q / τ) at τ = ${t.toFixed(4)}: normalized entropy ${fmt(entropyN(p), 3)}. Low τ approaches the one-hot target, high τ approaches uniform. It keeps the ranking MCTS found while letting near-ties share probability. τ has to be set relative to the Q spread. Recommended starting point: τ around 0.005, checked against the visit-based target.`; }
+  barChart($('#target-svg'), p, { ymax: 1, labels, highlight: taken, color: 'var(--net)', fmtv: v => v.toFixed(2), W: 520, H: 170 });
+  $('#target-cap').textContent = cap;
+}
+(function targetSeg() {
+  const seg = $('#target-seg');
+  [['visits', 'Visit counts'], ['onehot', 'Taken move'], ['q', 'softmax(Q / τ)']].forEach(([k, t]) =>
+    seg.append(h('button', { 'aria-pressed': k === targetMode, onclick: e => { targetMode = k; $$('#target-seg button').forEach(b => b.setAttribute('aria-pressed', b === e.currentTarget)); renderTargets(); } }, t)));
+  $('#tau').addEventListener('input', renderTargets);
+})();
+(function phaseChart() {
+  const rows = [['main_turn', .33, .37], ['collect_food', .25, .33], ['draw_cards', .25, .25], ['lay_eggs', .20, .23], ['pay_egg_cost', .25, .26], ['activate_powers', .50, .52], ['select_initial_cards', .016, .02]];
+  const W = 760, H = 34 + rows.length * 30, L = 170, R = 20;
+  const x = v => L + v * (W - L - R);
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}` });
+  [0, .25, .5, .75, 1].forEach(t => { svg.append(s('line', { x1: x(t), x2: x(t), y1: 6, y2: H - 22, stroke: 'var(--rule)' })); svg.append(s('text', { x: x(t), y: H - 6, 'text-anchor': 'middle', 'font-size': 10 }, t)); });
+  rows.forEach(([n, u, top], i) => {
+    const y = 20 + i * 30;
+    svg.append(s('text', { x: L - 10, y: y + 4, 'text-anchor': 'end', 'font-size': 11, class: 'ink' }, n));
+    svg.append(s('line', { x1: x(u), x2: x(top), y1: y, y2: y, stroke: 'var(--muted)', 'stroke-width': 2 }));
+    svg.append(s('circle', { cx: x(u), cy: y, r: 6, fill: 'var(--panel)', stroke: 'var(--ink)', 'stroke-width': 1.5, 'data-n': n + ': uniform share', 'data-v': fmt(u) }));
+    svg.append(s('circle', { cx: x(top), cy: y, r: 5, fill: 'var(--net)', 'data-n': n + ': most-visited share', 'data-v': fmt(top) }));
+  });
+  $('#phase-svg').append(svg);
+})();
+
+/* ---------- networks ---------- */
+const NETS = {
+  value: {
+    label: 'Stage 1 · Value net', params: '≈ 1.12M weights',
+    cap: 'One input, one question: "from here, who wins?" The trunk compresses the 1,935 observation numbers into h, and two tiny heads read h. tanh squashes v into [−1, 1] to match z. A second linear head predicts the score difference, an auxiliary target that is far richer than ±1 and helps the trunk learn what points are.',
+    nodes: [
+      { id: 'o', x: 10, y: 150, w: 150, h: 64, label: 'obs', sub: '[B, 1935]', kind: 'data' },
+      { id: 'l1', x: 200, y: 150, w: 150, h: 64, label: 'Linear + ReLU', sub: '1935 → 512', kind: 'layer' },
+      { id: 'l2', x: 390, y: 150, w: 150, h: 64, label: 'Linear + ReLU', sub: '512 → 256', kind: 'layer' },
+      { id: 'h', x: 580, y: 150, w: 100, h: 64, label: 'h', sub: '[B, 256]', kind: 'data' },
+      { id: 'v', x: 720, y: 70, w: 140, h: 60, label: 'Linear → tanh', sub: '256 → 1', kind: 'layer' },
+      { id: 'sd', x: 720, y: 240, w: 140, h: 60, label: 'Linear', sub: '256 → 1', kind: 'layer' },
+      { id: 'vo', x: 890, y: 70, w: 120, h: 60, label: 'v', sub: 'vs z ∈ {−1,+1}', kind: 'out' },
+      { id: 'so', x: 890, y: 240, w: 120, h: 60, label: 'score Δ̂', sub: 'vs Δ / 50', kind: 'out' },
+    ],
+    edges: [['o', 'l1'], ['l1', 'l2'], ['l2', 'h'], ['h', 'v'], ['h', 'sd'], ['v', 'vo'], ['sd', 'so']],
+  },
+  policy: {
+    label: 'Stage 2 · Policy net', params: '≈ 1.23M weights',
+    cap: 'Two inputs now. The observation goes through its own trunk into h (the query). Each of the K legal moves goes through a shared action MLP into aₖ (the keys). Every move uses the same weights, which is why K can vary. The scores h · aₖ are masked and softmaxed into π, and cross-entropy pulls π toward the MCTS target.',
+    nodes: [
+      { id: 'o', x: 10, y: 40, w: 150, h: 64, label: 'obs', sub: '[B, 1935]', kind: 'data' },
+      { id: 't', x: 200, y: 40, w: 170, h: 64, label: 'Trunk MLP', sub: '1935 → 512 → 256', kind: 'layer' },
+      { id: 'h', x: 410, y: 40, w: 110, h: 64, label: 'h', sub: '[B, 256]', kind: 'data' },
+      { id: 'a', x: 10, y: 250, w: 150, h: 64, label: 'moves', sub: '[B, K, 146]', kind: 'adata' },
+      { id: 'am', x: 200, y: 250, w: 170, h: 64, label: 'Action MLP', sub: '146 → 256 → 256', kind: 'layer' },
+      { id: 'ak', x: 410, y: 250, w: 110, h: 64, label: 'aₖ', sub: '[B, K, 256]', kind: 'adata' },
+      { id: 'dot', x: 570, y: 145, w: 130, h: 64, label: 'h · aₖ', sub: 'logits [B, K]', kind: 'layer' },
+      { id: 'mask', x: 730, y: 145, w: 120, h: 64, label: 'mask', sub: 'pad → −∞', kind: 'layer' },
+      { id: 'pi', x: 880, y: 145, w: 130, h: 64, label: 'softmax → π', sub: 'vs π target (CE)', kind: 'out' },
+    ],
+    edges: [['o', 't'], ['t', 'h'], ['a', 'am'], ['am', 'ak'], ['h', 'dot'], ['ak', 'dot'], ['dot', 'mask'], ['mask', 'pi']],
+  },
+  merged: {
+    label: 'Stage 3 · One trunk, two heads', params: '≈ 1.23M weights, one forward pass',
+    cap: 'The trunk is shared: one h feeds both the value head and the dot-product policy head. The loss is CE(π) + λ·MSE(v) + μ·MSE(Δ). Sharing means the value signal shapes features the policy uses and vice versa, and MCTS gets both answers from one forward pass. The risk is that the value loss (2,550 effective labels) overfits and drags the shared trunk with it, so λ starts small. Highlighted edges carry gradients from both losses.',
+    nodes: [
+      { id: 'o', x: 10, y: 40, w: 150, h: 64, label: 'obs', sub: '[B, 1935]', kind: 'data' },
+      { id: 't', x: 200, y: 40, w: 170, h: 64, label: 'Shared trunk', sub: '1935 → 512 → 256', kind: 'layer' },
+      { id: 'h', x: 410, y: 40, w: 110, h: 64, label: 'h', sub: '[B, 256]', kind: 'data' },
+      { id: 'vh', x: 570, y: 10, w: 140, h: 56, label: 'Value heads', sub: 'tanh(v), Δ̂', kind: 'layer' },
+      { id: 'vo', x: 880, y: 10, w: 130, h: 56, label: 'v, Δ̂', sub: 'MSE · λ, μ', kind: 'out' },
+      { id: 'a', x: 10, y: 250, w: 150, h: 64, label: 'moves', sub: '[B, K, 146]', kind: 'adata' },
+      { id: 'am', x: 200, y: 250, w: 170, h: 64, label: 'Action MLP', sub: '146 → 256 → 256', kind: 'layer' },
+      { id: 'ak', x: 410, y: 250, w: 110, h: 64, label: 'aₖ', sub: '[B, K, 256]', kind: 'adata' },
+      { id: 'dot', x: 570, y: 150, w: 140, h: 64, label: 'h · aₖ + mask', sub: 'logits [B, K]', kind: 'layer' },
+      { id: 'pi', x: 880, y: 150, w: 130, h: 64, label: 'π', sub: 'CE', kind: 'out' },
+    ],
+    edges: [['o', 't'], ['t', 'h'], ['h', 'vh'], ['vh', 'vo'], ['h', 'dot'], ['a', 'am'], ['am', 'ak'], ['ak', 'dot'], ['dot', 'pi']],
+    hot: ['o>t', 't>h'],
+  },
+};
+const SPEC_ROWS = [
+  ['question', 'Who is winning from here?', 'Which legal move is best here?', 'Both, from one pass'],
+  ['input', 'obs [1935]', 'obs [1935] + moves [K, 146]', 'obs + moves'],
+  ['output', 'v ∈ [−1, 1], Δ̂', 'π over the K legal moves', 'v, Δ̂ and π'],
+  ['target', 'z = ±1 (game result), Δ = score diff / 50', 'softmax(Q / τ) or taken move (see Labels)', 'all of them'],
+  ['loss', 'MSE(v, z) + MSE(Δ̂, Δ)', 'cross-entropy(π_target, π)', 'CE + λ·MSE + μ·MSE'],
+  ['labels', '2,550 games (≈170 correlated positions each)', '438,686 decisions', 'both'],
+  ['ships as', 'nothing on its own; a sanity check', 'a policy-only bot: argmax π, no search', 'the net inside MCTS'],
+  ['in MCTS', 'replaces the random rollout', 'prior P(s,a) in PUCT', 'both, one call per expansion'],
+  ['metric', 'val MSE by round; beats a "current score diff" baseline', 'top-1 agreement with MCTS, by phase', 'win rate vs mcts-v1'],
+];
+let netMode = 'value';
+function renderNet() {
+  const n = NETS[netMode];
+  $('#net-svg').replaceChildren(diagram(1020, 330, n.nodes, n.edges, { hotEdges: new Set(n.hot || []) }));
+  $('#net-cap').textContent = n.cap; $('#net-params').textContent = n.params;
+  const col = { value: 1, policy: 2, merged: 3 }[netMode];
+  $('#spec').replaceChildren(h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, 'Value net'), h('th', {}, 'Policy net'), h('th', {}, 'Merged'))),
+    h('tbody', {}, SPEC_ROWS.map(r => h('tr', {}, r.map((c, i) => h('td', { class: i === col ? 'on' : '' }, c))))));
+}
+(function netSeg() {
+  const seg = $('#net-seg');
+  Object.entries(NETS).forEach(([k, n]) => seg.append(h('button', { 'aria-pressed': k === netMode, onclick: e => { netMode = k; $$('#net-seg button').forEach(b => b.setAttribute('aria-pressed', b === e.currentTarget)); renderNet(); } }, n.label)));
+})();
+(function maskFig() {
+  const Ks = D.snaps.map(sn => sn.actions.length), Kmax = Math.max(...Ks);
+  const W = 760, cw = 34, L = 150, H = 40 + Ks.length * 40 + 20;
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}` });
+  for (let k = 0; k < Kmax; k++) svg.append(s('text', { x: L + k * (cw + 4) + cw / 2, y: 18, 'text-anchor': 'middle', 'font-size': 10 }, 'k' + k));
+  D.snaps.forEach((sn, r) => {
+    const y = 30 + r * 40;
+    svg.append(s('text', { x: L - 10, y: y + 21, 'text-anchor': 'end', 'font-size': 11, class: 'ink' }, `#${sn.idx} ${sn.phase.replace('activate_powers', 'power')} · K=${Ks[r]}`));
+    for (let k = 0; k < Kmax; k++) {
+      const real = k < Ks[r];
+      svg.append(s('rect', { x: L + k * (cw + 4), y, width: cw, height: 30, rx: 4, fill: real ? 'color-mix(in oklab, var(--act) 40%, var(--panel))' : 'var(--soft)', stroke: real ? 'var(--act)' : 'var(--rule)', 'stroke-dasharray': real ? null : '3 3', 'data-n': real ? actLabel(sn.actions[k].s) : 'padding', 'data-v': real ? 'logit h·aₖ' : 'logit set to −∞ → probability 0' }));
+      if (!real) svg.append(s('text', { x: L + k * (cw + 4) + cw / 2, y: y + 19, 'text-anchor': 'middle', 'font-size': 10 }, '−∞'));
+    }
+  });
+  $('#mask-svg').append(svg);
+})();
+
+/* ---------- PUCT ---------- */
+(function puct() {
+  const terms = [
+    ['Q(s,a)', 'var(--obs)', 'Mean value of this child so far. With the nets, it is built from value-head outputs, not rollouts.'],
+    [' + ', null], ['c', 'var(--muted)', 'Exploration constant. Only meaningful if Q is normalized; see the callout below.'],
+    [' · ', null], ['P(s,a)', 'var(--net)', 'The policy head\'s prior for this move. A move the net likes gets explored early; one it dislikes needs real evidence first.'],
+    [' · ', null], ['√N(s) / (1 + N(s,a))', 'var(--act)', 'Shrinks as this child gets visits, grows with the parent\'s. Untried children with a good prior get tried first.'],
+  ];
+  const f = $('#puct');
+  f.append('a* = argmaxₐ  ');
+  terms.forEach(([t, c, d]) => {
+    if (!c) { f.append(t); return; }
+    const sp = h('span', { class: 'term', style: `border-color:${c}`, tabindex: 0 }, t);
+    const show = () => { $('#puct-cap').textContent = `${t}: ${d}`; };
+    sp.addEventListener('pointerenter', show); sp.addEventListener('focus', show); sp.addEventListener('click', show);
+    f.append(sp);
+  });
+})();
+
+/* ---------- loop ---------- */
+(function loop() {
+  const cx = 380, cy = 170, R = 128;
+  const items = [
+    ['MCTS games', '1,500 sims · built', 'code', false],
+    ['decisions.parquet', '438k decisions · built', 'data', false],
+    ['Replay + encode', 'step 3', 'data', true],
+    ['Train nets', 'step 4', 'layer', true],
+    ['NN-guided MCTS', 'step 5 · PUCT + v', 'layer', true],
+  ];
+  const nodes = items.map(([label, sub, kind, planned], i) => {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / items.length;
+    return { id: 'n' + i, x: cx + R * 1.55 * Math.cos(a) - 85, y: cy + R * Math.sin(a) - 26, w: 170, h: 52, label, sub, kind, planned };
+  });
+  const svg = diagram(760, 340, nodes, []);
+  const defsId = 'arr' + 760 + 340;
+  nodes.forEach((n, i) => {
+    const m = nodes[(i + 1) % nodes.length];
+    const p = (q) => [q.x + q.w / 2, q.y + q.h / 2];
+    const [x1, y1] = p(n), [x2, y2] = p(m);
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+    const sx = x1 + dx / len * 70, sy = y1 + dy / len * 30, ex = x2 - dx / len * 78, ey = y2 - dy / len * 32;
+    const mx = (sx + ex) / 2 + (cx - (sx + ex) / 2) * -0.18, my = (sy + ey) / 2 + (cy - (sy + ey) / 2) * -0.18;
+    const path = s('path', { d: `M${sx},${sy} Q${mx},${my} ${ex},${ey}`, class: 'edge flow' + (i === 4 ? ' hot' : ''), 'marker-end': `url(#${defsId})` });
+    svg.insertBefore(path, svg.querySelector('g'));
+  });
+  svg.append(s('text', { x: cx, y: cy - 4, 'text-anchor': 'middle', 'font-size': 12, class: 'ink' }, 'step 6'));
+  svg.append(s('text', { x: cx, y: cy + 13, 'text-anchor': 'middle', 'font-size': 11 }, 'repeat: self-play'));
+  $('#loop-svg').append(svg);
+})();
+
+/* ---------- budget ---------- */
+(function budget() {
+  const pair = (title, a, b) => h('div', { style: 'display:grid;gap:6px' }, h('div', { class: 'eyebrow' }, title), ...[a, b].map(([l, v, max, c, txt]) =>
+    h('div', { class: 'bar-row' }, h('span', {}, l), h('div', { class: 'track', style: 'display:flex;align-items:center;gap:8px' },
+      h('div', { class: 'fill', style: `width:${Math.max(0.3, 100 * v / max)}%;background:${c};${v / max < 0.25 ? 'padding:0' : ''}` }, v / max >= 0.25 ? txt : ''),
+      v / max < 0.25 ? h('span', { class: 'out' }, txt) : null))));
+  $('#budget-bars').append(
+    pair('Labels', ['Policy labels (decisions)', 438686, 438686, 'var(--net)', '438,686'], ['Independent outcomes (games)', 2550, 438686, 'var(--obs)', '2,550 · 0.6% as many']),
+    pair('Disk for the step 3 dataset (float16)', ['Observations', 438686 * 1935 * 2, 438686 * 1935 * 2, 'var(--obs)', '1.70 GB · 438,686 × 1,935'], ['Legal-move rows', 1823501 * 146 * 2, 438686 * 1935 * 2, 'var(--act)', '0.53 GB · 1,823,501 × 146']),
+    pair('Time', ['Replay + encode, all games', 2550 * 0.24 / 7, 3600, 'var(--muted)', '≈ 1.5 min on 7 workers'], ['One new MCTS game (1,500 sims)', 360, 3600, 'var(--act)', '≈ 6 min per game per worker']));
+})();
+
+/* ---------- decision pickers ---------- */
+function renderAll() { renderBoards(); renderAnatPlayer(); renderShared(); renderActions(); renderTargets(); $('#slot-inspect').replaceChildren(); }
+function buildPickers() {
+  $$('[data-pick]').forEach(seg => {
+    seg.replaceChildren(...D.snaps.map((sn, i) => h('button', { 'aria-pressed': i === cur, onclick: () => { cur = i; selAct = null; selSlot = null; buildPickers(); renderAll(); } }, `#${sn.idx} ${sn.phase === 'activate_powers' ? (sn.actions.some(a => a.kind === 'simple_activate_power') ? 'power: activate or skip' : 'power target') : sn.phase.replace(/_/g, ' ')}`)));
+  });
+}
+(function twoViews() {
+  const sn = D.snaps.find(x => x.idx === 116);
+  if (!SHOTS?.[116] || !sn) return;
+  $('#two-views').hidden = false;
+  $('#shot-hero').src = SHOTS[116];
+  const block = (title, names, vals, hot) => h('div', { style: 'display:grid;gap:4px' },
+    h('div', { class: 'eyebrow' }, `${title} · ${vals.length}`), cells(names, vals, { cw: 5, hot }));
+  $('#hero-vec').append(block('me', PN, sn.me), block('opponent', PN, sn.opp), block('shared', SN, sn.shared, '--net'));
+})();
+/* ---------- set encoders ---------- */
+(function sets() {
+  const F = (id, n) => BY_ID[id].vec[BN.indexOf(n)];
+  const NESTS = ['bowl', 'cavity', 'ground', 'platform', 'wild'];
+  const habsOf = id => HAB.filter(x => F(id, 'habitat_' + x));
+  const nestOf = id => NESTS.find(n => F(id, 'nest_' + n)) || 'none';
+  const RAW = [['habitat_grassland', 'grassland'], ['habitat_wetland', 'wetland'], ['nest_bowl', 'bowl'], ['nest_cavity', 'cavity']];
+  const DET = [['wetland', 'bowl'], ['grassland', 'bowl'], ['wetland', 'cavity'], ['grassland', 'cavity']];
+  const pre = (id, [hb, nt]) => F(id, 'habitat_' + hb) + F(id, 'nest_' + nt) - 1;
+  const det = (id, d) => Math.max(0, pre(id, d));
+  const first = (hb, nt) => D.birds.find(b => habsOf(b.id).join() === hb && nestOf(b.id) === nt).id;
+  const hands = { A: [first('grassland', 'bowl'), first('wetland', 'cavity')], B: [first('wetland', 'bowl'), first('grassland', 'cavity')] };
+  const sorted = [...D.birds].sort((a, b) => a.name.localeCompare(b.name));
+  const num = v => h('td', { class: v ? '' : 'z' }, fmt(v, 2));
+  const sums = (ids, f) => f.map(x => ids.reduce((a, id) => a + x(id), 0));
+  const rawF = RAW.map(([n]) => id => F(id, n)), detF = DET.map(d => id => det(id, d));
+
+  function table(ids) {
+    const head = h('thead', {},
+      h('tr', {}, h('th', {}, ''), h('th', { class: 'grp', colspan: 4 }, 'summed today (raw)'), h('th', { class: 'grp', colspan: 4 }, 'detectors φ, per card')),
+      h('tr', {}, h('th', {}, 'card'), RAW.map(([, l]) => h('th', {}, l)), DET.map(([a, b]) => h('th', {}, `${a} ∧ ${b}`))));
+    const row = (label, raw, dets, cls) => h('tr', { class: cls || '' }, h('td', {}, label), raw.map(num), dets.map(v => { const c = num(v); c.classList.add('det'); return c; }));
+    return h('table', { class: 'spec sets-t' }, head, h('tbody', {},
+      ids.map(id => row(BY_ID[id].name, rawF.map(f => f(id)), detF.map(f => f(id)))),
+      row('Σ (what the net gets)', sums(ids, rawF), sums(ids, detF), 'sum')));
+  }
+  function render() {
+    $('#sets-hands').replaceChildren(...Object.entries(hands).map(([k, ids]) => h('div', { class: 'sets-hand' },
+      h('h3', {}, 'Hand ' + k),
+      h('div', { class: 'sets-pick' }, ids.map((id, i) => {
+        const sel = h('select', { id: `sets-${k}${i}`, 'aria-label': `Hand ${k}, card ${i + 1}` },
+          sorted.map(b => h('option', { value: b.id }, `${b.name} · ${habsOf(b.id).join('/')} · ${nestOf(b.id)}`)));
+        sel.value = id; sel.addEventListener('change', () => { hands[k][i] = +sel.value; render(); });
+        return sel;
+      })),
+      h('div', { class: 'sets-row' },
+        h('div', { class: 'sets-cards' }, ids.map(id => h('div', { class: 'gw', html: cardHtml(id) }))),
+        h('div', { class: 'scroll-x' }, table(ids))))));
+    const same = (f) => sums(hands.A, f).every((v, i) => Math.abs(v - sums(hands.B, f)[i]) < 1e-9);
+    const chip = (label, eq) => h('span', { class: 'chip ' + (eq ? 'same' : 'diff') }, `${label}: `, h('b', {}, eq ? 'identical' : 'different'));
+    $('#sets-verdict').replaceChildren(chip('Raw sums of A and B', same(rawF)), chip('Detector sums of A and B', same(detF)));
+    // Step 4a: one card of hand B through φ
+    const card = hands.B[0];
+    const outs = [...DET.map(d => cell(`φ output: ${d[0]} ∧ ${d[1]}`, det(card, d), { hot: '--net', cw: 12 })),
+      ...Array.from({ length: 60 }, (_, i) => h('span', { class: 'c q', style: '--cw:12px', 'data-n': `φ output ${i + 5}`, 'data-v': 'a question training chooses' }))];
+    $('#s4-card').replaceChildren(
+      h('div', { class: 'gw', html: cardHtml(card) }), h('span', { class: 'arrow' }, '→'),
+      h('div', { class: 's4-strip' }, h('span', { class: 'eyebrow' }, `${BY_ID[card].name} · row [45]`), cells(BN, BY_ID[card].vec, { cw: 12 })),
+      h('span', { class: 'arrow' }, '→'), h('div', { class: 's4-box' }, 'φ', h('small', {}, '45 → 64 → 64')), h('span', { class: 'arrow' }, '→'),
+      h('div', { class: 's4-strip' }, h('span', { class: 'eyebrow' }, 'φ(row) · 64 outputs'), h('div', { class: 'cells' }, outs)));
+    // Step 4b: hand B through φ, masked, summed
+    const dh = ['card', 'mask', ...DET.map(([a, b]) => `${a} ∧ ${b}`), '60 more'];
+    const rowsB = hands.B.map(id => h('tr', {}, h('td', {}, BY_ID[id].name), num(1), DET.map(d => { const c = num(det(id, d)); c.classList.add('det'); return c; }), h('td', { class: 'z' }, '…')));
+    $('#s4-hand').replaceChildren(
+      h('thead', {}, h('tr', {}, dh.map(t => h('th', {}, t)))),
+      h('tbody', {}, rowsB,
+        h('tr', { class: 'pad' }, h('td', {}, 'padding (dummy row)'), h('td', {}, '0'), DET.map(() => h('td', {}, 'φ(0) ≠ 0')), h('td', {}, '…')),
+        h('tr', { class: 'sum' }, h('td', {}, 'Σ mask × φ(row)'), h('td', {}, ''), sums(hands.B, detF).map(num), h('td', {}, '…'))));
+
+    // Step 2: the wetland ∧ bowl unit, with and without the ReLU
+    const d = DET[0];
+    $('#sets-linear').replaceChildren(
+      h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, 'card 1: w·x+b'), h('th', {}, 'card 2: w·x+b'), h('th', {}, 'Σ without ReLU'), h('th', {}, 'Σ with ReLU'))),
+      h('tbody', {}, Object.entries(hands).map(([k, ids]) => h('tr', {}, h('td', {}, 'Hand ' + k), ids.map(id => num(pre(id, d))),
+        num(ids.reduce((a, id) => a + pre(id, d), 0)), num(ids.reduce((a, id) => a + det(id, d), 0))))));
+  }
+  render();
+  // Step 3: AND gate truth table
+  $('#sets-and').replaceChildren(
+    h('thead', {}, h('tr', {}, h('th', {}, 'wetland'), h('th', {}, 'bowl'), h('th', {}, 'w·x + b'), h('th', {}, 'ReLU'))),
+    h('tbody', {}, [[0, 0], [1, 0], [0, 1], [1, 1]].map(([a, b]) => h('tr', {}, num(a), num(b), num(a + b - 1), num(Math.max(0, a + b - 1))))));
+  // Step 5: pooling
+  const wb = hands.B[0], gc = hands.B[1];
+  const wbF = id => det(id, DET[0]);
+  const pools = [['1 wetland-bowl bird', [wb]], ['2 wetland-bowl birds', [wb, wb]], ['1 wetland-bowl + 1 other', [wb, gc]]];
+  $('#sets-pool').replaceChildren(
+    h('thead', {}, h('tr', {}, h('th', {}, 'hand'), h('th', {}, 'sum'), h('th', {}, 'mean'), h('th', {}, 'max'))),
+    h('tbody', {}, pools.map(([l, ids]) => { const v = ids.map(wbF); return h('tr', {}, h('td', {}, l), num(v.reduce((a, b) => a + b, 0)), num(v.reduce((a, b) => a + b, 0) / v.length), num(Math.max(...v))); })));
+  // Step 4c: concat, to scale, then the MLPs
+  const bar = (label, parts) => {
+    const total = parts.reduce((a, p) => a + p[1], 0);  // each bar is to its own scale
+    return h('div', { class: 's4-bar-row' }, h('span', {}, label), h('div', { class: 's4-bar' },
+      parts.map(([t, n, c]) => h('div', { style: `flex:${n} 1 0;background:var(${c})`, 'data-n': t, 'data-v': n + ' numbers' }, n / total > 0.2 ? `${t} · ${n}` : n))));
+  };
+  $('#s4-bars').append(
+    bar('trunk input · 1,999', [['observation', 1935, '--obs'], ['Σ φ(hand)', 64, '--net']]),
+    bar('action MLP input · 210', [['move', 146, '--act'], ['Σ φₐ(move birds)', 64, '--net']]));
+  const N = [
+    { id: 'obs', x: 10, y: 10, w: 160, h: 50, label: 'observation', sub: '[1935]', kind: 'data' },
+    { id: 'sh', x: 10, y: 80, w: 160, h: 50, label: 'Σ φ(hand)', sub: '[64] · from 4b', kind: 'layer' },
+    { id: 'cx', x: 215, y: 45, w: 130, h: 50, label: 'concat', sub: '[1999]', kind: 'data' },
+    { id: 'tr', x: 390, y: 45, w: 180, h: 50, label: 'Trunk MLP', sub: '1999 → 512 → 256', kind: 'layer' },
+    { id: 'h', x: 615, y: 45, w: 80, h: 50, label: 'h', sub: '[256]', kind: 'data' },
+    { id: 'vh', x: 750, y: 0, w: 160, h: 46, label: 'Value head', sub: 'v, score Δ', kind: 'out' },
+    { id: 'dot', x: 750, y: 150, w: 160, h: 50, label: 'h · aₖ', sub: 'one score per move', kind: 'layer' },
+    { id: 'pi', x: 950, y: 150, w: 120, h: 50, label: 'π', sub: 'softmax', kind: 'out' },
+    { id: 'mv', x: 10, y: 230, w: 160, h: 50, label: 'move', sub: '[146] · per legal move', kind: 'adata' },
+    { id: 'sa', x: 10, y: 300, w: 160, h: 50, label: 'Σ φₐ(move birds)', sub: '[64]', kind: 'layer' },
+    { id: 'ca', x: 215, y: 265, w: 130, h: 50, label: 'concat', sub: '[210]', kind: 'adata' },
+    { id: 'am', x: 390, y: 265, w: 180, h: 50, label: 'Action MLP', sub: '210 → 256 → 256', kind: 'layer' },
+    { id: 'ak', x: 615, y: 265, w: 80, h: 50, label: 'aₖ', sub: '[256]', kind: 'adata' },
+  ];
+  const E = [['obs', 'cx'], ['sh', 'cx'], ['cx', 'tr'], ['tr', 'h'], ['h', 'vh'], ['h', 'dot'], ['dot', 'pi'],
+    ['mv', 'ca'], ['sa', 'ca'], ['ca', 'am'], ['am', 'ak'], ['ak', 'dot']];
+  $('#sets-svg').append(diagram(1080, 360, N, E));
+})();
+$('#gid').textContent = D.game_id || '';
+buildPickers(); renderAll(); renderNet();
+</script>
