@@ -62,8 +62,8 @@ def test_gain_food_existing():
 
 def test_lay_eggs_single_bird():
     state = initiate_state(2)
-    # bird_hand contains IDs - place bird to create PlacedBird
-    bird_id = state.players[0].bird_hand[0]
+    # A bird that can hold the 2 eggs: the hand is random and some birds hold only 1
+    bird_id = next(b.id for b in BIRD_REGISTRY.values() if b.egg_limit >= 2)
     state.players[0].board[0][0].bird = PlacedBird(id=bird_id)
 
     lay_eggs_effect(state, {bird_id: 2}, player_index=0)
