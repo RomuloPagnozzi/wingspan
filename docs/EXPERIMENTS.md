@@ -50,6 +50,7 @@ Two run modes implement the paired-comparison machinery, each suited to a differ
 - **H5:** Replacing uniform-random rollouts with score-aware rollouts (ε-greedy on score delta, or K-step + heuristic with early termination) beats random rollouts at fixed simulation budget by a margin larger than 2× sim count — i.e., it's a strictly better use of compute than throwing more sims at random rollouts.
 - **H6:** At fixed total compute, an NN bootstrapped from biased-but-strong (peek-MCTS) self-play games matches or beats an NN bootstrapped from clean-but-weaker (PIMC) games, before iterative self-play washes out the bias. If true, dirty bootstrap data is a compute-efficient shortcut in low-compute regimes — the central question for the paper.
 - **H7:** At our compute scale, an NN warm-started from MCTS-generated bootstrap data reaches a target strength level (e.g., beating reference MCTS at ≥55% win rate) using strictly less total compute than an NN trained from random init via pure self-play. AlphaZero showed bootstrap is *unnecessary* at massive compute; we expect it is *load-bearing* at our scale. Quantifying the speedup — and the crossover point where pure self-play catches up — is part of the compute-efficiency frontier the paper characterizes.
+- **H8:** Encoding sets of cards with a set encoder (each card through a shared learned net, then summed) beats summing or averaging raw card features, because the raw pool loses which properties belong to the same card (a grassland-bowl + wetland-cavity pair encodes identically to wetland-bowl + grassland-cavity). This applies on two sides: the observation (hand, tray), where the gain should show in decisions that depend on what the hand can do (main-turn choice, value); and multi-bird actions (`select_initial_cards`, multi-bird `draw_cards`), where it should show in choosing which birds to take. Single-bird actions (`play_bird`) are encoded one bird at a time already, so no gain is expected there.
 - **Goal:** Find optimal MCTS configuration for competitive 2-player and 3-player games, and characterize the compute-efficiency frontier for NN bootstrap strategies.
 
 ## Experiment Catalog
@@ -133,6 +134,29 @@ At checkpoints along the compute axis, evaluate each NN against the same referen
 **Eval:** Win rate vs reference opponent at matched-compute checkpoints; the resulting strength-vs-compute curves are the deliverable.
 **Depends on:** EXP-008 (bootstrap recipe settled), NN training pipeline, self-play loop.
 **Reasoning:** AlphaZero demonstrated bootstrap is *unnecessary* at massive compute — random init + pure self-play reaches SOTA. Open-source replications (KataGo, Leela Zero) consistently find bootstrap is *load-bearing* at smaller compute, but the magnitude is game- and architecture-specific. The paper's compute-efficiency framing requires us to measure this directly rather than assume it. Negative result ("from-scratch matches bootstrap even at our scale") would itself be a publishable finding.
+
+---
+
+### EXP-010: Pooled vs set-encoded cards (observation × actions)
+**Hypothesis (H8):** A set encoder over card lists beats pooling raw card features, on the observation side and on the action side independently.
+**Config:** a 2×2 design. Same data, split, targets, trunk and action-MLP sizes, optimizer and seeds; only how card lists enter the net differs:
+
+| | Actions: averaged (`action_bird_*` columns) | Actions: + set encoder over `action_bird_ids` |
+|---|---|---|
+| **Obs: summed** (`hand_*`, `tray_*` columns) | (a) baseline | (c) actions only |
+| **Obs: + set encoder over `Observation.hand`, `.tray`** | (b) observation only | (d) both |
+
+- The set encoder is `Σ φ(card)`: φ is a small MLP shared by all cards, applied to each card's `bird_table()` row, padded and masked; the sum is concatenated to the existing input. The observation and the actions get separate φ networks.
+- The pooled columns stay in every arm, so (b)–(d) only add information; differences measure what keeping cards apart is worth.
+- The 2×2 shows each effect alone and whether they add up (if (d) − (a) ≈ ((b) − (a)) + ((c) − (a)), the two are independent).
+
+**Data:** the step-3 replay dataset from `mcts_joint_v2` (2,550 games), split by game. No new games needed. The dataset must store `Observation.hand`/`.tray` and `action_bird_ids` per legal action.
+**Eval:** validation policy cross-entropy and top-1 agreement with MCTS, broken down by phase; value-net validation MSE by round. Repeat over 3 seeds; report the per-seed spread.
+- Observation effect, (b) vs (a): primary readout `main_turn` and value MSE.
+- Action effect, (c) vs (a): primary readout `select_initial_cards` (5,100 decisions, 64 options each) and `draw_cards`.
+- Control for both: `play_bird`, a single-bird action, where no difference is expected. A difference there would point to something other than binding (more parameters, a different optimum).
+**Depends on:** step 3 dataset builder, step 4 training loop.
+**Reasoning:** DeepSets (Zaheer et al. 2017): any function of a set can be written as ρ(Σ φ(x)). Pooling raw features is the special case where φ is the identity, which can't represent conjunctions like "wetland AND bowl on one card". A ReLU unit with weights +1, +1 and bias −1 can, and summing such units counts the cards that satisfy it. The cost is one small MLP per side; if neither helps at this data scale, pooled features are good enough and stay the default.
 
 ---
 
