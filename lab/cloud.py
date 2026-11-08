@@ -134,17 +134,18 @@ def ensure_runner_key(state: dict) -> None:
     """An API user allowed only to manage servers: the key the server uses to destroy itself."""
     if "runner" in state:
         return
-    email = api("GET", "/account")["account"]["email"].replace("@", "+wingspan-runner@", 1)
-    user = api("POST", "/users", {
-        "name": "wingspan-runner", "email": email, "password": secrets.token_urlsafe(24) + "aA1!",
-        "api_enabled": True, "acls": ["subscriptions"],
-    })["user"]  # fmt: skip
-    if not user.get("api_key"):
-        sys.exit(f"created user {user['id']} but Vultr returned no API key: create one for it in the dashboard "
-                 f"and add it to {STATE} as runner.key")  # fmt: skip
-    state["runner"] = {"user_id": user["id"], "key": user["api_key"]}
+    user = next((u for u in api("GET", "/users")["users"] if u["name"] == "wingspan-runner"), None)
+    if user is None:
+        email = api("GET", "/account")["account"]["email"].replace("@", "+wingspan-runner@", 1)
+        user = api("POST", "/users", {
+            "name": "wingspan-runner", "email": email, "password": secrets.token_urlsafe(24) + "aA1!",
+            "api_enabled": True, "acls": ["subscriptions"],
+        })["user"]  # fmt: skip
+    # A user's default key is only ever shown masked; a key created for it is shown in full, once
+    key = api("POST", f"/users/{user['id']}/apikeys", {"name": "wingspan-self-destroy"})["api_key"]["api_key"]
+    state["runner"] = {"user_id": user["id"], "key": key}
     save_state(state)
-    print(f"created the restricted runner key (user {email}, may manage servers only)")
+    print(f"created the restricted runner key (user {user['email']}, may manage servers only)")
 
 
 def ensure_storage(state: dict) -> None:
