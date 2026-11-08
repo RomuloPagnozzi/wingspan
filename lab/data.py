@@ -40,6 +40,12 @@ class GameResult:
     players: list[PlayerResult]
     game_seed: int
     total_decisions: int = 0
+    scoring: str = "green"  # round-goal scoring side
+    duration_s: float | None = None  # wall time of the whole game, both seats' searches included
+
+    def winner_label(self) -> str | None:
+        """The arm label of the winner, or None for a tie (equal score and food)."""
+        return next((p.arm_label for p in self.players if p.is_winner), None)
 
 
 @dataclass
@@ -80,8 +86,10 @@ def game_result_to_rows(result: GameResult, run_id: str) -> list[dict]:
                 "game_id": result.game_id,
                 "timestamp": result.timestamp,
                 "game_seed": result.game_seed,
+                "scoring": result.scoring,
                 "player_count": result.player_count,
                 "total_decisions": result.total_decisions,
+                "duration_s": result.duration_s,
                 "player_position": player.player_position,
                 "is_first_player": player.is_first_player,
                 "is_winner": player.is_winner,
@@ -134,8 +142,10 @@ GAMES_SCHEMA = pa.schema(
         ("game_id", pa.string()),
         ("timestamp", pa.timestamp("us")),
         ("game_seed", pa.int64()),
+        ("scoring", pa.string()),
         ("player_count", pa.int32()),
         ("total_decisions", pa.int32()),
+        ("duration_s", pa.float64()),
         ("player_position", pa.int32()),
         ("is_first_player", pa.bool_()),
         ("is_winner", pa.bool_()),
@@ -174,37 +184,57 @@ DECISIONS_SCHEMA = pa.schema(
 )
 
 
-class GamesWriter:
-    """Append-only parquet writer for game results.
+class ParquetParts:
+    """Append-only parquet output for one table of a run.
 
-    Each run gets its own folder `data_dir/<run_id>/` containing the run's
-    games, decisions, and config. The games go into `games.parquet`.
+    Without `rotate` it is a single file, readable once closed. With `rotate`, every `rotate` games
+    the file is closed and a new part begins (games_0000.parquet, games_0001.parquet, ...), so a
+    long run can be copied away while it goes on. The part being written is named .tmp and renamed
+    when closed: a file without .tmp is always complete.
     """
 
-    def __init__(self, data_dir: Path, run_id: str):
+    def __init__(self, path: Path, schema: pa.Schema, rotate: int | None = None):
+        self.path, self.schema, self.rotate = path, schema, rotate
+        self._writer: pq.ParquetWriter | None = None
+        self._target = path
+        self._games = self._part = 0
+
+    def write(self, table: pa.Table) -> None:
+        if self._writer is None:
+            if self.rotate:
+                self._target = self.path.with_name(f"{self.path.stem}_{self._part:04d}.parquet")
+            open_as = self._target.with_suffix(".tmp") if self.rotate else self._target
+            self._writer = pq.ParquetWriter(open_as, self.schema, compression="snappy")
+        self._writer.write_table(table)
+        self._games += 1
+        if self.rotate and self._games % self.rotate == 0:
+            self.close()
+
+    def close(self) -> None:
+        if self._writer:
+            self._writer.close()
+            self._writer = None
+            if self.rotate:
+                self._target.with_suffix(".tmp").rename(self._target)
+                self._part += 1
+
+
+class GamesWriter:
+    """Game results of a run, in `data_dir/<run_id>/games.parquet` (or games_NNNN parts, see
+    ParquetParts). The run's folder also holds its decisions and config."""
+
+    def __init__(self, data_dir: Path, run_id: str, rotate: int | None = None):
         self.run_id = run_id
         self.dir = data_dir / run_id
         self.dir.mkdir(parents=True, exist_ok=True)
         self.path = self.dir / "games.parquet"
-        self._writer: pq.ParquetWriter | None = None
-
-    def _ensure_writer(self):
-        if self._writer is None:
-            self._writer = pq.ParquetWriter(
-                self.path, GAMES_SCHEMA, compression="snappy"
-            )
+        self._out = ParquetParts(self.path, GAMES_SCHEMA, rotate)
 
     def add_game(self, result: GameResult):
-        self._ensure_writer()
-        assert self._writer is not None
-        rows = game_result_to_rows(result, self.run_id)
-        table = pa.Table.from_pylist(rows, schema=GAMES_SCHEMA)
-        self._writer.write_table(table)
+        self._out.write(pa.Table.from_pylist(game_result_to_rows(result, self.run_id), schema=GAMES_SCHEMA))
 
     def close(self):
-        if self._writer:
-            self._writer.close()
-            self._writer = None
+        self._out.close()
 
     def __enter__(self):
         return self
@@ -214,38 +244,24 @@ class GamesWriter:
 
 
 class DecisionsWriter:
-    """Append-only parquet writer for per-decision RL training data.
+    """Per-decision RL training data of a run, in `data_dir/<run_id>/decisions.parquet` (or
+    decisions_NNNN parts, see ParquetParts)."""
 
-    Each run gets its own folder `data_dir/<run_id>/`; decisions go into
-    `decisions.parquet` inside it.
-    """
-
-    def __init__(self, data_dir: Path, run_id: str):
+    def __init__(self, data_dir: Path, run_id: str, rotate: int | None = None):
         self.run_id = run_id
         self.dir = data_dir / run_id
         self.dir.mkdir(parents=True, exist_ok=True)
         self.path = self.dir / "decisions.parquet"
-        self._writer: pq.ParquetWriter | None = None
-
-    def _ensure_writer(self):
-        if self._writer is None:
-            self._writer = pq.ParquetWriter(
-                self.path, DECISIONS_SCHEMA, compression="snappy"
-            )
+        self._out = ParquetParts(self.path, DECISIONS_SCHEMA, rotate)
 
     def add_game_decisions(self, game_decisions: GameDecisions):
         if not game_decisions.decisions:
             return
-        self._ensure_writer()
-        assert self._writer is not None
         rows = decisions_to_rows(game_decisions, self.run_id)
-        table = pa.Table.from_pylist(rows, schema=DECISIONS_SCHEMA)
-        self._writer.write_table(table)
+        self._out.write(pa.Table.from_pylist(rows, schema=DECISIONS_SCHEMA))
 
     def close(self):
-        if self._writer:
-            self._writer.close()
-            self._writer = None
+        self._out.close()
 
     def __enter__(self):
         return self

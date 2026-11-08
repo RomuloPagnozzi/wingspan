@@ -3,4 +3,5 @@
 !uv.lock
 !README.md
 !src
+!rust/pyproject.toml
 **/__pycache__

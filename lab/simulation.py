@@ -1,10 +1,12 @@
 """Shared game simulation logic."""
 
+import multiprocessing as mp
 import signal
+import time
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterable, Iterator
 
-from wingspan.engine.core import initiate_state, init_registries
+from wingspan.engine.core import ScoringMode, init_registries, initiate_state
 from wingspan.engine.actions import get_actions
 from wingspan.engine.engine import transition_state
 from wingspan.ai import Strategy
@@ -23,6 +25,7 @@ def simulate_game(
     game_seed: int,
     arm_labels: list[str],
     record_decisions: bool = False,
+    scoring: str = "green",
 ) -> tuple[GameResult, GameDecisions | None]:
     """Run a single game and return the result.
 
@@ -32,13 +35,15 @@ def simulate_game(
         arm_labels: Per-player arm identifier, aligned to `strategies`.
             This is the label that groups results across position swaps.
         record_decisions: Whether to record per-decision data for RL training
+        scoring: Round-goal scoring side, "green" or "blue"
 
     Returns:
         Tuple of (GameResult, optional GameDecisions)
     """
     assert len(arm_labels) == len(strategies)
+    started = time.perf_counter()
     game_id = generate_game_id()
-    state = initiate_state(len(strategies), seed=game_seed)
+    state = initiate_state(len(strategies), ScoringMode(scoring), seed=game_seed)
 
     game_decisions = (
         GameDecisions(
@@ -136,6 +141,8 @@ def simulate_game(
             players=players,
             game_seed=game_seed,
             total_decisions=total_decisions,
+            scoring=scoring,
+            duration_s=time.perf_counter() - started,
         ),
         game_decisions,
     )
@@ -162,8 +169,31 @@ def run_one_game(
     process can reattach a result to its (group, position) slot regardless
     of completion order.
     """
-    strategies, game_seed, arm_labels, metadata, record_decisions = args
+    strategies, game_seed, arm_labels, metadata, record_decisions, *rest = args
+    scoring = rest[0] if rest else "green"  # an optional 6th item
     result, decisions = simulate_game(
-        strategies, game_seed, arm_labels, record_decisions=record_decisions
+        strategies, game_seed, arm_labels, record_decisions=record_decisions, scoring=scoring
     )
     return result, decisions, metadata
+
+
+def play_games(
+    work: Iterable[tuple], num_workers: int, ordered: bool = False
+) -> Iterator[tuple[GameResult, GameDecisions | None, Any]]:
+    """Play `work` items (see `run_one_game`) in this process (num_workers <= 1) or in a spawn-based
+    Pool, yielding `(result, decisions, metadata)` as games finish, or in submission order with
+    `ordered` (for callers that act per group of consecutive games, like tuning's per-seed pruning).
+
+    Process pool (not thread pool): CPython's GIL serializes pure-Python threads, and free-threaded
+    3.13t was empirically slower for this workload due to atomic-refcount overhead on shared
+    registry lookups.
+    """
+    if num_workers <= 1:
+        for item in work:
+            yield run_one_game(item)
+        return
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(num_workers, initializer=game_worker_init) as pool:
+        # chunksize=1: each item submitted on its own, so a shutdown drains only the games in flight
+        imap = pool.imap if ordered else pool.imap_unordered
+        yield from imap(run_one_game, work, chunksize=1)

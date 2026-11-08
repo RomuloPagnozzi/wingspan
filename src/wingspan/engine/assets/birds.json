@@ -1,0 +1,3904 @@
+[
+ {
+  "id": 1,
+  "name": "Acorn Woodpecker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     3
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 46
+ },
+ {
+  "id": 2,
+  "name": "American Avocet",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 79
+ },
+ {
+  "id": 3,
+  "name": "American Bittern",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 107
+ },
+ {
+  "id": 4,
+  "name": "American Coot",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 5,
+  "wingspan": 61
+ },
+ {
+  "id": 5,
+  "name": "American Crow",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 99
+ },
+ {
+  "id": 6,
+  "name": "American Goldfinch",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 23
+ },
+ {
+  "id": 7,
+  "name": "American Kestrel",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 56
+ },
+ {
+  "id": 8,
+  "name": "American Oystercatcher",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 81
+ },
+ {
+  "id": 9,
+  "name": "American Robin",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 43
+ },
+ {
+  "id": 10,
+  "name": "American White Pelican",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 1,
+  "wingspan": 274
+ },
+ {
+  "id": 11,
+  "name": "American Woodcock",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 46
+ },
+ {
+  "id": 12,
+  "name": "Anhinga",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 114
+ },
+ {
+  "id": 13,
+  "name": "Anna's Hummingbird",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 13
+ },
+ {
+  "id": 14,
+  "name": "Ash-Throated Flycatcher",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 30
+ },
+ {
+  "id": 15,
+  "name": "Atlantic Puffin",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     3
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "wild",
+  "egg_limit": 1,
+  "wingspan": 53
+ },
+ {
+  "id": 16,
+  "name": "Baird's Sparrow",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 23
+ },
+ {
+  "id": 17,
+  "name": "Bald Eagle",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "platform",
+  "egg_limit": 1,
+  "wingspan": 203
+ },
+ {
+  "id": 18,
+  "name": "Baltimore Oriole",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 30
+ },
+ {
+  "id": 19,
+  "name": "Barn Owl",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 107
+ },
+ {
+  "id": 20,
+  "name": "Barn Swallow",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "wild",
+  "egg_limit": 3,
+  "wingspan": 38
+ },
+ {
+  "id": 21,
+  "name": "Barred Owl",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "wingspan": 107
+ },
+ {
+  "id": 22,
+  "name": "Barrow's Goldeneye",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 71
+ },
+ {
+  "id": 23,
+  "name": "Bell's Vireo",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 18
+ },
+ {
+  "id": 24,
+  "name": "Belted Kingfisher",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 4,
+  "wingspan": 53
+ },
+ {
+  "id": 25,
+  "name": "Bewick's Wren",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 18
+ },
+ {
+  "id": 26,
+  "name": "Black Skimmer",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 112
+ },
+ {
+  "id": 27,
+  "name": "Black Tern",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 61
+ },
+ {
+  "id": 28,
+  "name": "Black Vulture",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 1,
+  "wingspan": 150
+ },
+ {
+  "id": 29,
+  "name": "Black-Bellied Whistling-Duck",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "wingspan": 76
+ },
+ {
+  "id": 30,
+  "name": "Black-Billed Magpie",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 3,
+  "wingspan": 64
+ },
+ {
+  "id": 31,
+  "name": "Black-Crowned Night-Heron",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 112
+ },
+ {
+  "id": 32,
+  "name": "Black-Necked Stilt",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 74
+ },
+ {
+  "id": 33,
+  "name": "Blue Grosbeak",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 28
+ },
+ {
+  "id": 34,
+  "name": "Blue Jay",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 41
+ },
+ {
+  "id": 35,
+  "name": "Blue-Gray Gnatcatcher",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 15
+ },
+ {
+  "id": 36,
+  "name": "Blue-Winged Warbler",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 20
+ },
+ {
+  "id": 37,
+  "name": "Bobolink",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 30
+ },
+ {
+  "id": 38,
+  "name": "Brewer's Blackbird",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 41
+ },
+ {
+  "id": 39,
+  "name": "Bronzed Cowbird",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": NaN,
+  "egg_limit": 0,
+  "wingspan": 36
+ },
+ {
+  "id": 40,
+  "name": "Brown Pelican",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 201
+ },
+ {
+  "id": 41,
+  "name": "Brown-Headed Cowbird",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": NaN,
+  "egg_limit": 0,
+  "wingspan": 30
+ },
+ {
+  "id": 42,
+  "name": "Burrowing Owl",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "wild",
+  "egg_limit": 4,
+  "wingspan": 53
+ },
+ {
+  "id": 43,
+  "name": "Bushtit",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "wild",
+  "egg_limit": 5,
+  "wingspan": 15
+ },
+ {
+  "id": 44,
+  "name": "California Condor",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [],
+  "points": 1,
+  "nest": "ground",
+  "egg_limit": 1,
+  "wingspan": 277
+ },
+ {
+  "id": 45,
+  "name": "California Quail",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 6,
+  "wingspan": 36
+ },
+ {
+  "id": 46,
+  "name": "Canada Goose",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 132
+ },
+ {
+  "id": 47,
+  "name": "Carolina Chickadee",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 20
+ },
+ {
+  "id": 48,
+  "name": "Carolina Wren",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "wingspan": 20
+ },
+ {
+  "id": 49,
+  "name": "Cassin's Finch",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 30
+ },
+ {
+  "id": 50,
+  "name": "Cassin's Sparrow",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 20
+ },
+ {
+  "id": 51,
+  "name": "Cedar Waxwing",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 25
+ },
+ {
+  "id": 52,
+  "name": "Cerulean Warbler",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 20
+ },
+ {
+  "id": 53,
+  "name": "Chestnut-Collared Longspur",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 25
+ },
+ {
+  "id": 54,
+  "name": "Chihuahuan Raven",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 3,
+  "wingspan": 112
+ },
+ {
+  "id": 55,
+  "name": "Chimney Swift",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 36
+ },
+ {
+  "id": 56,
+  "name": "Chipping Sparrow",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 23
+ },
+ {
+  "id": 57,
+  "name": "Clark's Grebe",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 61
+ },
+ {
+  "id": 58,
+  "name": "Clark's Nutcracker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 61
+ },
+ {
+  "id": 59,
+  "name": "Common Grackle",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 43
+ },
+ {
+  "id": 60,
+  "name": "Common Loon",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 1,
+  "wingspan": 117
+ },
+ {
+  "id": 61,
+  "name": "Common Merganser",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 86
+ },
+ {
+  "id": 62,
+  "name": "Common Nighthawk",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 56
+ },
+ {
+  "id": 63,
+  "name": "Common Raven",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 135
+ },
+ {
+  "id": 64,
+  "name": "Common Yellowthroat",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 18
+ },
+ {
+  "id": 65,
+  "name": "Cooper's Hawk",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 79
+ },
+ {
+  "id": 66,
+  "name": "Dark-Eyed Junco",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 23
+ },
+ {
+  "id": 67,
+  "name": "Dickcissel",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 25
+ },
+ {
+  "id": 68,
+  "name": "Double-Crested Cormorant",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 3,
+  "wingspan": 132
+ },
+ {
+  "id": 69,
+  "name": "Downy Woodpecker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "wingspan": 30
+ },
+ {
+  "id": 70,
+  "name": "Eastern Bluebird",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "wingspan": 33
+ },
+ {
+  "id": 71,
+  "name": "Eastern Kingbird",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 38
+ },
+ {
+  "id": 72,
+  "name": "Eastern Phoebe",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 4,
+  "wingspan": 28
+ },
+ {
+  "id": 73,
+  "name": "Eastern Screech-Owl",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "wingspan": 51
+ },
+ {
+  "id": 74,
+  "name": "Ferruginous Hawk",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 142
+ },
+ {
+  "id": 75,
+  "name": "Fish Crow",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 91
+ },
+ {
+  "id": 76,
+  "name": "Forster's Tern",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 79
+ },
+ {
+  "id": 77,
+  "name": "Franklin's Gull",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 91
+ },
+ {
+  "id": 78,
+  "name": "Golden Eagle",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     3
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "platform",
+  "egg_limit": 1,
+  "wingspan": 201
+ },
+ {
+  "id": 79,
+  "name": "Grasshopper Sparrow",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 20
+ },
+ {
+  "id": 80,
+  "name": "Gray Catbird",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 28
+ },
+ {
+  "id": 81,
+  "name": "Great Blue Heron",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 183
+ },
+ {
+  "id": 82,
+  "name": "Great Crested Flycatcher",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 33
+ },
+ {
+  "id": 83,
+  "name": "Great Egret",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 3,
+  "wingspan": 130
+ },
+ {
+  "id": 84,
+  "name": "Great Horned Owl",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     3
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 112
+ },
+ {
+  "id": 85,
+  "name": "Greater Prairie-Chicken",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 71
+ },
+ {
+  "id": 86,
+  "name": "Greater Roadrunner",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 56
+ },
+ {
+  "id": 87,
+  "name": "Green Heron",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 3,
+  "wingspan": 66
+ },
+ {
+  "id": 88,
+  "name": "Hermit Thrush",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 30
+ },
+ {
+  "id": 89,
+  "name": "Hooded Merganser",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 61
+ },
+ {
+  "id": 90,
+  "name": "Hooded Warbler",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 18
+ },
+ {
+  "id": 91,
+  "name": "Horned Lark",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 30
+ },
+ {
+  "id": 92,
+  "name": "House Finch",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 6,
+  "wingspan": 25
+ },
+ {
+  "id": 93,
+  "name": "House Wren",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "wingspan": 15
+ },
+ {
+  "id": 94,
+  "name": "Inca Dove",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "platform",
+  "egg_limit": 4,
+  "wingspan": 28
+ },
+ {
+  "id": 95,
+  "name": "Indigo Bunting",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 20
+ },
+ {
+  "id": 96,
+  "name": "Juniper Titmouse",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 23
+ },
+ {
+  "id": 97,
+  "name": "Killdeer",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 46
+ },
+ {
+  "id": 98,
+  "name": "King Rail",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 6,
+  "wingspan": 51
+ },
+ {
+  "id": 99,
+  "name": "Lazuli Bunting",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 23
+ },
+ {
+  "id": 100,
+  "name": "Lincoln's Sparrow",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 20
+ },
+ {
+  "id": 101,
+  "name": "Loggerhead Shrike",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 30
+ },
+ {
+  "id": 102,
+  "name": "Mallard",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 89
+ },
+ {
+  "id": 103,
+  "name": "Mississippi Kite",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 1,
+  "wingspan": 79
+ },
+ {
+  "id": 104,
+  "name": "Mountain Bluebird",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "wingspan": 36
+ },
+ {
+  "id": 105,
+  "name": "Mountain Chickadee",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 23
+ },
+ {
+  "id": 106,
+  "name": "Mourning Dove",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "platform",
+  "egg_limit": 5,
+  "wingspan": 46
+ },
+ {
+  "id": 107,
+  "name": "Northern Bobwhite",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     3
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 6,
+  "wingspan": 33
+ },
+ {
+  "id": 108,
+  "name": "Northern Cardinal",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 5,
+  "wingspan": 30
+ },
+ {
+  "id": 109,
+  "name": "Northern Flicker",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 51
+ },
+ {
+  "id": 110,
+  "name": "Northern Harrier",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 109
+ },
+ {
+  "id": 111,
+  "name": "Northern Mockingbird",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 36
+ },
+ {
+  "id": 112,
+  "name": "Northern Shoveler",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 76
+ },
+ {
+  "id": 113,
+  "name": "Osprey",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 160
+ },
+ {
+  "id": 114,
+  "name": "Painted Bunting",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 23
+ },
+ {
+  "id": 115,
+  "name": "Peregrine Falcon",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 104
+ },
+ {
+  "id": 116,
+  "name": "Pied-Billed Grebe",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "platform",
+  "egg_limit": 4,
+  "wingspan": 41
+ },
+ {
+  "id": 117,
+  "name": "Pileated Woodpecker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "wingspan": 74
+ },
+ {
+  "id": 118,
+  "name": "Pine Siskin",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 23
+ },
+ {
+  "id": 119,
+  "name": "Prothonotary Warbler",
+  "habitats": [
+   "forest",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 23
+ },
+ {
+  "id": 120,
+  "name": "Purple Gallinule",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 4,
+  "wingspan": 56
+ },
+ {
+  "id": 121,
+  "name": "Purple Martin",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 46
+ },
+ {
+  "id": 122,
+  "name": "Pygmy Nuthatch",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 20
+ },
+ {
+  "id": 123,
+  "name": "Red Crossbill",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 28
+ },
+ {
+  "id": 124,
+  "name": "Red-Bellied Woodpecker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 41
+ },
+ {
+  "id": 125,
+  "name": "Red-Breasted Nuthatch",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 23
+ },
+ {
+  "id": 126,
+  "name": "Red-Cockaded Woodpecker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "wingspan": 36
+ },
+ {
+  "id": 127,
+  "name": "Red-Eyed Vireo",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 2,
+  "wingspan": 25
+ },
+ {
+  "id": 128,
+  "name": "Red-Headed Woodpecker",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 43
+ },
+ {
+  "id": 129,
+  "name": "Red-Shouldered Hawk",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 102
+ },
+ {
+  "id": 130,
+  "name": "Red-Tailed Hawk",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 124
+ },
+ {
+  "id": 131,
+  "name": "Red-Winged Blackbird",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 33
+ },
+ {
+  "id": 132,
+  "name": "Ring-Billed Gull",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 122
+ },
+ {
+  "id": 133,
+  "name": "Rose-Breasted Grosbeak",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 33
+ },
+ {
+  "id": 134,
+  "name": "Roseate Spoonbill",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 127
+ },
+ {
+  "id": 135,
+  "name": "Ruby-Crowned Kinglet",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 20
+ },
+ {
+  "id": 136,
+  "name": "Ruby-Throated Hummingbird",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 10
+ },
+ {
+  "id": 137,
+  "name": "Ruddy Duck",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "platform",
+  "egg_limit": 5,
+  "wingspan": 48
+ },
+ {
+  "id": 138,
+  "name": "Sandhill Crane",
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 1,
+  "wingspan": 196
+ },
+ {
+  "id": 139,
+  "name": "Savannah Sparrow",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 18
+ },
+ {
+  "id": 140,
+  "name": "Say's Phoebe",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     3
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 33
+ },
+ {
+  "id": 141,
+  "name": "Scissor-Tailed Flycatcher",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 38
+ },
+ {
+  "id": 142,
+  "name": "Snowy Egret",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 104
+ },
+ {
+  "id": 143,
+  "name": "Song Sparrow",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "bowl",
+  "egg_limit": 5,
+  "wingspan": 20
+ },
+ {
+  "id": 144,
+  "name": "Spotted Owl",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 1,
+  "wingspan": 102
+ },
+ {
+  "id": 145,
+  "name": "Spotted Sandpiper",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 38
+ },
+ {
+  "id": 146,
+  "name": "Spotted Towhee",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 28
+ },
+ {
+  "id": 147,
+  "name": "Sprague's Pipit",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 3,
+  "wingspan": 25
+ },
+ {
+  "id": 148,
+  "name": "Steller's Jay",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 48
+ },
+ {
+  "id": 149,
+  "name": "Swainson's Hawk",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 130
+ },
+ {
+  "id": 150,
+  "name": "Tree Swallow",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 38
+ },
+ {
+  "id": 151,
+  "name": "Trumpeter Swan",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 203
+ },
+ {
+  "id": 152,
+  "name": "Tufted Titmouse",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 25
+ },
+ {
+  "id": 153,
+  "name": "Turkey Vulture",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 1,
+  "wingspan": 170
+ },
+ {
+  "id": 154,
+  "name": "Violet-Green Swallow",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 36
+ },
+ {
+  "id": 155,
+  "name": "Western Meadowlark",
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 4,
+  "wingspan": 38
+ },
+ {
+  "id": 156,
+  "name": "Western Tanager",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "wingspan": 30
+ },
+ {
+  "id": 157,
+  "name": "White-Breasted Nuthatch",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 28
+ },
+ {
+  "id": 158,
+  "name": "White-Crowned Sparrow",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 5,
+  "wingspan": 25
+ },
+ {
+  "id": 159,
+  "name": "White-Faced Ibis",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 91
+ },
+ {
+  "id": 160,
+  "name": "Whooping Crane",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     3
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 1,
+  "wingspan": 221
+ },
+ {
+  "id": 161,
+  "name": "Wild Turkey",
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "ground",
+  "egg_limit": 5,
+  "wingspan": 135
+ },
+ {
+  "id": 162,
+  "name": "Willet",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 66
+ },
+ {
+  "id": 163,
+  "name": "Wilson's Snipe",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 2,
+  "wingspan": 41
+ },
+ {
+  "id": 164,
+  "name": "Wood Duck",
+  "habitats": [
+   "forest",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "wingspan": 76
+ },
+ {
+  "id": 165,
+  "name": "Wood Stork",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 155
+ },
+ {
+  "id": 166,
+  "name": "Yellow-Bellied Sapsucker",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "wingspan": 41
+ },
+ {
+  "id": 167,
+  "name": "Yellow-Billed Cuckoo",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "wingspan": 46
+ },
+ {
+  "id": 168,
+  "name": "Yellow-Breasted Chat",
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 25
+ },
+ {
+  "id": 169,
+  "name": "Yellow-Headed Blackbird",
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "wingspan": 38
+ },
+ {
+  "id": 170,
+  "name": "Yellow-Rumped Warbler",
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "wingspan": 23
+ }
+]

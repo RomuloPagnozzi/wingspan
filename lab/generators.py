@@ -2,34 +2,27 @@
 
 import itertools
 import random
+import time
 from typing import Iterator
 
-from wingspan.ai import (
-    MCTSConfig,
-    MCTSStrategy,
-    Strategy,
-    ValueFunction,
-    create_strategy,
-)
-
-# Project-wide fixed reference opponent. Locked strategic params. Changing
-# these constants invalidates cross-experiment comparability — pre-change
-# and post-change win rates do not live on the same scale.
-REFERENCE_PARAMS = MCTSConfig(
-    simulations=1500,
-    exploration_constant=2.27,
-    value_function=ValueFunction.ABSOLUTE_SCORE,
-    determinize=True,
-    widening_alpha=0.83,
-    widening_k=1.7,
-)
+from wingspan.ai import Strategy, create_strategy
 
 
-def _instantiate(spec: dict) -> Strategy:
+def instantiate(spec: dict) -> Strategy:
     """Create a strategy from a fully-merged spec dict (with 'strategy' key)."""
     return create_strategy(
         spec["strategy"], **{k: v for k, v in spec.items() if k != "strategy"}
     )
+
+
+def seed_range(seeds: dict) -> Iterator[int]:
+    """The game seeds of a `seeds: {start, count}` block: `count` seeds from `start` (default 1), or
+    endless without a count. `start: clock` starts from the current time in seconds, a range no
+    earlier run can have used."""
+    start, count = seeds.get("start", 1), seeds.get("count")
+    if start == "clock":
+        start = int(time.time())
+    return itertools.count(start) if count is None else iter(range(start, start + count))
 
 
 def build_strategy(spec: dict, defaults: dict) -> Strategy:
@@ -40,7 +33,7 @@ def build_strategy(spec: dict, defaults: dict) -> Strategy:
     """
     merged = {**defaults, **spec}
     merged.pop("label", None)
-    return _instantiate(merged)
+    return instantiate(merged)
 
 
 def continuous_generator(
@@ -48,12 +41,24 @@ def continuous_generator(
 ) -> Iterator[tuple[list[Strategy], int, list[str]]]:
     """Generate games continuously for matchup experiments.
 
-    Yields (strategies, game_seed, arm_labels) tuples indefinitely.
-    Caller is responsible for stopping (e.g., via SIGINT).
+    Yields (strategies, game_seed, arm_labels) tuples indefinitely, with random seeds; the caller
+    stops it (e.g., via SIGINT). With a `seeds` block (see `seed_range`) it plays exactly one game per
+    seed instead, cycling through the matchups: each game gets its own deal, and the players'
+    strategy seeds derive from it, so the run can be reproduced.
     """
     defaults = config.get("defaults", {})
     matchup_specs = config["matchups"]
     games_per_round = defaults.get("games_per_round", 5)
+
+    if "seeds" in config:  # reproducible: one game per seed, a new deal each
+        for k, game_seed in enumerate(seed_range(config["seeds"])):
+            spec_list = matchup_specs[k % len(matchup_specs)]
+            strategies = [
+                build_strategy({**spec, "seed": 2 * game_seed + i}, defaults)
+                for i, spec in enumerate(spec_list)
+            ]
+            yield strategies, game_seed, [spec["label"] for spec in spec_list]
+        return
 
     while True:
         for spec_list in matchup_specs:
@@ -76,76 +81,55 @@ def _arm_overrides(arm: dict, param_name: str | None) -> dict:
     return {param_name: arm["value"]}
 
 
+def both_seats(
+    spec_a: dict, spec_b: dict, game_seed: int, labels: list[str]
+) -> Iterator[tuple[list[Strategy], int, list[str]]]:
+    """The same deal twice: A in the first seat, then in the second (position swap). Strategies are
+    built fresh for every game, so their internal RNG starts clean."""
+    yield [instantiate(spec_a), instantiate(spec_b)], game_seed, labels
+    yield [instantiate(spec_b), instantiate(spec_a)], game_seed, labels[::-1]
+
+
 def paired_generator(
     config: dict,
 ) -> Iterator[tuple[list[Strategy], int, list[str]]]:
-    """Generate paired comparison games with controlled seeds.
+    """Every pair of arms in `compare.values` plays each seed from both seats.
 
-    For each pair of arms in compare.values, generates games with:
-    - Same game_seed for position-swapped games
-    - Same strategy seed for both players (only param differs)
+    Seed-major: all pairs play a seed before the next one starts, so a run stopped at any point (or an
+    open-ended one, see `seed_range`) has about as many games for every pair. Both players get the
+    seed as their strategy seed; only their params differ.
     """
-    base = config["base"]
-    compare = config["compare"]
-    seeds_config = config["seeds"]
-
+    base, compare = config["base"], config["compare"]
     param_name = compare.get("parameter")
-    arms = compare["values"]
-    seed_count = seeds_config["count"]
-    seed_start = seeds_config.get("start", 1)
-
-    for arm_a, arm_b in itertools.combinations(arms, 2):
-        for seed_idx in range(seed_count):
-            game_seed = trial_seed = seed_start + seed_idx
-
-            config_a = {**base, **_arm_overrides(arm_a, param_name), "seed": trial_seed}
-            config_b = {**base, **_arm_overrides(arm_b, param_name), "seed": trial_seed}
-            labels = [arm_a["label"], arm_b["label"]]
-
-            # Two games per pair: A as P1, then B as P1 (position swap).
-            # Fresh strategies each yield so internal RNG starts clean.
-            for swap in (False, True):
-                pair = [_instantiate(config_a), _instantiate(config_b)]
-                if swap:
-                    yield pair[::-1], game_seed, labels[::-1]
-                else:
-                    yield pair, game_seed, labels
+    pairs = list(itertools.combinations(compare["values"], 2))
+    for game_seed in seed_range(config["seeds"]):
+        for a, b in pairs:
+            yield from both_seats(
+                {**base, **_arm_overrides(a, param_name), "seed": game_seed},
+                {**base, **_arm_overrides(b, param_name), "seed": game_seed},
+                game_seed,
+                [a["label"], b["label"]],
+            )
 
 
 def vs_reference_generator(
     config: dict,
 ) -> Iterator[tuple[list[Strategy], int, list[str]]]:
-    """Generate games of each arm against the fixed reference opponent.
+    """Every arm in `compare.values` plays `compare.reference` (a strategy spec) on each seed from both seats.
 
-    For each value in `compare.values`, runs `seeds.count` paired comparisons
-    against REFERENCE_PARAMS. Same paired-comparison machinery as
-    `paired_generator`, with one side fixed to the reference.
+    Seed-major like `paired_generator`, so the arms stay balanced however long the run goes.
     """
-    base = config["base"]
-    compare = config["compare"]
-    seeds_config = config["seeds"]
-
+    base, compare = config["base"], config["compare"]
     param_name = compare.get("parameter")
-    arms = compare["values"]
-    reference_label = compare["reference_label"]
-    seed_count = seeds_config["count"]
-    seed_start = seeds_config.get("start", 1)
-
-    for arm in arms:
-        for seed_idx in range(seed_count):
-            game_seed = trial_seed = seed_start + seed_idx
-            arm_spec = {**base, **_arm_overrides(arm, param_name), "seed": trial_seed}
-            labels = [arm["label"], reference_label]
-
-            for swap in (False, True):
-                pair = [
-                    _instantiate(arm_spec),
-                    MCTSStrategy(params=REFERENCE_PARAMS, seed=trial_seed),
-                ]
-                if swap:
-                    yield pair[::-1], game_seed, labels[::-1]
-                else:
-                    yield pair, game_seed, labels
+    reference = compare["reference"]
+    for game_seed in seed_range(config["seeds"]):
+        for arm in compare["values"]:
+            yield from both_seats(
+                {**base, **_arm_overrides(arm, param_name), "seed": game_seed},
+                {**reference, "seed": game_seed},
+                game_seed,
+                [arm["label"], compare["reference_label"]],
+            )
 
 
 def get_generator(config: dict) -> Iterator[tuple[list[Strategy], int, list[str]]]:
@@ -166,18 +150,15 @@ def count_games(config: dict) -> int | None:
     """Return total game count for finite experiments, None for infinite."""
     mode = config.get("mode", "continuous")
 
+    count = config.get("seeds", {}).get("count")  # None: endless
+    if count is None:
+        return None
+    arms = config["compare"]["values"] if mode in ("paired", "vs_reference") else []
     if mode == "paired":
-        arms = config["compare"]["values"]
-        seed_count = config["seeds"]["count"]
-        num_pairs = len(list(itertools.combinations(arms, 2)))
-        return num_pairs * seed_count * 2  # 2 games per seed (position swap)
-
+        return len(list(itertools.combinations(arms, 2))) * count * 2  # ×2: position swap
     if mode == "vs_reference":
-        arms = config["compare"]["values"]
-        seed_count = config["seeds"]["count"]
-        return len(arms) * seed_count * 2  # 2 games per seed (position swap)
-
-    return None  # Continuous runs forever
+        return len(arms) * count * 2
+    return count  # continuous with seeds: one game per seed
 
 
 # =============================================================================
@@ -214,6 +195,19 @@ def _validate_arm(arm, idx: int, where: str) -> None:
         )
 
 
+def validate_seeds(seeds, where: str) -> None:
+    """A `seeds` block: `start` an int or "clock" (default 1), `count` a positive int or absent (endless)."""
+    _require(isinstance(seeds, dict), f"{where}: `seeds` must be a mapping with `start` and/or `count`")
+    start, count = seeds.get("start", 1), seeds.get("count")
+    _require(start == "clock" or isinstance(start, int), f"{where}: `seeds.start` must be an int or \"clock\"")
+    _require(count is None or (isinstance(count, int) and count > 0), f"{where}: `seeds.count` must be a positive int")
+
+
+def validate_strategy_spec(spec, where: str) -> None:
+    _require(isinstance(spec, dict) and isinstance(spec.get("strategy"), str),
+             f"{where}: must be a strategy spec, a mapping with a `strategy` name (got {spec!r})")
+
+
 def _validate_unique_labels(labels: list[str], where: str) -> None:
     seen: set[str] = set()
     for label in labels:
@@ -247,8 +241,9 @@ def validate_config(config: dict) -> None:
             f"arm{'s' if min_arms > 1 else ''}",
         )
         for i, arm in enumerate(arms):
-            _validate_arm(arm, i, f"compare.values")
+            _validate_arm(arm, i, "compare.values")
         _validate_unique_labels([a["label"] for a in arms], "compare.values")
+        validate_seeds(config.get("seeds"), f"mode={mode}")
 
         if mode == "vs_reference":
             ref_label = compare.get("reference_label")
@@ -262,6 +257,7 @@ def validate_config(config: dict) -> None:
                 f"mode=vs_reference: reference_label {ref_label!r} collides "
                 "with an arm label",
             )
+            validate_strategy_spec(compare.get("reference"), "mode=vs_reference: `compare.reference`")
         return
 
     if mode == "continuous":
@@ -289,6 +285,8 @@ def validate_config(config: dict) -> None:
                 )
                 labels.append(spec["label"])
             _validate_unique_labels(labels, f"matchups[{m_idx}]")
+        if "seeds" in config:
+            validate_seeds(config["seeds"], "mode=continuous")
         return
 
     raise ConfigError(f"Unknown mode: {mode!r}")

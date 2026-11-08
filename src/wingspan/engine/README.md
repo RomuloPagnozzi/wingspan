@@ -17,9 +17,9 @@ Core game logic for Wingspan.
 
 | Package | Role |
 |---------|------|
-| `core/` | the data layer: state, types, initialization, copying |
-| `power/` | the bird power system: execution, options, validation |
-| `assets/` | serialized card data loaded at runtime |
+| `core/` | the data layer: state, types, initialization, copying (`custom_copy.md` explains the copy) |
+| `power/` | the bird power system: execution (`handlers.py`), options (`choices.py`), validation (`validators.py`) |
+| `assets/` | the card data (JSON), written by `raw/generate_assets.py`; read by this engine and the Rust one |
 
 ## Dependencies
 

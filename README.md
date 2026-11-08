@@ -2,29 +2,31 @@
 
 Building the strongest possible Wingspan player through MCTS and deep reinforcement learning.
 
-Managed with [uv](https://docs.astral.sh/uv/).
+Managed with [uv](https://docs.astral.sh/uv/). The search engine is Rust (`rust/`): `uv sync` builds it,
+so a Rust toolchain is needed (`curl https://sh.rustup.rs -sSf | sh`).
 
 ## Structure
 
 | Path | Role |
 |------|------|
-| `src/wingspan/engine/` | complete game engine: state, rules, actions, scoring |
-| `src/wingspan/ai/` | AI players shipped with the app (random, tuned MCTS) |
+| `src/wingspan/engine/` | the game engine in Python: state, rules, actions, scoring; the reference for every rule |
+| `src/wingspan/ai/` | AI players: Python MCTS (the web app's bot), the Rust-backed searches, the NN encoder |
+| `rust/` | the game engine and searches in Rust, checked against the Python engine move by move |
 | `src/wingspan/web/` | browser UI: FastAPI server, SQLite store, vanilla JS client |
 | `deploy/` | production compose file, server settings template, nightly backup script |
-| `lab/` | research: run harness, analysis, tuning |
-| `experiments/` | experiment outputs (run data, reports, tuning studies) |
-| `tests/` | pytest suite covering the full game engine |
-| `docs/` | rules, roadmap, experiment catalog, idea inbox |
+| `lab/` | experiments, tuning, training pipeline |
+| `experiments/` | the self-play config; run data under `experiments/data/` (not in git) |
+| `raw/` | the card spreadsheet and the script that writes the engine's card data |
+| `tests/` | pytest suite |
+| `docs/` | rules, what we know from experiments, roadmap, idea inbox |
 
 ## Usage
 
 ```bash
-uv sync                                    # everything (dev + lab + web groups)
+uv sync                                    # everything (dev + lab + web groups, the Rust engine)
 uv run pytest                              # run tests
 uv run wingspan                            # play in the browser vs the champion bot (--sims 50 for a fast one, ...)
-uv run python -m lab -c path/to/cfg.yaml   # run an experiment
-uv run python -m lab.analysis              # rebuild reports + analysis.html
+uv run python -m lab -c CONFIG.yaml --record-decisions   # run an experiment (see lab/README.md)
 ```
 
 ## Web app
@@ -54,4 +56,4 @@ make reports                # players' bug reports, each with the command to reo
 make debug ID=<game> [AT=<move>]   # open that copy locally, read-only, in the owner's seat
 ```
 
-See `experiments/README.md` for the config schema and run layout.
+See `lab/README.md` for experiments and `rust/README.md` for the Rust engine.

@@ -1,0 +1,2038 @@
+{
+ "1": {
+  "text": "Gain 1 [seed] from the birdfeeder, if available. You may cache it on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "birdfeeder",
+    "can_cache": true,
+    "quantity": 1
+   }
+  }
+ },
+ "2": {
+  "text": "When another player takes the \"lay eggs\" action, lay 1 [egg] on another bird with a [ground] nest.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 20,
+   "details": {
+    "type": "ground"
+   }
+  }
+ },
+ "3": {
+  "text": "Player(s) with the fewest birds in their [wetland] draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 13,
+   "details": {
+    "habitat": "wetland",
+    "item": "card"
+   }
+  }
+ },
+ "4": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "5": {
+  "text": "Discard 1 [egg] from any of your other birds to gain 1 [wild] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "wild",
+    "gain_qty": 1,
+    "action": "gain"
+   }
+  }
+ },
+ "6": {
+  "text": "Gain 3 [seed] from the supply.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "supply",
+    "can_cache": false,
+    "quantity": 3
+   }
+  }
+ },
+ "7": {
+  "text": "Roll all dice not in birdfeeder. If any are [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "8": {
+  "text": "Draw [card] equal to the number of players +1. Starting with you and proceeding clockwise, each player selects 1 of those cards and places it in their hand. You keep the extra card.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 6
+  }
+ },
+ "9": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "10": {
+  "text": "Discard 1 [fish] to tuck 2 [card] from the deck behind this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "fish",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "tuck"
+   }
+  }
+ },
+ "11": {
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
+  "data": null
+ },
+ "12": {
+  "text": "Roll all dice not in birdfeeder. If any are [fish], cache 1 [fish] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "13": {
+  "text": "Each player gains 1 [die] from the birdfeeder, starting with the player of your choice.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 7
+  }
+ },
+ "14": {
+  "text": "Lay 1 [egg] on each of your birds with a [cavity] nest.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "cavity"
+   }
+  }
+ },
+ "15": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "16": {
+  "text": "Lay 1 [egg] on any bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "any"
+   }
+  }
+ },
+ "17": {
+  "text": "Gain all [fish] that are in the birdfeeder.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "fish"
+    ],
+    "source": "birdfeeder",
+    "can_cache": false,
+    "quantity": "all"
+   }
+  }
+ },
+ "18": {
+  "text": "All players gain 1 [fruit] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "fruit"
+   }
+  }
+ },
+ "19": {
+  "text": "Roll all dice not in birdfeeder. If any are [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "20": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "21": {
+  "text": "Look at a [card] from the deck. If less than 75cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 75
+   }
+  }
+ },
+ "22": {
+  "text": "When another player takes the \"lay eggs\" action, lay 1 [egg] on another bird with a [cavity] nest.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 20,
+   "details": {
+    "type": "cavity"
+   }
+  }
+ },
+ "23": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "24": {
+  "text": "When another player plays a bird in their [wetland], gain 1 [fish] from the supply.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 18,
+   "details": {
+    "habitat": "wetland",
+    "resource": "fish"
+   }
+  }
+ },
+ "25": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "26": {
+  "text": "Roll all dice not in birdfeeder. If any are [fish], cache 1 [fish] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "27": {
+  "text": "Draw 1 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 1,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "28": {
+  "text": "When another player's [predator] succeeds, gain 1 [die] from the birdfeeder.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 21,
+   "details": {
+    "resource": "die"
+   }
+  }
+ },
+ "29": {
+  "text": "Discard 1 [seed] to tuck 2 [card] from the deck behind this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "seed",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "tuck"
+   }
+  }
+ },
+ "30": {
+  "text": "When another player's [predator] succeeds, gain 1 [die] from the birdfeeder.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 21,
+   "details": {
+    "resource": "die"
+   }
+  }
+ },
+ "31": {
+  "text": "Discard 1 [egg] from any of your other birds to gain 1 [wild] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "wild",
+    "gain_qty": 1,
+    "action": "gain"
+   }
+  }
+ },
+ "32": {
+  "text": "Draw 2 [card].",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": false,
+    "bonus": false
+   }
+  }
+ },
+ "33": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "34": {
+  "text": "Gain 1 [seed] from the birdfeeder, if available. You may cache it on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "birdfeeder",
+    "can_cache": true,
+    "quantity": 1
+   }
+  }
+ },
+ "35": {
+  "text": "Gain 1 [invertebrate] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "invertebrate"
+    ],
+    "source": "supply",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "36": {
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
+  "data": null
+ },
+ "37": {
+  "text": "Lay 1 [egg] on each of your birds with a [ground] nest.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "ground"
+   }
+  }
+ },
+ "38": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, you may also lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "egg"
+    ]
+   }
+  }
+ },
+ "39": {
+  "text": "When another player takes the \"lay eggs\" action, lay 1 [egg] on a bird with a [bowl] nest.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 20,
+   "details": {
+    "type": "bowl"
+   }
+  }
+ },
+ "40": {
+  "text": "Gain 3 [fish] from the supply.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "fish"
+    ],
+    "source": "supply",
+    "can_cache": false,
+    "quantity": 3
+   }
+  }
+ },
+ "41": {
+  "text": "When another player takes the \"lay eggs\" action, lay 1 [egg] on a bird with a [bowl] nest.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 20,
+   "details": {
+    "type": "bowl"
+   }
+  }
+ },
+ "42": {
+  "text": "Roll all dice not in birdfeeder. If any are [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "43": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, you may also lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "egg"
+    ]
+   }
+  }
+ },
+ "44": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "45": {
+  "text": "Lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": true,
+    "type": ""
+   }
+  }
+ },
+ "46": {
+  "text": "Discard 1 [seed] to tuck 2 [card] from the deck behind this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "seed",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "tuck"
+   }
+  }
+ },
+ "47": {
+  "text": "Cache 1 [seed] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 3
+  }
+ },
+ "48": {
+  "text": "Draw 2 [card].",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": false,
+    "bonus": false
+   }
+  }
+ },
+ "49": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "50": {
+  "text": "Lay 1 [egg] on any bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "any"
+   }
+  }
+ },
+ "51": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, gain 1 [fruit] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "fruit"
+    ]
+   }
+  }
+ },
+ "52": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "53": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "54": {
+  "text": "Discard 1 [egg] from any of your other birds to gain 2 [wild] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "wild",
+    "gain_qty": 2,
+    "action": "gain"
+   }
+  }
+ },
+ "55": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "56": {
+  "text": "Lay 1 [egg] on any bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "any"
+   }
+  }
+ },
+ "57": {
+  "text": "Draw 1 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 1,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "58": {
+  "text": "Gain 1 [seed] from the birdfeeder, if available. You may cache it on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "birdfeeder",
+    "can_cache": true,
+    "quantity": 1
+   }
+  }
+ },
+ "59": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, you may also lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "egg"
+    ]
+   }
+  }
+ },
+ "60": {
+  "text": "Player(s) with the fewest birds in their [wetland] draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 13,
+   "details": {
+    "habitat": "wetland",
+    "item": "card"
+   }
+  }
+ },
+ "61": {
+  "text": "Roll all dice not in birdfeeder. If any are [fish], cache 1 [fish] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "62": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "63": {
+  "text": "Discard 1 [egg] from any of your other birds to gain 2 [wild] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "wild",
+    "gain_qty": 2,
+    "action": "gain"
+   }
+  }
+ },
+ "64": {
+  "text": "Draw 2 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "65": {
+  "text": "Look at a [card] from the deck. If less than 75cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 75
+   }
+  }
+ },
+ "66": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, gain 1 [seed] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "seed"
+    ]
+   }
+  }
+ },
+ "67": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, you may also lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "egg"
+    ]
+   }
+  }
+ },
+ "68": {
+  "text": "Discard 1 [fish] to tuck 2 [card] from the deck behind this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "fish",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "tuck"
+   }
+  }
+ },
+ "69": {
+  "text": "Play an additional bird in your [forest]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "forest"
+   }
+  }
+ },
+ "70": {
+  "text": "Play an additional bird in your [grassland]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "grassland"
+   }
+  }
+ },
+ "71": {
+  "text": "When another player plays a bird in their [forest], gain 1 [invertebrate] from the supply.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 18,
+   "details": {
+    "habitat": "forest",
+    "resource": "invertebrate"
+   }
+  }
+ },
+ "72": {
+  "text": "All players gain 1 [invertebrate] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "invertebrate"
+   }
+  }
+ },
+ "73": {
+  "text": "Roll all dice not in birdfeeder. If any are [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "74": {
+  "text": "Roll all dice not in birdfeeder. If any are [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "75": {
+  "text": "Discard 1 [egg] from any of your other birds to gain 1 [wild] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "wild",
+    "gain_qty": 1,
+    "action": "gain"
+   }
+  }
+ },
+ "76": {
+  "text": "Draw 1 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 1,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "77": {
+  "text": "Discard 1 [egg] to draw 2 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "draw"
+   }
+  }
+ },
+ "78": {
+  "text": "Look at a [card] from the deck. If less than 100cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 100
+   }
+  }
+ },
+ "79": {
+  "text": "Lay 1 [egg] on any bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "any"
+   }
+  }
+ },
+ "80": {
+  "text": "Repeat a brown power on another bird in this habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 14,
+   "details": {
+    "type": "brown"
+   }
+  }
+ },
+ "81": {
+  "text": "Play an additional bird in your [wetland]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "wetland"
+   }
+  }
+ },
+ "82": {
+  "text": "Gain 1 [invertebrate] from the birdfeeder, if available.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "invertebrate"
+    ],
+    "source": "birdfeeder",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "83": {
+  "text": "Play an additional bird in your [wetland]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "wetland"
+   }
+  }
+ },
+ "84": {
+  "text": "Look at a [card] from the deck. If less than 100cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 100
+   }
+  }
+ },
+ "85": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "86": {
+  "text": "Look at a [card] from the deck. If less than 50cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 50
+   }
+  }
+ },
+ "87": {
+  "text": "Trade 1 [wild] for any other type from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 16
+  }
+ },
+ "88": {
+  "text": "Player(s) with the fewest birds in their [forest] gain 1 [die] from birdfeeder.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 13,
+   "details": {
+    "habitat": "forest",
+    "item": "die"
+   }
+  }
+ },
+ "89": {
+  "text": "Repeat 1 [predator] power in this habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 14,
+   "details": {
+    "type": "predator"
+   }
+  }
+ },
+ "90": {
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
+  "data": null
+ },
+ "91": {
+  "text": "When another player plays a bird in their [grassland], tuck 1 [card] from your hand behind this bird.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 18,
+   "details": {
+    "habitat": "grassland",
+    "resource": "card"
+   }
+  }
+ },
+ "92": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "93": {
+  "text": "Play an additional bird in this bird's habitat. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "this"
+   }
+  }
+ },
+ "94": {
+  "text": "Lay 1 [egg] on each of your birds with a [platform] nest.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "platform"
+   }
+  }
+ },
+ "95": {
+  "text": "Gain 1 [invertebrate] or [fruit] from the birdfeeder, if available.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "invertebrate",
+     "fruit"
+    ],
+    "source": "birdfeeder",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "96": {
+  "text": "Cache 1 [seed] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 3
+  }
+ },
+ "97": {
+  "text": "Discard 1 [egg] to draw 2 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "egg",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "draw"
+   }
+  }
+ },
+ "98": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "99": {
+  "text": "All players lay 1 [egg] on any 1 [bowl] bird. You may lay 1 [egg] on 1 additional [bowl] bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 2,
+   "details": {
+    "type": "bowl"
+   }
+  }
+ },
+ "100": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "101": {
+  "text": "When another player takes the \"gain food\" action, if they gain any number of [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 19,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "102": {
+  "text": "Draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 1,
+    "discard": false,
+    "bonus": false
+   }
+  }
+ },
+ "103": {
+  "text": "Roll all dice not in birdfeeder. If any are [rodent], cache 1 [rodent] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "rodent"
+   }
+  }
+ },
+ "104": {
+  "text": "Play an additional bird in your [grassland]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "grassland"
+   }
+  }
+ },
+ "105": {
+  "text": "Cache 1 [seed] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 3
+  }
+ },
+ "106": {
+  "text": "Lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": true,
+    "type": ""
+   }
+  }
+ },
+ "107": {
+  "text": "Lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": true,
+    "type": ""
+   }
+  }
+ },
+ "108": {
+  "text": "Gain 1 [fruit] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "fruit"
+    ],
+    "source": "supply",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "109": {
+  "text": "Gain all [invertebrate] that are in the birdfeeder.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "invertebrate"
+    ],
+    "source": "birdfeeder",
+    "can_cache": false,
+    "quantity": "all"
+   }
+  }
+ },
+ "110": {
+  "text": "Look at a [card] from the deck. If less than 75cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 75
+   }
+  }
+ },
+ "111": {
+  "text": "Repeat a brown power on another bird in this habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 14,
+   "details": {
+    "type": "brown"
+   }
+  }
+ },
+ "112": {
+  "text": "All players draw 1 [card] from the deck.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "card"
+   }
+  }
+ },
+ "113": {
+  "text": "All players gain 1 [fish] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "114": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "115": {
+  "text": "Look at a [card] from the deck. If less than 100cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 100
+   }
+  }
+ },
+ "116": {
+  "text": "Draw 2 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "117": {
+  "text": "All players lay 1 [egg] on any 1 [cavity] bird. You may lay 1 [egg] on 1 additional [cavity] bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 2,
+   "details": {
+    "type": "cavity"
+   }
+  }
+ },
+ "118": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, gain 1 [seed] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "seed"
+    ]
+   }
+  }
+ },
+ "119": {
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
+  "data": null
+ },
+ "120": {
+  "text": "All players draw 1 [card] from the deck.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "card"
+   }
+  }
+ },
+ "121": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "122": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, gain 1 [invertebrate] or [seed] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "invertebrate",
+     "seed"
+    ]
+   }
+  }
+ },
+ "123": {
+  "text": "All players gain 1 [seed] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "seed"
+   }
+  }
+ },
+ "124": {
+  "text": "Gain 1 [seed] from the birdfeeder, if available. You may cache it on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "birdfeeder",
+    "can_cache": true,
+    "quantity": 1
+   }
+  }
+ },
+ "125": {
+  "text": "Cache 1 [seed] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 3
+  }
+ },
+ "126": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "127": {
+  "text": "Play an additional bird in your [forest]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "forest"
+   }
+  }
+ },
+ "128": {
+  "text": "Gain 1 [seed] from the birdfeeder, if available. You may cache it on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "birdfeeder",
+    "can_cache": true,
+    "quantity": 1
+   }
+  }
+ },
+ "129": {
+  "text": "Look at a [card] from the deck. If less than 75cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 75
+   }
+  }
+ },
+ "130": {
+  "text": "Look at a [card] from the deck. If less than 75cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 75
+   }
+  }
+ },
+ "131": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, you may also lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "egg"
+    ]
+   }
+  }
+ },
+ "132": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "133": {
+  "text": "Gain 1 [seed] or [fruit] from the birdfeeder, if available.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed",
+     "fruit"
+    ],
+    "source": "birdfeeder",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "134": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "135": {
+  "text": "Play an additional bird in your [forest]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "forest"
+   }
+  }
+ },
+ "136": {
+  "text": "Each player gains 1 [die] from the birdfeeder, starting with the player of your choice.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 7
+  }
+ },
+ "137": {
+  "text": "Draw 2 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "138": {
+  "text": "Discard 1 [seed] to tuck 2 [card] from the deck behind this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 4,
+   "details": {
+    "discard": "seed",
+    "discard_qty": 1,
+    "gain": "card",
+    "gain_qty": 2,
+    "action": "tuck"
+   }
+  }
+ },
+ "139": {
+  "text": "Play an additional bird in your [grassland]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "grassland"
+   }
+  }
+ },
+ "140": {
+  "text": "Lay 1 [egg] on each of your birds with a [bowl] nest.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 10,
+   "details": {
+    "this": false,
+    "type": "bowl"
+   }
+  }
+ },
+ "141": {
+  "text": "All players gain 1 [invertebrate] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "invertebrate"
+   }
+  }
+ },
+ "142": {
+  "text": "Roll all dice not in birdfeeder. If any are [fish], cache 1 [fish] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "143": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "144": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "145": {
+  "text": "All players draw 1 [card] from the deck.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "card"
+   }
+  }
+ },
+ "146": {
+  "text": "Gain 1 [seed] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "supply",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "147": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "148": {
+  "text": "Gain 1 [seed] from the birdfeeder, if available. You may cache it on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "seed"
+    ],
+    "source": "birdfeeder",
+    "can_cache": true,
+    "quantity": 1
+   }
+  }
+ },
+ "149": {
+  "text": "Look at a [card] from the deck. If less than 75cm, tuck it behind this bird. If not, discard it.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 11,
+   "details": {
+    "wingspan": 75
+   }
+  }
+ },
+ "150": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "151": {
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
+  "data": null
+ },
+ "152": {
+  "text": "Play an additional bird in your [forest]. Pay its normal cost.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 12,
+   "details": {
+    "habitat": "forest"
+   }
+  }
+ },
+ "153": {
+  "text": "When another player's [predator] succeeds, gain 1 [die] from the birdfeeder.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 21,
+   "details": {
+    "resource": "die"
+   }
+  }
+ },
+ "154": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ },
+ "155": {
+  "text": "All players lay 1 [egg] on any 1 [ground] bird. You may lay 1 [egg] on 1 additional [ground] bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 2,
+   "details": {
+    "type": "ground"
+   }
+  }
+ },
+ "156": {
+  "text": "Gain 1 [invertebrate] or [fruit] from the birdfeeder, if available.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "invertebrate",
+     "fruit"
+    ],
+    "source": "birdfeeder",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "157": {
+  "text": "Cache 1 [seed] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 3
+  }
+ },
+ "158": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "159": {
+  "text": "Roll all dice not in birdfeeder. If any are [fish], cache 1 [fish] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "160": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "161": {
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
+  "data": null
+ },
+ "162": {
+  "text": "Roll all dice not in birdfeeder. If any are [fish], cache 1 [fish] from the supply on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 15,
+   "details": {
+    "type": "fish"
+   }
+  }
+ },
+ "163": {
+  "text": "All players draw 1 [card] from the deck.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 1,
+   "details": {
+    "type": "card"
+   }
+  }
+ },
+ "164": {
+  "text": "Draw 2 [card]. If you do, discard 1 [card] from your hand at the end of your turn.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": false
+   }
+  }
+ },
+ "165": {
+  "text": "Draw 2 new bonus cards and keep 1.",
+  "color": "white",
+  "trigger": "when played",
+  "data": {
+   "id": 5,
+   "details": {
+    "amount": 2,
+    "discard": true,
+    "bonus": true
+   }
+  }
+ },
+ "166": {
+  "text": "Gain 1 [invertebrate] from the supply.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 8,
+   "details": {
+    "food_types": [
+     "invertebrate"
+    ],
+    "source": "supply",
+    "can_cache": false,
+    "quantity": 1
+   }
+  }
+ },
+ "167": {
+  "text": "When another player takes the \"lay eggs\" action, lay 1 [egg] on a bird with a [bowl] nest.",
+  "color": "pink",
+  "trigger": "once between turns",
+  "data": {
+   "id": 20,
+   "details": {
+    "type": "bowl"
+   }
+  }
+ },
+ "168": {
+  "text": "If this bird is to the right of all other birds in its habitat, move it to another habitat.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 9
+  }
+ },
+ "169": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, you may also lay 1 [egg] on this bird.",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "egg"
+    ]
+   }
+  }
+ },
+ "170": {
+  "text": "Tuck 1 [card] from your hand behind this bird. If you do, draw 1 [card].",
+  "color": "brown",
+  "trigger": "when activated",
+  "data": {
+   "id": 17,
+   "details": {
+    "types": [
+     "card"
+    ]
+   }
+  }
+ }
+}

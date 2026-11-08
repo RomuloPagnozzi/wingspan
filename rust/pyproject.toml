@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "wingspan_rs"
+version = "0.1.0"
+requires-python = ">=3.13"
+
+[tool.maturin]
+features = ["python"]
+
+[tool.uv]
+# Rebuild when the Rust sources or the card data they embed change
+cache-keys = [{ file = "Cargo.toml" }, { file = "src/**/*.rs" }, { file = "../src/wingspan/engine/assets/*.json" }]

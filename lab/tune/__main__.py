@@ -27,7 +27,7 @@ def _on_sigint(signum, frame):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run an Optuna study over MCTSConfig")
+    parser = argparse.ArgumentParser(description="Run an Optuna study over a strategy's params")
     parser.add_argument("-c", "--config", type=Path, help="Tuning YAML path")
     parser.add_argument(
         "-o",
