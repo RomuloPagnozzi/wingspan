@@ -1,6 +1,6 @@
 # Self-play training data: paired flat Monte Carlo with per-phase budgets in both seats,
 # a new starting setup every game, 80/20 green/blue scoring. Runs until stopped:
-#   uv run python -m lab -c experiments/selfplay_flat_mc.yaml --record-decisions --rotate-every 100 -o experiments/data/selfplay_local
+#   uv run python -m lab -c experiments/selfplay_flat_mc.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay_local
 # Ctrl+C once: in-flight games finish and the files close (twice: quit at once).
 # On a rented server (lab/cloud.py) the agent sets its own seeds and num_workers.
 # Budgets as in EXP-012 (experiments/flat_mc_phase_budget.yaml), where they are explained.
