@@ -11,7 +11,7 @@ after the last deal in the file, so a run can be stopped (Ctrl+C) and resumed at
     PYTHONPATH=.:rust/py uv run python rust/py/exp_tree.py report scaling
 
 Sets: `tree` (EXP-013: tree and flat variants, 2026-11-08), `scaling` (the tree at 3k..100k simulations,
-and at 10k/30k with the flat-MC phase table scaled to the tree: is the table useful at big budgets?).
+and at 10k with the flat-MC phase table scaled to the tree: is the table useful at big budgets?).
 """
 
 import argparse
@@ -55,7 +55,6 @@ SETS = {
         "arms": {
             **{f"tree_{n // 1000}k": ("mcts_rs", {**CHAMPION, "simulations": n}) for n in (3_000, 10_000, 30_000, 100_000)},
             "tree_table_10k": tree_table(10_000),
-            "tree_table_30k": tree_table(30_000),
         },
     },
 }
