@@ -48,12 +48,27 @@ def continuous_generator(
 ) -> Iterator[tuple[list[Strategy], int, list[str]]]:
     """Generate games continuously for matchup experiments.
 
-    Yields (strategies, game_seed, arm_labels) tuples indefinitely.
-    Caller is responsible for stopping (e.g., via SIGINT).
+    Yields (strategies, game_seed, arm_labels) tuples indefinitely, with random seeds; the caller
+    stops it (e.g., via SIGINT). With a `seeds: {start, count}` block it plays exactly one game per
+    seed instead, cycling through the matchups: each game gets its own deal, and the players'
+    strategy seeds derive from it, so the run can be reproduced. It stops after `count` games, or
+    never without a count.
     """
     defaults = config.get("defaults", {})
     matchup_specs = config["matchups"]
     games_per_round = defaults.get("games_per_round", 5)
+
+    if "seeds" in config:  # reproducible: one game per seed, a new deal each
+        start, count = config["seeds"].get("start", 1), config["seeds"].get("count")
+        for k in itertools.count() if count is None else range(count):
+            game_seed = start + k
+            spec_list = matchup_specs[k % len(matchup_specs)]
+            strategies = [
+                build_strategy({**spec, "seed": 2 * game_seed + i}, defaults)
+                for i, spec in enumerate(spec_list)
+            ]
+            yield strategies, game_seed, [spec["label"] for spec in spec_list]
+        return
 
     while True:
         for spec_list in matchup_specs:
@@ -177,6 +192,8 @@ def count_games(config: dict) -> int | None:
         seed_count = config["seeds"]["count"]
         return len(arms) * seed_count * 2  # 2 games per seed (position swap)
 
+    if "seeds" in config:
+        return config["seeds"].get("count")  # None: endless
     return None  # Continuous runs forever
 
 

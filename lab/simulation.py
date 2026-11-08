@@ -4,7 +4,7 @@ import signal
 from datetime import datetime
 from typing import Any
 
-from wingspan.engine.core import initiate_state, init_registries
+from wingspan.engine.core import ScoringMode, init_registries, initiate_state
 from wingspan.engine.actions import get_actions
 from wingspan.engine.engine import transition_state
 from wingspan.ai import Strategy
@@ -23,6 +23,7 @@ def simulate_game(
     game_seed: int,
     arm_labels: list[str],
     record_decisions: bool = False,
+    scoring: str = "green",
 ) -> tuple[GameResult, GameDecisions | None]:
     """Run a single game and return the result.
 
@@ -32,13 +33,14 @@ def simulate_game(
         arm_labels: Per-player arm identifier, aligned to `strategies`.
             This is the label that groups results across position swaps.
         record_decisions: Whether to record per-decision data for RL training
+        scoring: Round-goal scoring side, "green" or "blue"
 
     Returns:
         Tuple of (GameResult, optional GameDecisions)
     """
     assert len(arm_labels) == len(strategies)
     game_id = generate_game_id()
-    state = initiate_state(len(strategies), seed=game_seed)
+    state = initiate_state(len(strategies), ScoringMode(scoring), seed=game_seed)
 
     game_decisions = (
         GameDecisions(
@@ -136,6 +138,7 @@ def simulate_game(
             players=players,
             game_seed=game_seed,
             total_decisions=total_decisions,
+            scoring=scoring,
         ),
         game_decisions,
     )
@@ -162,8 +165,9 @@ def run_one_game(
     process can reattach a result to its (group, position) slot regardless
     of completion order.
     """
-    strategies, game_seed, arm_labels, metadata, record_decisions = args
+    strategies, game_seed, arm_labels, metadata, record_decisions, *rest = args
+    scoring = rest[0] if rest else "green"  # an optional 6th item
     result, decisions = simulate_game(
-        strategies, game_seed, arm_labels, record_decisions=record_decisions
+        strategies, game_seed, arm_labels, record_decisions=record_decisions, scoring=scoring
     )
     return result, decisions, metadata

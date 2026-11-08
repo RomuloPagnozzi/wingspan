@@ -3,7 +3,9 @@
 import argparse
 import itertools
 import multiprocessing as mp
+import random
 import signal
+import subprocess
 import sys
 from pathlib import Path
 from typing import Iterable, Iterator
@@ -139,12 +141,19 @@ def print_config_summary(config: dict, data_dir: Path):
     print("-" * 60)
 
 
+def scoring_for(game_seed: int, blue_share: float) -> str:
+    """The round-goal scoring side of a game, fixed by its seed: blue for about `blue_share` of
+    seeds, green otherwise, so a game can be replayed exactly."""
+    return "blue" if random.Random(game_seed).random() < blue_share else "green"
+
+
 def _work_iter(
     generator: Iterator[tuple[list[Strategy], int, list[str]]],
     total_games: int | None,
     record_decisions: bool,
-) -> Iterator[tuple[list[Strategy], int, list[str], int, bool]]:
-    """Yield work items `(strategies, game_seed, arm_labels, game_idx, record_decisions)`,
+    blue_share: float = 0.0,
+) -> Iterator[tuple[list[Strategy], int, list[str], int, bool, str]]:
+    """Yield work items `(strategies, game_seed, arm_labels, game_idx, record_decisions, scoring)`,
     halting on shutdown or when total_games is reached.
 
     `game_idx` is the 0-based global index; the receiver derives
@@ -155,7 +164,8 @@ def _work_iter(
             return
         if total_games is not None and game_idx >= total_games:
             return
-        yield (strategies, game_seed, arm_labels, game_idx, record_decisions)
+        scoring = scoring_for(game_seed, blue_share)
+        yield (strategies, game_seed, arm_labels, game_idx, record_decisions, scoring)
 
 
 def _iter_results(
@@ -190,6 +200,7 @@ def run_experiments(
     data_dir: Path,
     run_id: str,
     record_decisions: bool = False,
+    rotate: int | None = None,
 ):
     mode = config.get("mode", "continuous")
     total_games = count_games(config)
@@ -234,13 +245,14 @@ def run_experiments(
         smoothing=0.1,
     )
 
-    with GamesWriter(data_dir, run_id) as games_writer:
+    with GamesWriter(data_dir, run_id, rotate) as games_writer:
         decisions_writer = (
-            DecisionsWriter(data_dir, run_id) if record_decisions else None
+            DecisionsWriter(data_dir, run_id, rotate) if record_decisions else None
         )
 
         try:
-            work = _work_iter(generator, total_games, record_decisions)
+            # `blue_share` (config): share of games with blue round-goal scoring; default all green
+            work = _work_iter(generator, total_games, record_decisions, config.get("blue_share", 0.0))
             for result, game_decisions, game_idx in _iter_results(work, num_workers):
                 games_writer.add_game(result)
                 games_played += 1
@@ -326,11 +338,21 @@ def _print_config_listing(config: dict) -> None:
             print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
 
 
+def code_version() -> str:
+    """The git commit of this checkout, noting uncommitted changes; "unknown" outside git."""
+    git = lambda *args: subprocess.run(["git", *args], capture_output=True, text=True, cwd=Path(__file__).parent)
+    commit = git("rev-parse", "HEAD")
+    if commit.returncode:
+        return "unknown"
+    return commit.stdout.strip() + (" + uncommitted changes" if git("status", "--porcelain").stdout.strip() else "")
+
+
 def _run_one_config(
     config_path: Path,
     data_dir: Path,
     record_decisions: bool,
     list_only: bool,
+    rotate: int | None = None,
 ) -> None:
     config = load_config(config_path)
 
@@ -353,10 +375,12 @@ def _run_one_config(
     run_dir = data_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.yaml").write_bytes(config_path.read_bytes())
+    # Replays are only valid with the engine rules the games were played under
+    (run_dir / "code_version.txt").write_text(config.get("code_version") or code_version() + "\n")
 
     print(f"\nRun ID: {run_id}  (config: {config_path})")
     print_config_summary(config, data_dir)
-    run_experiments(config, data_dir, run_id, record_decisions)
+    run_experiments(config, data_dir, run_id, record_decisions, rotate)
 
 
 def main():
@@ -377,6 +401,13 @@ def main():
         help="Record per-decision data for RL training",
     )
     parser.add_argument("--list", action="store_true", help="List config and exit")
+    parser.add_argument(
+        "--rotate-every",
+        type=int,
+        default=None,
+        help="Close the parquet files every N games and start new parts, so a long run can be "
+        "copied away while it goes on",
+    )
     args = parser.parse_args()
 
     config_paths = [Path(c) for c in args.config]
@@ -399,7 +430,7 @@ def main():
             print(f"\n{'#' * 60}")
             print(f"# [{i}/{len(config_paths)}] {cfg_path}")
             print(f"{'#' * 60}")
-        _run_one_config(cfg_path, data_dir, args.record_decisions, args.list)
+        _run_one_config(cfg_path, data_dir, args.record_decisions, args.list, args.rotate_every)
         if _shutdown_requested:
             print("Shutdown requested — skipping remaining configs.")
             break
