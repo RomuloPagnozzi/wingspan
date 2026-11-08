@@ -32,6 +32,9 @@ lab = [
     "tqdm>=4.67.3",
     "uuid6>=2025.0.1",
 ]
+train = [
+    "torch>=2.15.0",
+]
 web = [
     "fastapi>=0.142.2",
     "pillow>=12.3.0",
