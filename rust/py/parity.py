@@ -4,7 +4,7 @@ At every state of many random Python games: the legal action lists must be ident
 order), and for EVERY legal action the next state must be identical, with Rust replaying the die rolls and
 shuffles that Python drew. Stops at the first mismatch and prints it.
 
-    uv run python rust/py/parity.py [n_games] [--no-powers] [--players N]
+    uv run python rust/py/parity.py [n_games] [--players N]
 """
 
 import collections
@@ -12,8 +12,6 @@ import json
 import random
 import sys
 
-if "--no-powers" in sys.argv:
-    import nopowers  # noqa: F401  (switches powers off before the engine is used)
 import wingspan_rs
 
 from wingspan.ai.rust import to_json
