@@ -1,0 +1,3734 @@
+[
+ {
+  "id": 1,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     3
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 2,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "pink"
+ },
+ {
+  "id": 3,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 4,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 5,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 6,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 7,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 8,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 9,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 10,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 1,
+  "color": "brown"
+ },
+ {
+  "id": 11,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": null
+ },
+ {
+  "id": 12,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 13,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 14,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "white"
+ },
+ {
+  "id": 15,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     3
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "wild",
+  "egg_limit": 1,
+  "color": "white"
+ },
+ {
+  "id": 16,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 17,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "platform",
+  "egg_limit": 1,
+  "color": "white"
+ },
+ {
+  "id": 18,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 19,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 20,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "wild",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 21,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 22,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "pink"
+ },
+ {
+  "id": 23,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 24,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 4,
+  "color": "pink"
+ },
+ {
+  "id": 25,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 26,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 27,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 28,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 1,
+  "color": "pink"
+ },
+ {
+  "id": 29,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 30,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 3,
+  "color": "pink"
+ },
+ {
+  "id": 31,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 32,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 33,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 34,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 35,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 36,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": null
+ },
+ {
+  "id": 37,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 38,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 39,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "none",
+  "egg_limit": 0,
+  "color": "pink"
+ },
+ {
+  "id": 40,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 41,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "none",
+  "egg_limit": 0,
+  "color": "pink"
+ },
+ {
+  "id": 42,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "wild",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 43,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "wild",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 44,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [],
+  "points": 1,
+  "nest": "ground",
+  "egg_limit": 1,
+  "color": "white"
+ },
+ {
+  "id": 45,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 6,
+  "color": "brown"
+ },
+ {
+  "id": 46,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 47,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 48,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "color": "white"
+ },
+ {
+  "id": 49,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 50,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 51,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 52,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 53,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "white"
+ },
+ {
+  "id": 54,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 55,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 56,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 57,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 58,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 59,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 60,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 1,
+  "color": "brown"
+ },
+ {
+  "id": 61,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 62,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 63,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 64,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 65,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 66,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 67,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 68,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 69,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 70,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "color": "white"
+ },
+ {
+  "id": 71,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "pink"
+ },
+ {
+  "id": 72,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 73,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 74,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 75,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 76,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 77,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 78,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     3
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "platform",
+  "egg_limit": 1,
+  "color": "brown"
+ },
+ {
+  "id": 79,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 80,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 81,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 82,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 83,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     2
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 84,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     3
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 85,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "white"
+ },
+ {
+  "id": 86,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 87,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 88,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 89,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 90,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": null
+ },
+ {
+  "id": 91,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "pink"
+ },
+ {
+  "id": 92,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 6,
+  "color": "brown"
+ },
+ {
+  "id": 93,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "color": "white"
+ },
+ {
+  "id": 94,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "platform",
+  "egg_limit": 4,
+  "color": "white"
+ },
+ {
+  "id": 95,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 96,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 97,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 98,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 6,
+  "color": "white"
+ },
+ {
+  "id": 99,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 100,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 101,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "pink"
+ },
+ {
+  "id": 102,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 103,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 1,
+  "color": "brown"
+ },
+ {
+  "id": 104,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 5,
+  "color": "white"
+ },
+ {
+  "id": 105,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 106,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "platform",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 107,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     3
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 6,
+  "color": "brown"
+ },
+ {
+  "id": 108,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 109,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "white"
+ },
+ {
+  "id": 110,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 111,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 112,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 113,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 114,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "white"
+ },
+ {
+  "id": 115,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 116,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "platform",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 117,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 118,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 119,
+  "habitats": [
+   "forest",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": null
+ },
+ {
+  "id": 120,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 7,
+  "nest": "platform",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 121,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 122,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 123,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 124,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 125,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 126,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 127,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "wild",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 128,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 129,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 130,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 131,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 132,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 133,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 134,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 135,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 136,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 137,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "platform",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 138,
+  "habitats": [
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 1,
+  "color": "brown"
+ },
+ {
+  "id": 139,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 140,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     3
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 141,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 142,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 143,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "bowl",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 144,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "rodent",
+     2
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "cavity",
+  "egg_limit": 1,
+  "color": "white"
+ },
+ {
+  "id": 145,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 146,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 0,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 147,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "ground",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 148,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 149,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 150,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 151,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "seed",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 9,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": null
+ },
+ {
+  "id": 152,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "white"
+ },
+ {
+  "id": 153,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [],
+  "points": 1,
+  "nest": "cavity",
+  "egg_limit": 1,
+  "color": "pink"
+ },
+ {
+  "id": 154,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 155,
+  "habitats": [
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 156,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "bowl",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 157,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 158,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 2,
+  "nest": "ground",
+  "egg_limit": 5,
+  "color": "brown"
+ },
+ {
+  "id": 159,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "invertebrate",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 160,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "wild",
+     3
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "ground",
+  "egg_limit": 1,
+  "color": "white"
+ },
+ {
+  "id": 161,
+  "habitats": [
+   "forest",
+   "grassland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 8,
+  "nest": "ground",
+  "egg_limit": 5,
+  "color": null
+ },
+ {
+  "id": 162,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "fish",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 163,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "ground",
+  "egg_limit": 2,
+  "color": "brown"
+ },
+ {
+  "id": 164,
+  "habitats": [
+   "forest",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "seed",
+     2
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "cavity",
+  "egg_limit": 4,
+  "color": "brown"
+ },
+ {
+  "id": 165,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fish",
+     1
+    ],
+    [
+     "rodent",
+     1
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 6,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "white"
+ },
+ {
+  "id": 166,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     1
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 3,
+  "nest": "cavity",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 167,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     2
+    ],
+    [
+     "wild",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "platform",
+  "egg_limit": 2,
+  "color": "pink"
+ },
+ {
+  "id": 168,
+  "habitats": [
+   "forest",
+   "grassland",
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "fruit",
+     2
+    ],
+    [
+     "invertebrate",
+     1
+    ]
+   ]
+  ],
+  "points": 5,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 169,
+  "habitats": [
+   "wetland"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ],
+    [
+     "seed",
+     1
+    ]
+   ]
+  ],
+  "points": 4,
+  "nest": "bowl",
+  "egg_limit": 3,
+  "color": "brown"
+ },
+ {
+  "id": 170,
+  "habitats": [
+   "forest"
+  ],
+  "cost": [
+   [
+    [
+     "invertebrate",
+     1
+    ]
+   ],
+   [
+    [
+     "seed",
+     1
+    ]
+   ],
+   [
+    [
+     "fruit",
+     1
+    ]
+   ]
+  ],
+  "points": 1,
+  "nest": "bowl",
+  "egg_limit": 4,
+  "color": "brown"
+ }
+]

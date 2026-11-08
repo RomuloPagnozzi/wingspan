@@ -1,0 +1,21 @@
+[package]
+name = "wingspan_rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "wingspan_rs"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# The Python bindings; maturin turns this on (see pyproject.toml). `cargo run --bin bench` builds without it.
+python = ["dep:pyo3"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1

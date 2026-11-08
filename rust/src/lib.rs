@@ -1,0 +1,71 @@
+pub mod actions;
+pub mod chance;
+pub mod data;
+pub mod rules;
+pub mod state;
+
+use std::time::Instant;
+
+/// Play `n_games` random games; returns (total decisions, seconds).
+pub fn bench(n_games: usize, seed: u64) -> (usize, f64) {
+    let mut rng = chance::Rng::new(seed);
+    let t = Instant::now();
+    let steps = (0..n_games).map(|_| rules::play_random_game(&mut rng)).sum();
+    (steps, t.elapsed().as_secs_f64())
+}
+
+#[cfg(feature = "python")]
+mod python {
+    use std::collections::VecDeque;
+
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+
+    use crate::chance::{Event, Replay};
+    use crate::rules;
+    use crate::state::State;
+
+    fn parse(state_json: &str) -> PyResult<State> {
+        serde_json::from_str(state_json).map_err(|e| PyValueError::new_err(format!("bad state json: {e}")))
+    }
+
+    /// Legal actions of a state (canonical JSON from py/pystate.py), as Python action strings.
+    #[pyfunction]
+    fn legal_actions(state_json: &str) -> PyResult<Vec<String>> {
+        Ok(rules::legal_actions(&parse(state_json)?).iter().map(|a| a.to_string()).collect())
+    }
+
+    /// Apply legal action number `index`, replaying the recorded chance `events`
+    /// (("die", [face]) or ("shuffle", deck_after)). Returns (new state json, unused events).
+    #[pyfunction]
+    fn apply(state_json: &str, index: usize, events: Vec<(String, Vec<u16>)>) -> PyResult<(String, usize)> {
+        let mut s = parse(state_json)?;
+        let actions = rules::legal_actions(&s);
+        let a = actions.get(index).ok_or_else(|| PyValueError::new_err("action index out of range"))?;
+        let mut replay = Replay(
+            events
+                .into_iter()
+                .map(|(kind, v)| match kind.as_str() {
+                    "die" => Event::Die(v[0] as u8),
+                    _ => Event::Shuffle(v),
+                })
+                .collect::<VecDeque<_>>(),
+        );
+        rules::apply(&mut s, a, &mut replay).map_err(PyValueError::new_err)?;
+        Ok((serde_json::to_string(&s).unwrap(), replay.0.len()))
+    }
+
+    /// Random games from fresh deals, timed inside Rust: (total decisions, seconds).
+    #[pyfunction]
+    fn bench_games(n_games: usize, seed: u64) -> (usize, f64) {
+        crate::bench(n_games, seed)
+    }
+
+    #[pymodule]
+    fn wingspan_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(legal_actions, m)?)?;
+        m.add_function(wrap_pyfunction!(apply, m)?)?;
+        m.add_function(wrap_pyfunction!(bench_games, m)?)?;
+        Ok(())
+    }
+}
