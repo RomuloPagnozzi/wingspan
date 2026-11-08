@@ -4,9 +4,10 @@
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Declared in alphabetical order, so sorting by Food = sorting by name (Python's `frozen_map`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Food {
+    #[default]
     Fish,
     Fruit,
     Invertebrate,
@@ -114,7 +115,7 @@ pub struct Score {
     pub bonus_scores: Vec<(u16, i32)>, // sorted by bonus id
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Player {
     pub id: u8, // 1-based, as in Python
     pub bird_hand: Vec<u16>,
@@ -126,6 +127,84 @@ pub struct Player {
     pub first_player: bool,
     pub used_pink_powers: Vec<u16>,
     pub score: Score,
+}
+
+/// The 16 round goals; the 8 double-sided tiles are the pairs (2i, 2i + 1).
+pub const GOAL_NAMES: [&str; 16] = [
+    "eggs_in_bowl", "bowl_birds_with_egg", "eggs_in_cavity", "cavity_birds_with_egg",
+    "eggs_in_ground", "ground_birds_with_egg", "eggs_in_platform", "platform_birds_with_egg",
+    "eggs_in_forest", "birds_in_forest", "eggs_in_grassland", "birds_in_grassland",
+    "eggs_in_wetland", "birds_in_wetland", "total_birds", "sets_of_eggs",
+];
+
+/// The 4 selected round goals, as indices into `GOAL_NAMES` (no heap allocation when a state is cloned).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Goals(pub [u8; 4]);
+
+impl Goals {
+    pub fn name(&self, round: usize) -> &'static str {
+        GOAL_NAMES[self.0[round - 1] as usize]
+    }
+}
+
+impl Serialize for Goals {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.0.map(|g| GOAL_NAMES[g as usize]).serialize(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for Goals {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let names = <[String; 4]>::deserialize(d)?;
+        let mut g = [0u8; 4];
+        for (i, n) in names.iter().enumerate() {
+            g[i] = GOAL_NAMES.iter().position(|x| x == n).ok_or_else(|| de::Error::custom(format!("unknown goal {n}")))? as u8;
+        }
+        Ok(Goals(g))
+    }
+}
+
+/// A copy with room to grow, so the first card drawn after cloning a state doesn't reallocate.
+fn spare<T: Clone>(v: &Vec<T>, extra: usize) -> Vec<T> {
+    let mut out = Vec::with_capacity(v.len() + extra);
+    out.extend_from_slice(v);
+    out
+}
+
+impl Clone for Player {
+    fn clone(&self) -> Player {
+        Player {
+            id: self.id,
+            bird_hand: spare(&self.bird_hand, 8),
+            bonus_hand: spare(&self.bonus_hand, 2),
+            food: spare(&self.food, 5 - self.food.len().min(5)),
+            board: self.board,
+            action_cubes: self.action_cubes,
+            first_player: self.first_player,
+            used_pink_powers: self.used_pink_powers.clone(),
+            score: Score { bonus_scores: spare(&self.score.bonus_scores, 2), ..self.score.clone() },
+        }
+    }
+}
+
+impl Clone for State {
+    fn clone(&self) -> State {
+        State {
+            players: self.players.clone(),
+            bird_deck: self.bird_deck.clone(),
+            discarded_birds: spare(&self.discarded_birds, 16),
+            bonus_deck: self.bonus_deck.clone(),
+            discarded_bonuses: spare(&self.discarded_bonuses, 4),
+            bird_tray: spare(&self.bird_tray, 3 - self.bird_tray.len().min(3)),
+            feeder: spare(&self.feeder, 5 - self.feeder.len().min(5)),
+            round: self.round,
+            current_player_index: self.current_player_index,
+            game_phase: self.game_phase,
+            action_data: self.action_data.clone(),
+            scoring_mode: self.scoring_mode,
+            selected_goals: self.selected_goals,
+        }
+    }
 }
 
 impl Player {
@@ -309,7 +388,7 @@ pub struct ActionData {
     pub pending_cost: Option<PendingCost>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct State {
     pub players: Vec<Player>,
     pub bird_deck: Vec<u16>, // top of the deck = last element
@@ -323,7 +402,22 @@ pub struct State {
     pub game_phase: Phase,
     pub action_data: ActionData,
     pub scoring_mode: ScoringMode,
-    pub selected_goals: Vec<String>,
+    pub selected_goals: Goals,
+}
+
+impl ActionData {
+    /// `ActionData.clear()`: back to the empty state of a new turn, keeping the vectors' allocations.
+    pub fn reset(&mut self) {
+        let (mut q, mut e, mut t) = (
+            std::mem::take(&mut self.powers_queue),
+            std::mem::take(&mut self.execution_stack),
+            std::mem::take(&mut self.end_turn_effects),
+        );
+        q.clear();
+        e.clear();
+        t.clear();
+        *self = ActionData { powers_queue: q, execution_stack: e, end_turn_effects: t, ..ActionData::default() };
+    }
 }
 
 impl State {

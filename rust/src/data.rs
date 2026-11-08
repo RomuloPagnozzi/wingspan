@@ -77,11 +77,21 @@ pub struct Bird {
     pub habitat_order: Vec<usize>, // as printed on the card
     /// Alternative cost options; within one, (food, amount) in card order. `None` food = wild.
     pub cost: Vec<Vec<(Option<Food>, u8)>>,
+    /// The same options as (amount per `Food`, wild amount), for the hot affordability check.
+    pub cost_counts: Vec<([u8; 5], u8)>,
     pub points: i32,
     pub nest: Nest,
     pub egg_limit: u8,
     pub wingspan: i32,
     pub power: Option<Power>,
+}
+
+/// The few card fields the rules read at almost every step, packed small so they stay in cache.
+#[derive(Clone, Copy, Debug)]
+pub struct Hot {
+    pub egg_limit: u8,
+    pub habitats: u8, // bit r = can live in board row r
+    pub color: Option<Color>,
 }
 
 pub enum BonusScore {
@@ -97,6 +107,7 @@ pub struct Bonus {
 
 pub struct Data {
     pub birds: Vec<Option<Bird>>, // indexed by bird id
+    pub hot: Vec<Hot>,            // indexed by bird id
     pub bonuses: Vec<Option<Bonus>>, // indexed by bonus id
     pub bird_ids: Vec<u16>, // registry order = the unshuffled deck
     pub bonus_ids: Vec<u16>,
@@ -108,6 +119,10 @@ impl Data {
     }
     pub fn bonus(&self, id: u16) -> &Bonus {
         self.bonuses[id as usize].as_ref().expect("unknown bonus id")
+    }
+    #[inline]
+    pub fn hot(&self, id: u16) -> Hot {
+        self.hot[id as usize]
     }
     pub fn power(&self, id: u16) -> Option<&Power> {
         self.bird(id).power.as_ref()
@@ -239,12 +254,29 @@ fn load() -> Data {
     let mut data = Data {
         birds: (0..=birds.iter().map(|b| b.id).max().unwrap()).map(|_| None).collect(),
         bonuses: (0..=bonuses.iter().map(|b| b.id).max().unwrap()).map(|_| None).collect(),
+        hot: vec![],
         bird_ids: birds.iter().map(|b| b.id).collect(),
         bonus_ids: bonuses.iter().map(|b| b.id).collect(),
     };
     for b in birds {
         let habitat_order: Vec<usize> = b.habitats.iter().map(|h| habitat_row(h)).collect();
+        let cost_counts = b
+            .cost
+            .iter()
+            .map(|opt| {
+                let mut c = ([0u8; 5], 0u8);
+                for (f, n) in opt {
+                    if f == "wild" {
+                        c.1 = *n;
+                    } else {
+                        c.0[food_from_str(f) as usize] = *n;
+                    }
+                }
+                c
+            })
+            .collect();
         data.birds[b.id as usize] = Some(Bird {
+            cost_counts,
             habitats: std::array::from_fn(|r| habitat_order.contains(&r)),
             habitat_order,
             cost: b
@@ -263,6 +295,18 @@ fn load() -> Data {
             power: powers.get(&b.id.to_string()).and_then(parse_power),
         });
     }
+    data.hot = data
+        .birds
+        .iter()
+        .map(|b| match b {
+            Some(b) => Hot {
+                egg_limit: b.egg_limit,
+                habitats: (0..3).filter(|&r| b.habitats[r]).map(|r| 1 << r).sum(),
+                color: b.power.as_ref().map(|p| p.color),
+            },
+            None => Hot { egg_limit: 0, habitats: 0, color: None },
+        })
+        .collect();
     for b in bonuses {
         let p = &b.score_params;
         let int = |k: &str| p[k].as_i64().unwrap();

@@ -26,21 +26,28 @@ fn power(bird: u16) -> &'static Power {
 // =============================================================================
 
 /// `get_triggered_powers`: brown powers of a habitat row (right to left), or the white power of one spot.
-pub fn triggered(s: &State, player: usize, color: Color, row: Option<usize>, spot: Option<(usize, usize)>) -> Vec<QueuedPower> {
+pub fn triggered(s: &State, player: usize, color: Color, row: Option<usize>, spot: Option<(usize, usize)>, out: &mut Vec<QueuedPower>) {
     let p = &s.players[player];
-    let spots: Vec<(usize, usize)> = match (spot, row) {
-        (Some(sp), _) => vec![sp],
-        (None, Some(r)) => (0..5).rev().map(|c| (r, c)).collect(),
-        _ => vec![],
+    let mut check = |r: usize, c: usize| {
+        if let Some(b) = p.board[r][c] {
+            if data().hot(b.id).color != Some(color) {
+                return;
+            }
+            if let Some(pw) = data().power(b.id) {
+                out.push(QueuedPower { power_id: pw.id, bird_id: b.id, spot_row: r as u8, spot_col: c as u8, player_index: player });
+            }
+        }
     };
-    spots
-        .into_iter()
-        .filter_map(|(r, c)| {
-            let b = p.board[r][c]?;
-            let pw = data().power(b.id).filter(|pw| pw.color == color)?;
-            Some(QueuedPower { power_id: pw.id, bird_id: b.id, spot_row: r as u8, spot_col: c as u8, player_index: player })
-        })
-        .collect()
+    match (spot, row) {
+        (Some((r, c)), _) => check(r, c),
+        (None, Some(r)) => (0..5).rev().for_each(|c| check(r, c)),
+        _ => {}
+    }
+}
+
+/// Whether a habitat row of `player` has a brown power (the lay-eggs action is worth it for those alone).
+pub fn has_brown_power(p: &Player, row: usize) -> bool {
+    p.board[row].iter().flatten().any(|b| data().hot(b.id).color == Some(Color::Brown))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -52,16 +59,18 @@ pub enum Pink {
 }
 
 /// `get_triggered_pink_powers`: other players' unused pink powers, clockwise from the left of `by`.
-pub fn triggered_pink(s: &State, trigger: Pink, by: usize) -> Vec<QueuedPower> {
+pub fn triggered_pink(s: &State, trigger: Pink, by: usize, out: &mut Vec<QueuedPower>) {
     let n = s.players.len();
-    let mut out = vec![];
     for o in 1..n {
         let i = (by + o) % n;
         let p = &s.players[i];
         for r in 0..3 {
             for c in 0..5 {
                 let Some(b) = p.board[r][c] else { continue };
-                let Some(pw) = data().power(b.id).filter(|pw| pw.color == Color::Pink) else { continue };
+                if data().hot(b.id).color != Some(Color::Pink) {
+                    continue;
+                }
+                let pw = power(b.id);
                 if p.used_pink_powers.contains(&b.id) {
                     continue;
                 }
@@ -78,12 +87,12 @@ pub fn triggered_pink(s: &State, trigger: Pink, by: usize) -> Vec<QueuedPower> {
             }
         }
     }
-    out
 }
 
 /// Opponents' pink powers that react to a successful predator run right after the current power.
 fn queue_predator_success(s: &mut State, player: usize) {
-    let pinks = triggered_pink(s, Pink::PredatorSuccess, player);
+    let mut pinks = vec![];
+    triggered_pink(s, Pink::PredatorSuccess, player, &mut pinks);
     let at = s.action_data.current_power_index as usize + 1;
     for (i, q) in pinks.into_iter().enumerate() {
         s.action_data.powers_queue.insert(at + i, q);
@@ -229,18 +238,28 @@ fn habitat_name(name: &str) -> &'static str {
     HABITATS[habitat_row(name)]
 }
 
-pub fn choices(s: &State, e: &Execution) -> Vec<Action> {
+pub fn choices(s: &State, e: &Execution, out: &mut Vec<Action>) {
+    let v = choices_vec(s, e, out);
+    out.extend(v);
+}
+
+/// The choices of a power waiting for input; generators that write into `out` directly return nothing.
+fn choices_vec(s: &State, e: &Execution, out: &mut Vec<Action>) -> Vec<Action> {
     use Action::*;
     let ctx = &e.context;
     let cur = s.cur();
     let phase = e.phase.expect("power execution has no phase");
     match (&power(e.bird_id).kind, phase) {
-        (_, PowerPhase::SelectDraw) => card_draw_actions(s, ctx.draw_amount.unwrap() as usize),
+        (_, PowerPhase::SelectDraw) => {
+            card_draw_actions(s, ctx.draw_amount.unwrap() as usize, out);
+            vec![]
+        }
         (Kind::AllLayEggs { nest }, PowerPhase::Choices) => {
             let amount = if Some(s.current_player_index) == ctx.activator { 2 } else { 1 };
             // At most 1 egg per bird: the activator's second egg goes on an additional bird
             let items: Vec<(u16, u8)> = valid_birds_for_eggs(cur, *nest).into_iter().map(|id| (id, 1)).collect();
-            egg_distribution_actions(&items, amount, "activate_eggs")
+            egg_distribution_actions(&items, amount, "activate_eggs", out);
+            vec![]
         }
         (Kind::DiscardToGain { discard_food, gain_card, .. }, PowerPhase::SelectDiscard) => match discard_food {
             None => cur
@@ -262,12 +281,16 @@ pub fn choices(s: &State, e: &Execution) -> Vec<Action> {
         (Kind::AllGainDie, PowerPhase::ChooseStartingPlayer) => {
             (0..s.players.len()).map(|i| Id("choose_player", i as u16)).collect()
         }
-        (Kind::AllGainDie | Kind::Fewest { .. } | Kind::PinkPredator, PowerPhase::SelectDie) => collect_food_actions(s),
+        (Kind::AllGainDie | Kind::Fewest { .. } | Kind::PinkPredator, PowerPhase::SelectDie) => {
+            collect_food_actions(s, out);
+            vec![]
+        }
         (Kind::GainFood { .. }, PowerPhase::SelectFoodType) => {
             ctx.available_foods.iter().flatten().map(|f| Name("select_food_type", f.name())).collect()
         }
         (Kind::GainFood { .. }, PowerPhase::SelectDie) => {
-            let all = collect_food_actions(s);
+            let mut all = vec![];
+            collect_food_actions(s, &mut all);
             match ctx.food_type {
                 None => all,
                 Some(ft) => all.into_iter().filter(|a| !matches!(a, SelectDie { food, .. } if *food != ft)).collect(),
@@ -346,7 +369,7 @@ fn matching_dice(s: &State, f: Food) -> Vec<u8> {
 }
 
 fn reroll(s: &mut State, c: &mut impl Chance) {
-    s.feeder = roll_feeder(c);
+    roll_feeder(&mut s.feeder, c);
 }
 
 /// Run the power on top of the stack, which has just been pushed (phase None).

@@ -5,7 +5,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use crate::actions::Action;
 use crate::chance::{Chance, Rng};
 use crate::data::data;
-use crate::rules::{apply, legal_actions, total_score, update_player_scores};
+use crate::rules::{apply, legal_actions, legal_actions_into, total_score, update_player_scores};
 use crate::state::State;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,8 +114,9 @@ fn playout(world: &State, a: &Action, me: usize, vf: ValueFunction, chance: &mut
     if !ok {
         return None;
     }
+    let mut actions = Vec::with_capacity(96);
     loop {
-        let actions = legal_actions(&s);
+        legal_actions_into(&s, &mut actions);
         if actions.is_empty() {
             return Some(value(&mut s, me, vf));
         }

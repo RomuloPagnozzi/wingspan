@@ -3,7 +3,7 @@
 //! rollouts pick moves by index and the action strings are data keys.
 //! Bird powers live in powers.rs; this file runs their queue (engine.py `activate_powers`, end of turn).
 
-use crate::actions::Action;
+use crate::actions::{Action, Arr, EggItems, FoodItems};
 use crate::chance::{Chance, Rng};
 use crate::data::{data, BonusScore, Color, Nest};
 use crate::powers::{self, Pink};
@@ -43,8 +43,10 @@ fn new_player(id: u8) -> Player {
     }
 }
 
-pub fn roll_feeder(c: &mut impl Chance) -> Vec<(u8, Face)> {
-    (0..5).map(|i| (i, Face(c.roll_die()))).collect()
+/// Roll all 5 dice into the feeder (in place, keeping its allocation).
+pub fn roll_feeder(feeder: &mut Vec<(u8, Face)>, c: &mut impl Chance) {
+    feeder.clear();
+    feeder.extend((0..5).map(|i| (i, Face(c.roll_die()))));
 }
 
 /// Same steps as Python's `initiate_state`, with this engine's own RNG.
@@ -54,22 +56,17 @@ pub fn initiate(n_players: usize, mode: ScoringMode, rng: &mut Rng) -> State {
     let mut bonus_deck = d.bonus_ids.clone();
     rng.shuffle(&mut bird_deck);
     rng.shuffle(&mut bonus_deck);
-    let feeder = roll_feeder(rng);
+    let mut feeder = Vec::with_capacity(5);
+    roll_feeder(&mut feeder, rng);
 
-    let mut tiles: Vec<(String, String)> = ["bowl", "cavity", "ground", "platform"]
-        .iter()
-        .map(|n| (format!("eggs_in_{n}"), format!("{n}_birds_with_egg")))
-        .chain(HABITATS.iter().map(|h| (format!("eggs_in_{h}"), format!("birds_in_{h}"))))
-        .collect();
-    tiles.push(("total_birds".into(), "sets_of_eggs".into()));
-    let selected_goals = (0..4)
-        .map(|i| {
-            let j = i + rng.below(tiles.len() - i); // sample 4 tiles without replacement
-            tiles.swap(i, j);
-            let (a, b) = &tiles[i];
-            if rng.below(2) == 0 { a.clone() } else { b.clone() }
-        })
-        .collect();
+    let mut tiles: [u8; 8] = std::array::from_fn(|i| i as u8);
+    let mut goals = [0u8; 4];
+    for i in 0..4 {
+        let j = i + rng.below(8 - i); // sample 4 tiles without replacement, then a side of each
+        tiles.swap(i, j);
+        goals[i] = 2 * tiles[i] + rng.below(2) as u8;
+    }
+    let selected_goals = Goals(goals);
 
     let mut s = State {
         players: (1..=n_players as u8).map(new_player).collect(),
@@ -131,31 +128,28 @@ pub fn has_nest(nest: Nest, wanted: Nest) -> bool {
 }
 
 fn has_egg_room(p: &Player) -> bool {
-    p.birds().any(|b| b.eggs < data().bird(b.id).egg_limit)
+    let d = data();
+    p.birds().any(|b| b.eggs < d.hot(b.id).egg_limit)
 }
 
 fn total_eggs(p: &Player) -> u32 {
     p.birds().map(|b| b.eggs as u32).sum()
 }
 
-fn can_afford(cost: &[Vec<(Option<Food>, u8)>], food: [u8; 5]) -> bool {
+/// `can_afford_bird_cost`: some option is payable, each missing food replaced by any 2 tokens, wild by any 1.
+fn can_afford(cost: &[([u8; 5], u8)], food: [u8; 5]) -> bool {
     if cost.is_empty() {
         return true;
     }
-    cost.iter().any(|option| {
-        let mut remaining = food;
-        let (mut deficit, mut wild) = (0u32, 0u32);
-        for &(f, amount) in option {
-            match f {
-                None => wild = amount as u32,
-                Some(f) => {
-                    let used = remaining[f as usize].min(amount);
-                    remaining[f as usize] -= used;
-                    deficit += (amount - used) as u32;
-                }
-            }
+    let total: u32 = food.iter().map(|&n| n as u32).sum();
+    cost.iter().any(|(need, wild)| {
+        let (mut used, mut deficit) = (0u32, 0u32);
+        for i in 0..5 {
+            let u = need[i].min(food[i]);
+            used += u as u32;
+            deficit += (need[i] - u) as u32;
         }
-        remaining.iter().map(|&n| n as u32).sum::<u32>() >= 2 * deficit + wild
+        total - used >= 2 * deficit + *wild as u32
     })
 }
 
@@ -168,13 +162,19 @@ pub fn for_playable_spots(p: &Player, mut f: impl FnMut(u16, u8, u8) -> bool) {
     let eggs = total_eggs(p);
     let spots: [Option<usize>; 3] =
         std::array::from_fn(|r| leftmost_empty(p, r).filter(|&c| EGG_COST[c] as u32 <= eggs));
-    if spots.iter().all(Option::is_none) {
+    let open: u8 = (0..3).filter(|&r| spots[r].is_some()).map(|r| 1 << r).sum();
+    if open == 0 {
         return;
     }
     let food = p.food_counts();
+    let d = data();
     for &id in &p.bird_hand {
-        let bird = data().bird(id);
-        if !can_afford(&bird.cost, food) {
+        // Cheap habitat test first; it doesn't change which spots are yielded
+        if d.hot(id).habitats & open == 0 {
+            continue;
+        }
+        let bird = d.bird(id);
+        if !can_afford(&bird.cost_counts, food) {
             continue;
         }
         for (r, c) in spots.iter().enumerate() {
@@ -240,7 +240,7 @@ fn combinations_with_replacement(n: usize, k: usize, mut f: impl FnMut(&[usize])
     }
 }
 
-pub fn food_map(counts: [u8; 5]) -> Vec<(Food, u8)> {
+pub fn food_map(counts: [u8; 5]) -> FoodItems {
     Food::ALL.iter().filter(|f| counts[**f as usize] > 0).map(|&f| (f, counts[f as usize])).collect()
 }
 
@@ -291,12 +291,12 @@ fn food_payments(cost: &[Vec<(Option<Food>, u8)>], food: [u8; 5]) -> Vec<[u8; 5]
 }
 
 /// Shared DFS of `get_egg_payment_combinations` / `get_egg_distribution_combinations`.
-fn egg_combinations(items: &[(u16, u8)], total: u32) -> Vec<Vec<(u16, u8)>> {
-    fn dfs(items: &[(u16, u8)], suffix: &[u32], i: usize, left: u32, cur: &mut Vec<(u16, u8)>, out: &mut Vec<Vec<(u16, u8)>>) {
+fn egg_combinations(items: &[(u16, u8)], total: u32, emit: &mut dyn FnMut(EggItems)) {
+    fn dfs(items: &[(u16, u8)], suffix: &[u32], i: usize, left: u32, cur: &mut EggItems, out: &mut dyn FnMut(EggItems)) {
         if left == 0 {
-            let mut v = cur.clone();
+            let mut v = *cur;
             v.sort_unstable();
-            out.push(v);
+            out(v);
             return;
         }
         if left > suffix[i] {
@@ -310,13 +310,11 @@ fn egg_combinations(items: &[(u16, u8)], total: u32) -> Vec<Vec<(u16, u8)>> {
             cur.pop();
         }
     }
-    let mut suffix = vec![0u32; items.len() + 1];
+    let mut suffix = [0u32; 16];
     for i in (0..items.len()).rev() {
         suffix[i] = suffix[i + 1] + items[i].1 as u32;
     }
-    let mut out = vec![];
-    dfs(items, &suffix, 0, total, &mut vec![], &mut out);
-    out
+    dfs(items, &suffix, 0, total, &mut EggItems::new(), emit);
 }
 
 // =============================================================================
@@ -324,14 +322,21 @@ fn egg_combinations(items: &[(u16, u8)], total: u32) -> Vec<Vec<(u16, u8)>> {
 // =============================================================================
 
 pub fn legal_actions(s: &State) -> Vec<Action> {
+    let mut out = vec![];
+    legal_actions_into(s, &mut out);
+    out
+}
+
+/// `legal_actions` into a reused buffer (rollouts call this at every step).
+pub fn legal_actions_into(s: &State, out: &mut Vec<Action>) {
     use Action::*;
+    out.clear();
     let p = s.cur();
     let ad = &s.action_data;
     match s.game_phase {
-        Phase::GameSetup => vec![Simple(if p.action_cubes == 9 { "start_setup" } else { "end_setup" })],
+        Phase::GameSetup => out.push(Simple(if p.action_cubes == 9 { "start_setup" } else { "end_setup" })),
         Phase::SelectInitialCards => {
             assert!(p.bird_hand.len() == 5 && p.bonus_hand.len() == 2, "setup needs 5 birds and 2 bonuses");
-            let mut out = vec![];
             for &bonus in &p.bonus_hand {
                 for k in 0..=5 {
                     combinations(5, k, |idx| {
@@ -339,7 +344,6 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
                     });
                 }
             }
-            out
         }
         Phase::DiscardFood => {
             let need = ad.amount_to_discard as usize;
@@ -356,15 +360,14 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
                     seen.push(c);
                 }
             });
-            seen.into_iter().map(|c| FoodMap("discard_food_combo", food_map(c))).collect()
+            out.extend(seen.into_iter().map(|c| FoodMap("discard_food_combo", food_map(c))));
         }
         Phase::MainTurn => {
             if p.action_cubes == 0 {
-                return vec![];
+                return;
             }
-            let mut out = vec![];
             // With no room for eggs the action is only worth taking for its brown powers
-            if has_egg_room(p) || !powers::triggered(s, s.current_player_index, Color::Brown, Some(1), None).is_empty() {
+            if has_egg_room(p) || powers::has_brown_power(p, 1) {
                 out.push(Simple("lay_eggs"));
             }
             if can_play_a_bird(p) {
@@ -374,27 +377,26 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
             if s.bird_deck.len() + s.discarded_birds.len() + s.bird_tray.len() > 0 {
                 out.push(Simple("draw_cards"));
             }
-            out
         }
-        Phase::ExtraFoodAction => vec![Simple("trade_bird"), Simple("skip_trade")],
-        Phase::ExtraLayEggsAction => vec![Simple("trade_food"), Simple("skip_trade")],
-        Phase::ExtraCardDrawAction => vec![Simple("trade_egg"), Simple("skip_trade")],
-        Phase::CollectFood => collect_food_actions(s),
+        Phase::ExtraFoodAction => out.extend([Simple("trade_bird"), Simple("skip_trade")]),
+        Phase::ExtraLayEggsAction => out.extend([Simple("trade_food"), Simple("skip_trade")]),
+        Phase::ExtraCardDrawAction => out.extend([Simple("trade_egg"), Simple("skip_trade")]),
+        Phase::CollectFood => collect_food_actions(s, out),
         Phase::LayEggs => {
             assert!(ad.eggs_needed > 0, "no eggs needed");
-            let items: Vec<(u16, u8)> = p
+            let items: EggItems = p
                 .birds()
                 .filter_map(|b| {
-                    let limit = data().bird(b.id).egg_limit;
+                    let limit = data().hot(b.id).egg_limit;
                     (b.eggs < limit).then(|| (b.id, limit - b.eggs))
                 })
                 .collect();
-            egg_distribution_actions(&items, ad.eggs_needed as u32, "lay_eggs")
+            egg_distribution_actions(&items, ad.eggs_needed as u32, "lay_eggs", out)
         }
-        Phase::DrawCards => card_draw_actions(s, ad.cards_needed as usize),
-        Phase::SelectBirdToDiscard => p.bird_hand.iter().map(|&id| Id("discard_bird", id)).collect(),
-        Phase::SelectFoodToDiscard => p.food.iter().map(|&(f, _)| Name("discard_food", f.name())).collect(),
-        Phase::SelectEggToDiscard => p.birds().filter(|b| b.eggs > 0).map(|b| Id("discard_egg", b.id)).collect(),
+        Phase::DrawCards => card_draw_actions(s, ad.cards_needed as usize, out),
+        Phase::SelectBirdToDiscard => out.extend(p.bird_hand.iter().map(|&id| Id("discard_bird", id))),
+        Phase::SelectFoodToDiscard => out.extend(p.food.iter().map(|&(f, _)| Name("discard_food", f.name()))),
+        Phase::SelectEggToDiscard => out.extend(p.birds().filter(|b| b.eggs > 0).map(|b| Id("discard_egg", b.id))),
         Phase::PlayBird => {
             // A bird played by a power (12) must go in that power's habitat
             let target = ad
@@ -403,80 +405,71 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
                 .filter(|e| e.power_id == 12)
                 .and_then(|e| e.context.target_habitat.as_deref())
                 .map(crate::data::habitat_row);
-            let mut out = vec![];
             for_playable_spots(p, |bird, row, col| {
                 if target.map_or(true, |t| t == row as usize) {
                     out.push(PlayBird { bird, row, col });
                 }
                 true
             });
-            out
         }
         Phase::PayEggCost => {
             let pending = ad.pending_cost.as_ref().filter(|c| c.cost_type == CostType::Egg).expect("no egg cost pending");
-            let items: Vec<(u16, u8)> = p.birds().filter(|b| b.eggs > 0).map(|b| (b.id, b.eggs)).collect();
-            egg_combinations(&items, pending.amount.unwrap() as u32).into_iter().map(|c| EggMap("pay_eggs", c)).collect()
+            let items: EggItems = p.birds().filter(|b| b.eggs > 0).map(|b| (b.id, b.eggs)).collect();
+            egg_combinations(&items, pending.amount.unwrap() as u32, &mut |c| out.push(EggMap("pay_eggs", c)));
         }
         Phase::PayFoodCost => {
             let pending = ad.pending_cost.as_ref().filter(|c| c.cost_type == CostType::Food).expect("no food cost pending");
             let cost = &data().bird(pending.callback_action.bird).cost;
-            food_payments(cost, p.food_counts()).into_iter().map(|c| FoodMap("pay_food", food_map(c))).collect()
+            out.extend(food_payments(cost, p.food_counts()).into_iter().map(|c| FoodMap("pay_food", food_map(c))));
         }
         Phase::ActivatePowers => match ad.execution_stack.last() {
             None => {
                 let q = ad.powers_queue.get(ad.current_power_index as usize).expect("no power in queue");
-                let mut out = vec![Simple("skip_power")];
+                out.push(Simple("skip_power"));
                 if powers::can_execute(s, q) {
                     out.push(Simple("activate_power"));
                 }
-                out
             }
-            Some(e) => powers::choices(s, e),
+            Some(e) => powers::choices(s, e, out),
         },
-        Phase::EndTurn => match ad.execution_stack.last() {
-            Some(e) if e.phase == Some(PowerPhase::EndTurnDiscard) => {
-                s.players[e.player_index].bird_hand.iter().map(|&id| Id("discard_card", id)).collect()
+        Phase::EndTurn => {
+            if let Some(e) = ad.execution_stack.last().filter(|e| e.phase == Some(PowerPhase::EndTurnDiscard)) {
+                out.extend(s.players[e.player_index].bird_hand.iter().map(|&id| Id("discard_card", id)));
             }
-            _ => vec![],
-        },
-        Phase::GameOver => vec![],
+        }
+        Phase::GameOver => {}
     }
 }
 
 /// `get_collect_food_actions`: every food on every die, plus a reroll if all dice show the same face.
-pub fn collect_food_actions(s: &State) -> Vec<Action> {
-    let mut out: Vec<Action> = s
-        .feeder
-        .iter()
-        .flat_map(|&(die, face)| face.foods().iter().map(move |&food| Action::SelectDie { die, food }))
-        .collect();
+pub fn collect_food_actions(s: &State, out: &mut Vec<Action>) {
+    out.extend(s.feeder.iter().flat_map(|&(die, face)| face.foods().iter().map(move |&food| Action::SelectDie { die, food })));
     if !s.feeder.is_empty() && s.feeder.iter().all(|&(_, f)| f == s.feeder[0].1) {
         out.push(Action::Simple("reroll_all"));
     }
-    out
 }
 
 /// `get_egg_distribution_combinations` over (bird, capacity) items.
-pub fn egg_distribution_actions(items: &[(u16, u8)], eggs: u32, ty: &'static str) -> Vec<Action> {
+pub fn egg_distribution_actions(items: &[(u16, u8)], eggs: u32, ty: &'static str, out: &mut Vec<Action>) {
     assert!(eggs > 0 && !items.is_empty(), "no eggs to lay or no birds with egg capacity");
     let capacity: u32 = items.iter().map(|&(_, c)| c as u32).sum();
     if eggs >= capacity {
-        let mut all = items.to_vec();
+        let mut all: EggItems = items.iter().copied().collect();
         all.sort_unstable();
-        return vec![Action::EggMap(ty, all)];
+        out.push(Action::EggMap(ty, all));
+        return;
     }
-    egg_combinations(items, eggs).into_iter().map(|c| Action::EggMap(ty, c)).collect()
+    egg_combinations(items, eggs, &mut |c| out.push(Action::EggMap(ty, c)));
 }
 
 /// `get_card_draw_combinations`: tray/deck mixes, partial if fewer cards remain.
-pub fn card_draw_actions(s: &State, needed: usize) -> Vec<Action> {
+pub fn card_draw_actions(s: &State, needed: usize, out: &mut Vec<Action>) {
     assert!(needed > 0, "no cards needed");
     let tray = &s.bird_tray;
     let deck = s.bird_deck.len() + s.discarded_birds.len();
     let available = tray.len() + deck;
     assert!(available > 0, "no cards to draw");
     let actual = needed.min(available);
-    let mut out = vec![];
     for t in 0..=actual.min(tray.len()) {
         let from_deck = actual - t;
         if from_deck > deck {
@@ -486,7 +479,6 @@ pub fn card_draw_actions(s: &State, needed: usize) -> Vec<Action> {
             out.push(Action::DrawCards { tray: idx.iter().map(|&i| tray[i]).collect(), deck: from_deck as u8 })
         });
     }
-    out
 }
 
 // =============================================================================
@@ -545,7 +537,7 @@ pub fn select_die(s: &mut State, c: &mut impl Chance, die: u8, food: Food, playe
     s.players[player].gain_food(food, 1);
     s.feeder.remove(pos);
     if s.feeder.is_empty() {
-        s.feeder = roll_feeder(c);
+        roll_feeder(&mut s.feeder, c);
     }
     Ok(())
 }
@@ -555,7 +547,7 @@ pub fn lay_eggs_effect(s: &mut State, player: usize, items: &[(u16, u8)]) {
     let p = &mut s.players[player];
     for &(id, n) in items {
         if let Some(b) = p.bird_mut(id) {
-            b.eggs = (b.eggs + n).min(data().bird(id).egg_limit);
+            b.eggs = (b.eggs + n).min(data().hot(id).egg_limit);
         }
     }
 }
@@ -588,9 +580,14 @@ fn finish_main_action(
         s.cur_mut().action_cubes -= 1;
     }
     let cur = s.current_player_index;
-    let mut queue = pink.map(|t| powers::triggered_pink(s, t, cur)).unwrap_or_default();
-    queue.extend(powers::triggered(s, cur, color, row, spot));
+    let mut queue = std::mem::take(&mut s.action_data.powers_queue); // reuse its allocation
+    queue.clear();
+    if let Some(t) = pink {
+        powers::triggered_pink(s, t, cur, &mut queue);
+    }
+    powers::triggered(s, cur, color, row, spot, &mut queue);
     if queue.is_empty() {
+        s.action_data.powers_queue = queue;
         finalize_turn(s, c);
         return Ok(());
     }
@@ -725,7 +722,7 @@ fn finalize_turn(s: &mut State, c: &mut impl Chance) {
                 update_player_scores(p);
             }
             s.game_phase = Phase::GameOver;
-            s.action_data = ActionData::default();
+            s.action_data.reset();
             return;
         }
         for p in &mut s.players {
@@ -738,7 +735,7 @@ fn finalize_turn(s: &mut State, c: &mut impl Chance) {
         s.current_player_index = next_player_index(s);
     }
     s.game_phase = Phase::MainTurn;
-    s.action_data = ActionData::default();
+    s.action_data.reset();
     // "Once between turns": a pink power is only refreshed by its owner's own turn
     s.cur_mut().used_pink_powers.clear();
 }
@@ -833,7 +830,7 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
                 p.pay_food(f, n);
             }
             p.action_cubes = 8;
-            s.action_data = ActionData::default();
+            s.action_data.reset();
             s.game_phase = Phase::GameSetup;
             s.current_player_index = next_player_index(s);
         }
@@ -891,7 +888,7 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
                 return finish_main_action(s, c, Color::Brown, Some(0), None, false, pink);
             }
         }
-        (Phase::CollectFood, Simple("reroll_all")) => s.feeder = roll_feeder(c),
+        (Phase::CollectFood, Simple("reroll_all")) => roll_feeder(&mut s.feeder, c),
         (Phase::LayEggs, EggMap(_, items)) => {
             lay_eggs_effect(s, s.current_player_index, items);
             return finish_main_action(s, c, Color::Brown, Some(1), None, false, Some(Pink::LayEggs));
@@ -1015,16 +1012,17 @@ fn score_bonus(bonus_id: u16, p: &Player) -> i32 {
 
 pub fn update_player_scores(p: &mut Player) {
     let d = data();
-    let sc = Score {
-        bird_points: p.birds().map(|b| d.bird(b.id).points).sum(),
-        egg_points: p.birds().map(|b| b.eggs as i32).sum(),
-        cached_food: p.birds().map(|b| b.food as i32).sum(),
-        tucked_cards: p.birds().map(|b| b.tucked as i32).sum(),
-        round_goals: p.score.round_goals,
-        bonus_scores: p.score.bonus_scores.clone(),
-    };
-    p.score = sc;
-    for id in p.bonus_hand.clone() {
+    let (mut points, mut eggs, mut food, mut tucked) = (0, 0, 0, 0);
+    for b in p.birds() {
+        points += d.bird(b.id).points;
+        eggs += b.eggs as i32;
+        food += b.food as i32;
+        tucked += b.tucked as i32;
+    }
+    let sc = &mut p.score;
+    (sc.bird_points, sc.egg_points, sc.cached_food, sc.tucked_cards) = (points, eggs, food, tucked);
+    for i in 0..p.bonus_hand.len() {
+        let id = p.bonus_hand[i];
         let v = score_bonus(id, p);
         let bs = &mut p.score.bonus_scores;
         match bs.binary_search_by_key(&id, |&(k, _)| k) {
@@ -1073,16 +1071,16 @@ fn evaluate_goal(p: &Player, goal: &str) -> i32 {
 
 fn update_round_goal_scores(s: &mut State) {
     let r = s.round as usize;
-    let goal = s.selected_goals[r - 1].clone();
-    let counts: Vec<i32> = s.players.iter().map(|p| evaluate_goal(p, &goal)).collect();
-    let scores: Vec<i32> = match s.scoring_mode {
+    let goal = s.selected_goals.name(r);
+    let counts: Arr<i32, 5> = s.players.iter().map(|p| evaluate_goal(p, goal)).collect();
+    let scores: Arr<i32, 5> = match s.scoring_mode {
         ScoringMode::Blue => counts.iter().map(|&c| c.min(5)).collect(),
         ScoringMode::Green => {
             const TABLE: [[i32; 4]; 4] = [[4, 1, 0, 0], [5, 2, 1, 0], [6, 3, 2, 0], [7, 4, 3, 0]];
             let table = TABLE[r - 1];
-            let mut order: Vec<usize> = (0..counts.len()).collect();
+            let mut order: Arr<usize, 5> = (0..counts.len()).collect();
             order.sort_by(|&a, &b| counts[b].cmp(&counts[a])); // stable, like Python's sort
-            let mut scores = vec![0; counts.len()];
+            let mut scores: Arr<i32, 5> = counts.iter().map(|_| 0).collect();
             let mut pos = 0;
             while pos < order.len() {
                 let count = counts[order[pos]];
@@ -1098,7 +1096,7 @@ fn update_round_goal_scores(s: &mut State) {
             scores
         }
     };
-    for (p, v) in s.players.iter_mut().zip(scores) {
+    for (p, &v) in s.players.iter_mut().zip(scores.iter()) {
         p.score.round_goals[r - 1] = v;
     }
 }
