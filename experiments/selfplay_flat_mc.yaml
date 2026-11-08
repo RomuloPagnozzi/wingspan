@@ -1,14 +1,15 @@
 # Self-play training data: paired flat Monte Carlo with per-phase budgets in both seats,
-# a new deal every game. On a rented server (lab/cloud.py) the agent makes the run endless from a
-# fresh seed and sets num_workers; run it locally as is for a small test (14 games).
+# a new starting setup every game, 80/20 green/blue scoring. Runs until stopped:
+#   uv run python -m lab -c experiments/selfplay_flat_mc.yaml --record-decisions --rotate-every 100 -o experiments/data/selfplay_local
+# Ctrl+C once: in-flight games finish and the files close (twice: quit at once).
+# On a rented server (lab/cloud.py) the agent sets its own seeds and num_workers.
 # Budgets as in EXP-012 (experiments/flat_mc_phase_budget.yaml), where they are explained.
 mode: continuous
 num_workers: 7
 blue_share: 0.2  # 80/20 green/blue round-goal scoring, chosen by each game's seed
 
 seeds:
-  start: 100000
-  count: 14
+  start: clock  # no count: endless; each game gets the next seed
 
 defaults:
   strategy: flat_mc

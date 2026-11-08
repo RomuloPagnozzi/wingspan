@@ -37,3 +37,11 @@ def test_a_games_scoring_side_is_fixed_by_its_seed():
     assert sides == [scoring_for(seed, 0.2) for seed in range(10_000)]  # reproducible
     assert 0.18 < sides.count("blue") / len(sides) < 0.22
     assert {scoring_for(seed, 0.0) for seed in range(1000)} == {"green"}
+
+
+def test_clock_seeds_start_from_the_current_time():
+    import time
+
+    before = int(time.time())
+    first_seed = next(get_generator(CONFIG | {"seeds": {"start": "clock"}}))[1]
+    assert before <= first_seed <= int(time.time())

@@ -1,6 +1,7 @@
 """Experiment generators that yield (strategies, game_seed, arm_labels) tuples."""
 
 import itertools
+import time
 import random
 from typing import Iterator
 
@@ -52,7 +53,7 @@ def continuous_generator(
     stops it (e.g., via SIGINT). With a `seeds: {start, count}` block it plays exactly one game per
     seed instead, cycling through the matchups: each game gets its own deal, and the players'
     strategy seeds derive from it, so the run can be reproduced. It stops after `count` games, or
-    never without a count.
+    never without a count. `start: clock` starts from the current time in seconds.
     """
     defaults = config.get("defaults", {})
     matchup_specs = config["matchups"]
@@ -60,6 +61,8 @@ def continuous_generator(
 
     if "seeds" in config:  # reproducible: one game per seed, a new deal each
         start, count = config["seeds"].get("start", 1), config["seeds"].get("count")
+        if start == "clock":  # seconds since 1970: a range no earlier run can have used
+            start = int(time.time())
         for k in itertools.count() if count is None else range(count):
             game_seed = start + k
             spec_list = matchup_specs[k % len(matchup_specs)]
