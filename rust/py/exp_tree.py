@@ -5,6 +5,10 @@ Every arm plays that reference on the same fresh deals, each deal twice with sea
 interleaved deal by deal. Results are appended to a JSONL file as games finish, and a restart continues
 after the last deal in the file, so a run can be stopped (Ctrl+C) and resumed at will.
 
+Every game is also recorded in full, like `lab --record-decisions`: `runs/<run_id>/games_NNNN.parquet` and
+`decisions_NNNN.parquet` next to the JSONL (legal moves, action taken, visit counts and Q per move, root
+value, both seats), one run folder per session. Join on `game_id`; `arm_label` says which arm a seat was.
+
     # run (no --minutes: until Ctrl+C; --arms: a subset)
     caffeinate -is uv run python rust/py/exp_tree.py run scaling [--minutes 90] [--arms a,b]
     # results so far (also while it runs)
@@ -26,9 +30,10 @@ import signal
 import statistics
 import time
 from multiprocessing import Pool, TimeoutError
-from pathlib import Path
 
 import yaml
+
+from lab.data import DecisionsWriter, GamesWriter, generate_run_id
 
 ROOT = Path(__file__).parents[2]
 REF = {k: v for k, v in yaml.safe_load((ROOT / "experiments/selfplay_flat_mc.yaml").read_text())["defaults"].items() if k != "strategy"}
@@ -78,11 +83,13 @@ def play(task):
     if not arm_first:
         seats, labels = seats[::-1], labels[::-1]
     t = time.perf_counter()
-    result, _ = simulate_game(seats, game_seed=deal, arm_labels=labels)
+    result, decisions = simulate_game(seats, game_seed=deal, arm_labels=labels, record_decisions=True)
     scores = {p.arm_label: p.total_score for p in result.players}
     winner = next((p.arm_label for p in result.players if p.is_winner), None)
-    return {"arm": arm, "deal": deal, "arm_first": arm_first, "arm_score": scores[arm], "ref_score": scores["reference"],
-            "win": 1.0 if winner == arm else 0.0 if winner == "reference" else 0.5, "seconds": time.perf_counter() - t}
+    row = {"arm": arm, "deal": deal, "arm_first": arm_first, "arm_score": scores[arm], "ref_score": scores["reference"],
+           "win": 1.0 if winner == arm else 0.0 if winner == "reference" else 0.5, "seconds": time.perf_counter() - t,
+           "game_id": result.game_id}
+    return row, result, decisions
 
 
 def summary(rows, arms):
@@ -119,6 +126,11 @@ def run(set_name: str, out: Path, minutes: float | None, workers: int, only: lis
     tasks = ((set_name, arm, deal, f) for deal in range(first, first + 1_000_000) for arm in arms for f in (True, False))
     deadline = time.time() + 60 * minutes if minutes else None
     rows = []
+    run_id = generate_run_id()
+    runs = out.parent / "runs"
+    games_out, decisions_out = GamesWriter(runs, run_id, rotate=50), DecisionsWriter(runs, run_id, rotate=50)
+    (runs / run_id / "config.json").write_text(json.dumps({"set": set_name, "reference": REF, "arms": arms}, indent=1))
+    print(f"recording games and decisions in {runs / run_id}", flush=True)
     # Workers ignore Ctrl+C; the parent stops them, so an interrupt leaves no tracebacks behind
     pool = Pool(workers, initializer=signal.signal, initargs=(signal.SIGINT, signal.SIG_IGN))
     results = pool.imap_unordered(play, tasks)
@@ -127,9 +139,11 @@ def run(set_name: str, out: Path, minutes: float | None, workers: int, only: lis
             while not (deadline and time.time() > deadline):
                 try:
                     # A timeout, so Ctrl+C and the deadline are noticed while games are running
-                    row = results.next(timeout=1)
+                    row, result, decisions = results.next(timeout=1)
                 except TimeoutError:
                     continue
+                games_out.add_game(result)
+                decisions_out.add_game_decisions(decisions)
                 rows.append(row)
                 f.write(json.dumps(row) + "\n")
                 f.flush()
@@ -141,6 +155,8 @@ def run(set_name: str, out: Path, minutes: float | None, workers: int, only: lis
         print("\nstopped (games in progress are dropped)")
     finally:
         pool.terminate()
+        games_out.close()  # the last, partial parquet part is kept too
+        decisions_out.close()
     print(f"=== {len(old) + len(rows)} games in total")
     summary(old + rows, arms)
 
