@@ -1,4 +1,5 @@
-//! Card definitions, loaded once from the JSON that `py/export_data.py` writes from the Python pickles.
+//! Card definitions, loaded once from the engine's canonical card data,
+//! `src/wingspan/engine/assets/*.json` (written by `raw/generate_assets.py`, read by both engines).
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -135,7 +136,7 @@ struct BirdJson {
     habitats: Vec<String>,
     cost: Vec<Vec<(String, u8)>>,
     points: i32,
-    nest: String,
+    nest: Option<String>, // NaN (no nest) in the data
     egg_limit: u8,
     wingspan: i32,
 }
@@ -143,7 +144,7 @@ struct BirdJson {
 #[derive(Deserialize)]
 struct BonusJson {
     id: u16,
-    valid_birds: Vec<u16>,
+    valid_birds_ids: Option<Vec<u16>>, // null: scored by a rule, not a bird list
     score_params: Value,
 }
 
@@ -247,10 +248,15 @@ fn parse_power(v: &Value) -> Option<Power> {
     Some(Power { id, color, kind })
 }
 
+/// The card data marks missing values as NaN (Python's json writes and reads them); JSON proper has null.
+fn parse<T: serde::de::DeserializeOwned>(json: &str) -> T {
+    serde_json::from_str(&json.replace(": NaN", ": null")).expect("bad card data")
+}
+
 fn load() -> Data {
-    let birds: Vec<BirdJson> = serde_json::from_str(include_str!("../data/birds.json")).unwrap();
-    let bonuses: Vec<BonusJson> = serde_json::from_str(include_str!("../data/bonuses.json")).unwrap();
-    let powers: HashMap<String, Value> = serde_json::from_str(include_str!("../data/powers.json")).unwrap();
+    let birds: Vec<BirdJson> = parse(include_str!("../../src/wingspan/engine/assets/birds.json"));
+    let bonuses: Vec<BonusJson> = parse(include_str!("../../src/wingspan/engine/assets/bonuses.json"));
+    let powers: HashMap<String, Value> = parse(include_str!("../../src/wingspan/engine/assets/powers.json"));
     let mut data = Data {
         birds: (0..=birds.iter().map(|b| b.id).max().unwrap()).map(|_| None).collect(),
         bonuses: (0..=bonuses.iter().map(|b| b.id).max().unwrap()).map(|_| None).collect(),
@@ -289,7 +295,7 @@ fn load() -> Data {
                 })
                 .collect(),
             points: b.points,
-            nest: nest_from_str(&b.nest),
+            nest: nest_from_str(b.nest.as_deref().unwrap_or("")),
             egg_limit: b.egg_limit,
             wingspan: b.wingspan,
             power: powers.get(&b.id.to_string()).and_then(parse_power),
@@ -320,7 +326,9 @@ fn load() -> Data {
                 upper_score: int("upper_score") as i32,
             }
         };
-        data.bonuses[b.id as usize] = Some(Bonus { id: b.id, valid_birds: b.valid_birds, score });
+        let mut valid_birds = b.valid_birds_ids.unwrap_or_default();
+        valid_birds.sort_unstable();
+        data.bonuses[b.id as usize] = Some(Bonus { id: b.id, valid_birds, score });
     }
     data
 }

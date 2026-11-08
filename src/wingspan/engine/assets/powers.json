@@ -130,9 +130,9 @@
   }
  },
  "11": {
-  "text": null,
-  "color": null,
-  "trigger": null,
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
   "data": null
  },
  "12": {
@@ -427,9 +427,9 @@
   }
  },
  "36": {
-  "text": null,
-  "color": null,
-  "trigger": null,
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
   "data": null
  },
  "37": {
@@ -1081,9 +1081,9 @@
   }
  },
  "90": {
-  "text": null,
-  "color": null,
-  "trigger": null,
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
   "data": null
  },
  "91": {
@@ -1422,9 +1422,9 @@
   }
  },
  "119": {
-  "text": null,
-  "color": null,
-  "trigger": null,
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
   "data": null
  },
  "120": {
@@ -1812,9 +1812,9 @@
   }
  },
  "151": {
-  "text": null,
-  "color": null,
-  "trigger": null,
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
   "data": null
  },
  "152": {
@@ -1921,9 +1921,9 @@
   }
  },
  "161": {
-  "text": null,
-  "color": null,
-  "trigger": null,
+  "text": NaN,
+  "color": NaN,
+  "trigger": NaN,
   "data": null
  },
  "162": {

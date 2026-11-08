@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, unique
-import pickle
+import json
 from pathlib import Path
 
 # =============================================================================
@@ -89,19 +89,35 @@ _REGISTRIES_INITIALIZED = False
 
 
 def load_deck(type: str) -> list:
-    """Load a deck from a pickle file."""
-    with open(ASSETS / f"{type}.pickle", "rb") as f:
-        return pickle.load(f)
+    """Load a deck ("birds" or "bonuses") from its JSON file (written by raw/generate_assets.py)."""
+    with open(ASSETS / f"{type}.json") as f:
+        cards = json.load(f)
+    if type == "birds":
+        return [
+            BirdCard(
+                b["id"], b["name"], tuple(b["habitats"]),
+                tuple(tuple(tuple(item) for item in option) for option in b["cost"]),
+                b["points"], b["nest"], b["egg_limit"], b["wingspan"],
+            )
+            for b in cards
+        ]
+    return [
+        Bonus(
+            b["id"], b["name"], b["condition"], b["score_params"],
+            None if b["valid_birds_ids"] is None else set(b["valid_birds_ids"]),
+        )
+        for b in cards
+    ]
 
 
 def load_powers() -> dict:
-    """Load powers data from powers.pickle"""
-    with open(ASSETS / "powers.pickle", "rb") as f:
-        return pickle.load(f)
+    """Load power data keyed by bird ID from powers.json."""
+    with open(ASSETS / "powers.json") as f:
+        return {int(bird_id): power for bird_id, power in json.load(f).items()}
 
 
 def init_registries() -> None:
-    """Initialize all card registries from pickle files."""
+    """Initialize all card registries from the JSON asset files."""
     global _REGISTRIES_INITIALIZED
     if _REGISTRIES_INITIALIZED:
         return

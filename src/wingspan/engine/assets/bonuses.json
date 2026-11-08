@@ -1,7 +1,15 @@
 [
  {
   "id": 1,
-  "valid_birds": [
+  "name": "anatomist",
+  "condition": "birds with body parts in their names",
+  "score_params": {
+   "lower_bound": 2,
+   "upper_bound": 4,
+   "lower_score": 3,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    14,
    22,
    29,
@@ -41,17 +49,19 @@
    168,
    169,
    170
-  ],
-  "score_params": {
-   "lower_bound": 2,
-   "upper_bound": 4,
-   "lower_score": 3,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 2,
-  "valid_birds": [
+  "name": "backyard_birder",
+  "condition": "birds worth less than 4 points",
+  "score_params": {
+   "lower_bound": 5,
+   "upper_bound": 7,
+   "lower_score": 3,
+   "upper_score": 6
+  },
+  "valid_birds_ids": [
    4,
    6,
    9,
@@ -123,17 +133,16 @@
    158,
    166,
    170
-  ],
-  "score_params": {
-   "lower_bound": 5,
-   "upper_bound": 7,
-   "lower_score": 3,
-   "upper_score": 6
-  }
+  ]
  },
  {
   "id": 3,
-  "valid_birds": [
+  "name": "bird_counter",
+  "condition": "birds with a [flocking] power",
+  "score_params": {
+   "per_bird": 2
+  },
+  "valid_birds_ids": [
    4,
    9,
    10,
@@ -159,14 +168,19 @@
    154,
    169,
    170
-  ],
-  "score_params": {
-   "per_bird": 2
-  }
+  ]
  },
  {
   "id": 4,
-  "valid_birds": [
+  "name": "bird_feeder",
+  "condition": "birds that eat [seed]",
+  "score_params": {
+   "lower_bound": 5,
+   "upper_bound": 8,
+   "lower_score": 3,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    1,
    2,
    4,
@@ -242,24 +256,28 @@
    164,
    169,
    170
-  ],
-  "score_params": {
-   "lower_bound": 5,
-   "upper_bound": 8,
-   "lower_score": 3,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 5,
-  "valid_birds": [],
+  "name": "breeding_manager",
+  "condition": "birds that have at least 4 eggs laid on them",
   "score_params": {
    "per_bird": 1
-  }
+  },
+  "valid_birds_ids": null
  },
  {
   "id": 6,
-  "valid_birds": [
+  "name": "cartographer",
+  "condition": "birds with geography terms in their names",
+  "score_params": {
+   "lower_bound": 2,
+   "upper_bound": 4,
+   "lower_score": 3,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    2,
    3,
    4,
@@ -297,24 +315,28 @@
    139,
    155,
    156
-  ],
-  "score_params": {
-   "lower_bound": 2,
-   "upper_bound": 4,
-   "lower_score": 3,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 7,
-  "valid_birds": [],
+  "name": "ecologist",
+  "condition": "birds in your habitat with the fewest birds.",
   "score_params": {
    "per_bird": 2
-  }
+  },
+  "valid_birds_ids": null
  },
  {
   "id": 8,
-  "valid_birds": [
+  "name": "enclosure_builder",
+  "condition": "birds with [ground] nests",
+  "score_params": {
+   "lower_bound": 4,
+   "upper_bound": 6,
+   "lower_score": 4,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    2,
    8,
    10,
@@ -369,17 +391,16 @@
    161,
    162,
    163
-  ],
-  "score_params": {
-   "lower_bound": 4,
-   "upper_bound": 6,
-   "lower_score": 4,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 9,
-  "valid_birds": [
+  "name": "falconer",
+  "condition": "birds with a [predator] power",
+  "score_params": {
+   "per_bird": 2
+  },
+  "valid_birds_ids": [
    7,
    12,
    19,
@@ -402,14 +423,19 @@
    149,
    159,
    162
-  ],
-  "score_params": {
-   "per_bird": 2
-  }
+  ]
  },
  {
   "id": 10,
-  "valid_birds": [
+  "name": "fishery_manager",
+  "condition": "birds that eat [fish]",
+  "score_params": {
+   "lower_bound": 2,
+   "upper_bound": 4,
+   "lower_score": 3,
+   "upper_score": 8
+  },
+  "valid_birds_ids": [
    3,
    10,
    12,
@@ -440,17 +466,16 @@
    159,
    162,
    165
-  ],
-  "score_params": {
-   "lower_bound": 2,
-   "upper_bound": 4,
-   "lower_score": 3,
-   "upper_score": 8
-  }
+  ]
  },
  {
   "id": 11,
-  "valid_birds": [
+  "name": "food_web_expert",
+  "condition": "birds that eat only [invertebrate]",
+  "score_params": {
+   "per_bird": 2
+  },
+  "valid_birds_ids": [
    8,
    20,
    23,
@@ -467,14 +492,19 @@
    145,
    154,
    163
-  ],
-  "score_params": {
-   "per_bird": 2
-  }
+  ]
  },
  {
   "id": 12,
-  "valid_birds": [
+  "name": "forester",
+  "condition": "birds that can only live in [forest]",
+  "score_params": {
+   "lower_bound": 3,
+   "upper_bound": 5,
+   "lower_score": 4,
+   "upper_score": 8
+  },
+  "valid_birds_ids": [
    1,
    18,
    21,
@@ -515,17 +545,16 @@
    166,
    167,
    170
-  ],
-  "score_params": {
-   "lower_bound": 3,
-   "upper_bound": 5,
-   "lower_score": 4,
-   "upper_score": 8
-  }
+  ]
  },
  {
   "id": 13,
-  "valid_birds": [
+  "name": "historian",
+  "condition": "birds named after a person",
+  "score_params": {
+   "per_bird": 2
+  },
+  "valid_birds_ids": [
    13,
    16,
    22,
@@ -545,14 +574,19 @@
    148,
    149,
    163
-  ],
-  "score_params": {
-   "per_bird": 2
-  }
+  ]
  },
  {
   "id": 14,
-  "valid_birds": [
+  "name": "large_bird_specialist",
+  "condition": "birds with wingspans over 65 cm",
+  "score_params": {
+   "lower_bound": 4,
+   "upper_bound": 6,
+   "lower_score": 3,
+   "upper_score": 6
+  },
+  "valid_birds_ids": [
    2,
    3,
    5,
@@ -610,17 +644,19 @@
    162,
    164,
    165
-  ],
-  "score_params": {
-   "lower_bound": 4,
-   "upper_bound": 6,
-   "lower_score": 3,
-   "upper_score": 6
-  }
+  ]
  },
  {
   "id": 15,
-  "valid_birds": [
+  "name": "nest_box_builder",
+  "condition": "birds with [cavity] nests",
+  "score_params": {
+   "lower_bound": 4,
+   "upper_bound": 6,
+   "lower_score": 4,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    1,
    7,
    14,
@@ -675,17 +711,16 @@
    157,
    164,
    166
-  ],
-  "score_params": {
-   "lower_bound": 4,
-   "upper_bound": 6,
-   "lower_score": 4,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 16,
-  "valid_birds": [
+  "name": "omnivore_specialist",
+  "condition": "birds that eat [wild]",
+  "score_params": {
+   "per_bird": 2
+  },
+  "valid_birds_ids": [
    4,
    5,
    13,
@@ -714,24 +749,31 @@
    160,
    165,
    167
-  ],
-  "score_params": {
-   "per_bird": 2
-  }
+  ]
  },
  {
   "id": 17,
-  "valid_birds": [],
+  "name": "oologist",
+  "condition": "birds that have at least 1 egg laid on them",
   "score_params": {
    "lower_bound": 7,
    "upper_bound": 9,
    "lower_score": 3,
    "upper_score": 6
-  }
+  },
+  "valid_birds_ids": null
  },
  {
   "id": 18,
-  "valid_birds": [
+  "name": "passerine_specialist",
+  "condition": "birds with wingspans 30 cm or less",
+  "score_params": {
+   "lower_bound": 4,
+   "upper_bound": 6,
+   "lower_score": 3,
+   "upper_score": 6
+  },
+  "valid_birds_ids": [
    6,
    13,
    14,
@@ -792,17 +834,19 @@
    158,
    168,
    170
-  ],
+  ]
+ },
+ {
+  "id": 19,
+  "name": "photographer",
+  "condition": "birds with colors in their names",
   "score_params": {
    "lower_bound": 4,
    "upper_bound": 6,
    "lower_score": 3,
    "upper_score": 6
-  }
- },
- {
-  "id": 19,
-  "valid_birds": [
+  },
+  "valid_birds_ids": [
    6,
    10,
    14,
@@ -861,17 +905,19 @@
    168,
    169,
    170
-  ],
-  "score_params": {
-   "lower_bound": 4,
-   "upper_bound": 6,
-   "lower_score": 3,
-   "upper_score": 6
-  }
+  ]
  },
  {
   "id": 20,
-  "valid_birds": [
+  "name": "platform_builder",
+  "condition": "birds with [platform] nests",
+  "score_params": {
+   "lower_bound": 4,
+   "upper_bound": 6,
+   "lower_score": 4,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    3,
    4,
    5,
@@ -926,17 +972,19 @@
    159,
    165,
    167
-  ],
-  "score_params": {
-   "lower_bound": 4,
-   "upper_bound": 6,
-   "lower_score": 4,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 21,
-  "valid_birds": [
+  "name": "prairie_manager",
+  "condition": "birds that can only live in [grassland]",
+  "score_params": {
+   "lower_bound": 2,
+   "upper_bound": 4,
+   "lower_score": 3,
+   "upper_score": 8
+  },
+  "valid_birds_ids": [
    6,
    7,
    14,
@@ -968,17 +1016,16 @@
    147,
    149,
    155
-  ],
-  "score_params": {
-   "lower_bound": 2,
-   "upper_bound": 4,
-   "lower_score": 3,
-   "upper_score": 8
-  }
+  ]
  },
  {
   "id": 22,
-  "valid_birds": [
+  "name": "rodentologist",
+  "condition": "birds that eat [rodent]",
+  "score_params": {
+   "per_bird": 2
+  },
+  "valid_birds_ids": [
    3,
    7,
    17,
@@ -1004,24 +1051,31 @@
    144,
    149,
    165
-  ],
-  "score_params": {
-   "per_bird": 2
-  }
+  ]
  },
  {
   "id": 23,
-  "valid_birds": [],
+  "name": "visionary_leader",
+  "condition": "bird cards in hand at end of game",
   "score_params": {
    "lower_bound": 5,
    "upper_bound": 8,
    "lower_score": 4,
    "upper_score": 7
-  }
+  },
+  "valid_birds_ids": null
  },
  {
   "id": 24,
-  "valid_birds": [
+  "name": "viticulturalist",
+  "condition": "birds that eat [fruit]",
+  "score_params": {
+   "lower_bound": 2,
+   "upper_bound": 4,
+   "lower_score": 3,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    9,
    14,
    18,
@@ -1059,17 +1113,19 @@
    166,
    168,
    170
-  ],
-  "score_params": {
-   "lower_bound": 2,
-   "upper_bound": 4,
-   "lower_score": 3,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 25,
-  "valid_birds": [
+  "name": "wetland_scientist",
+  "condition": "birds that can only live in [wetland]",
+  "score_params": {
+   "lower_bound": 3,
+   "upper_bound": 5,
+   "lower_score": 3,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    2,
    3,
    4,
@@ -1115,17 +1171,19 @@
    163,
    165,
    169
-  ],
-  "score_params": {
-   "lower_bound": 3,
-   "upper_bound": 5,
-   "lower_score": 3,
-   "upper_score": 7
-  }
+  ]
  },
  {
   "id": 26,
-  "valid_birds": [
+  "name": "wildlife_gardener",
+  "condition": "birds with [bowl] nests",
+  "score_params": {
+   "lower_bound": 4,
+   "upper_bound": 6,
+   "lower_score": 4,
+   "upper_score": 7
+  },
+  "valid_birds_ids": [
    6,
    9,
    13,
@@ -1180,12 +1238,6 @@
    168,
    169,
    170
-  ],
-  "score_params": {
-   "lower_bound": 4,
-   "upper_bound": 6,
-   "lower_score": 4,
-   "upper_score": 7
-  }
+  ]
  }
 ]
