@@ -160,11 +160,31 @@ At checkpoints along the compute axis, evaluate each NN against the same referen
 
 ---
 
+### EXP-011: Paired flat Monte Carlo vs the champion MCTS
+**Hypothesis:** At the champion's budget, flat Monte Carlo with common random numbers (every legal move played in the same re-dealt worlds with the same playout seeds) plays at least as well as the champion's IS-MCTS, and picks more reliable moves.
+**Background (2026-11-07, 48 real positions from `mcts_joint_v2`):** the champion's UCB bonus (c≈2.27) dwarfs the value gaps between moves, so visits spread evenly and the search acts like unpaired flat Monte Carlo. Its picks are close to noise in collect_food, lay_eggs and draw_cards (seed agreement 31–45% vs 18–26% by chance), because a playout's luck (sd ~4.5 points) swamps move differences (~0.1–0.2 points). Pairing cuts that noise ×2–18 in those phases, and raises agreement with a precise reference from 60% to 71% at the same budget (Stage 1). Main actions and bird choice were already reliable.
+**Config:** `experiments/flat_mc_vs_champion.yaml`, `vs_reference` mode, 50 fresh seeds (2001+) × 2 seats per arm, against REFERENCE_PARAMS at 1500 sims. Arms: `paired` (1500 playouts), `paired_lean_eggs` (same, 300 playouts for lay_eggs).
+**Result:** see Completed Experiments.
+
+---
+
+### EXP-012: Per-phase playout budgets
+**Hypothesis:** Giving each phase only the paired playouts it needs keeps paired flat Monte Carlo as strong while making games cheaper to generate.
+**Background (2026-11-07, 204 positions, 12 per phase):** with paired playouts, the gap between a phase's best and second-best move and the playouts per move needed to separate them differ widely. collect_food, lay_eggs, pay_egg_cost, the discard choices and end_turn have gaps under 0.1 point (a wrong pick is cheap, separating would take 5,000–12,000 playouts per move); play_bird and activate_powers needed far less than they got; select_initial_cards had 23 playouts per option for the highest-stakes choice (10 points between best and worst hand).
+**Config:** `experiments/flat_mc_phase_budget.yaml` (the budget table, with reasons), `vs_reference` against the champion @1500, 50 fresh seeds (3001+) × 2 seats, decisions recorded.
+**Result:** see Completed Experiments.
+
+---
+
 ## Completed Experiments
 
 - **2026-05-11:** Cross-process determinism verified across `PYTHONHASHSEED` / worker count / game seed for both peek and IS-MCTS (`lab/benchmarks/test_determinism.py`).
 - **2026-06:** IS-MCTS/PIMC determinization implemented and adopted as the project reference.
 - **2026-06:** Optuna joint hyperparameter search (`mcts_joint_v1`) completed 75 trials × 20 seeds. Best config beat the PIMC reference at 77.5% win rate (`simulations=1500`, `exploration_constant≈2.27`, `value_function=absolute_score`, `widening_alpha≈0.83`, `widening_k≈1.70`).
+
+- **2026-11-07:** EXP-011, paired flat Monte Carlo vs the champion MCTS, 100 games per arm. `paired` 52-45-3 (53.5%, 95% CI 44–63%); `paired_lean_eggs` 61-39 (61.0%, 95% CI 51–71%, p=0.03 vs 50%, not corrected for two arms). The arms do not differ significantly (+7.5 ± 13.7 points). Reading: dropping the tree for a paired root comparison costs nothing measurable, and cutting lay_eggs to 300 playouts does not hurt; a real gain over the champion is plausible but not established at this sample size. Paired flat MC (with lean eggs) becomes the default for new training games, where its more reliable picks also make better policy labels.
+
+- **2026-11-08:** EXP-012, per-phase budgets vs the champion MCTS, 100 games: 49-50-1 (49.5%, 95% CI 40–59%), at ~50.6 s per game vs ~57–61 s with the full budget (the champion's half unchanged, so the bot's own share fell by roughly 30%). Same strength, cheaper: these budgets are used for self-play data (`experiments/selfplay_flat_mc.yaml`). EXP-011's 61% for lean eggs alone is within noise of this (difference 11.5 ± 13.7 points).
 
 ## Notes & Observations
 

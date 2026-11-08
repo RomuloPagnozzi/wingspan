@@ -26,8 +26,17 @@ class FlatMCConfig:
     playouts: int = 1500  # per decision, split evenly across the legal moves
     paired: bool = True
     value_function: ValueFunction = ValueFunction.ABSOLUTE_SCORE
-    # A smaller budget for lay_eggs, where most placements end with the same score. None: same.
-    lay_eggs_playouts: int | None = None
+    # Per-phase budgets, e.g. {"lay_eggs": 300}: game phase name -> playouts per decision.
+    # Phases not listed use `playouts`. Set in the experiment's YAML (`phase_playouts:`).
+    phase_playouts: dict[str, int] | None = None
+
+    def __post_init__(self):
+        unknown = set(self.phase_playouts or ()) - {p.value for p in GamePhase}
+        if unknown:  # a misspelt phase would silently fall back to the default budget
+            raise ValueError(f"unknown game phases in phase_playouts: {sorted(unknown)}")
+
+    def budget(self, phase: GamePhase) -> int:
+        return (self.phase_playouts or {}).get(phase.value, self.playouts)
 
 
 @register_strategy
@@ -60,9 +69,7 @@ class FlatMCStrategy(Strategy):
         if len(legal_actions) == 1:
             return legal_actions[0]
         p = self.params
-        budget = p.playouts
-        if p.lay_eggs_playouts is not None and state.game_phase == GamePhase.LAY_EGGS:
-            budget = p.lay_eggs_playouts
+        budget = p.budget(state.game_phase)
         me = state.current_player_index
         totals = [0.0] * len(legal_actions)
         counts = [0] * len(legal_actions)

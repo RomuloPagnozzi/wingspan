@@ -1,5 +1,7 @@
 import random
 
+import pytest
+
 from wingspan.ai.flat_mc import FlatMCStrategy
 from wingspan.engine.actions import get_actions
 from wingspan.engine.core import GamePhase, initiate_state
@@ -44,8 +46,13 @@ def test_same_seed_same_pick_and_the_pick_is_legal():
     assert len(picks) == 1 and picks <= {str(a) for a in actions}
 
 
-def test_lay_eggs_uses_its_own_budget():
+def test_a_phase_uses_its_own_budget():
     state, actions = first_state(lambda s, a: s.game_phase == GamePhase.LAY_EGGS and len(a) > 1)
-    bot = FlatMCStrategy(seed=0, playouts=10_000, lay_eggs_playouts=10 * len(actions))
+    bot = FlatMCStrategy(seed=0, playouts=10_000, phase_playouts={"lay_eggs": 10 * len(actions)})
     bot.select_action(state, actions)
     assert max(bot.get_last_visit_counts().values()) <= 10
+
+
+def test_a_misspelt_phase_is_an_error():
+    with pytest.raises(ValueError, match="lay_egs"):
+        FlatMCStrategy(phase_playouts={"lay_egs": 300})

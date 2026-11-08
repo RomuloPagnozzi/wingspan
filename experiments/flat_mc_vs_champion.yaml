@@ -20,4 +20,4 @@ compare:
     - label: paired
       overrides: {playouts: 1500, paired: true}
     - label: paired_lean_eggs
-      overrides: {playouts: 1500, paired: true, lay_eggs_playouts: 300}
+      overrides: {playouts: 1500, paired: true, phase_playouts: {lay_eggs: 300}}
