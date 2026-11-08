@@ -176,6 +176,20 @@ At checkpoints along the compute axis, evaluate each NN against the same referen
 
 ---
 
+### EXP-013: With fast search, does a tree or more simulations beat the data generator?
+**Hypothesis:** EXP-011/012 compared at Python-affordable budgets (1500). With the Rust engine (~30× faster), a real tree (IS-MCTS) or many more simulations may beat the current generator.
+**Config:** `rust/py/exp_tree.py run tree` (set `tree`, deals 20001+, each deal twice with seats swapped, 19 min on 7 cores). Every arm plays the reference = `flat_mc_rs` with the EXP-012 phase table. Arms: champion tree (`mcts-v1` params) at 1500 and 10k sims, 10k with c=0.7, flat 1500 without the table, flat with the table ×10.
+**Result:** see Completed Experiments.
+
+---
+
+### EXP-014: Tree scaling curve, and the phase table for the tree
+**Hypothesis:** The tree keeps gaining with simulations; the EXP-012 phase table, scaled to the tree, keeps strength at lower cost as it did for flat MC.
+**Config:** `rust/py/exp_tree.py run scaling --arms tree_3k,tree_10k,tree_30k,tree_table_10k` (deals 30001+, seats swapped, run until stopped). Same reference as EXP-013. `tree_table_10k`: 10k sims by default, the flat table's ratios for the other phases (40k setup, 5k powers, 4k play bird, 2k food/eggs/discards). Results: `experiments/data/exp_scaling/results.jsonl`.
+**Result:** see Completed Experiments.
+
+---
+
 ## Completed Experiments
 
 - **2026-05-11:** Cross-process determinism verified across `PYTHONHASHSEED` / worker count / game seed for both peek and IS-MCTS (`lab/benchmarks/test_determinism.py`).
@@ -186,7 +200,13 @@ At checkpoints along the compute axis, evaluate each NN against the same referen
 
 - **2026-11-08:** EXP-012, per-phase budgets vs the champion MCTS, 100 games: 49-50-1 (49.5%, 95% CI 40–59%), at ~50.6 s per game vs ~57–61 s with the full budget (the champion's half unchanged, so the bot's own share fell by roughly 30%). Same strength, cheaper: these budgets are used for self-play data (`experiments/selfplay_flat_mc.yaml`). EXP-011's 61% for lean eggs alone is within noise of this (difference 11.5 ± 13.7 points).
 
+- **2026-11-08:** EXP-013, 277 games (~55 per arm), score difference per deal vs the reference (95% CI): tree 1500 −2.1 ± 2.1; **tree 10k +2.6 ± 1.8** (win 66%); **tree 10k c=0.7 +2.6 ± 2.1** (69%); flat 1500 without the table −0.5 ± 2.2; flat with the table ×10 −0.2 ± 2.2. Reading: at 1500 the tree is no better than paired flat MC (EXP-011 holds at its budget), but it scales with simulations while flat MC does not (10× playouts: nothing; its limit is the random-rollout bias, not noise). The table is free for flat MC.
+
+- **2026-11-09:** EXP-014, 2,688 games (~335 deals per arm). Vs the reference, per deal: tree 3k +0.2 ± 0.7 (8 s/game), **10k +2.4 ± 0.7** (24 s), **30k +3.5 ± 0.7** (75 s), table 10k +1.6 ± 0.7 (19 s). Same-deal comparisons: 3k→10k +2.1 ± 0.9, 10k→30k +1.15 ± 0.9, table 10k − plain 10k −0.7 ± 0.85. Reading: gains roughly halve per tripling of simulations while cost is linear (100k would add ~+0.5 for 3.3× cost; not run). The reference plays like a 3k tree. The table does not help the tree: it saves 20% of the time but lands where plain simulations at that cost would (~+1.9), slightly below. Drop the table for the tree; tree 10k+ is the way past flat MC's strength, flat MC stays the cheapest at its level.
+
 ## Notes & Observations
+
+- **2026-11-09, root visits are near-uniform at any budget (`rust/py/visits.py`, 480 real positions).** Champion tree at 1.5k/3k/10k/30k: effective moves / legal moves 1.00/1.00/1.00/0.99; top visit share 0.37→0.40 (main_turn 0.34→0.41, uniform 0.31); median Q gap best−second 0.40→0.31 points; most-visited = best-Q 94%→100%. The exploration constant (c≈2.27) dwarfs the Q gaps (0.3–0.7 points = 0.003–0.007 in absolute_score units; the bonus is ~0.07 even at 30k), so extra simulations buy precision of Q, not focus. Consequences: (1) visit counts are near-useless as policy targets with this c (use Q instead); (2) c on the scale of the gaps (~0.05–0.2) is the untested lever (EXP-013's c=0.7 is still far too large).
 
 - 2024-02-04: Infrastructure ready - parquet storage, YAML configs, configurable exploration_constant
 - 2024-02-04: **Determinism verified** - identical seeds produce identical MCTS trees and moves
