@@ -5,8 +5,8 @@ Every arm plays that reference on the same fresh deals, each deal twice with sea
 interleaved deal by deal. Results are appended to a JSONL file as games finish, and a restart continues
 after the last deal in the file, so a run can be stopped (Ctrl+C) and resumed at will.
 
-    # run (no --minutes: until Ctrl+C)
-    PYTHONPATH=.:rust/py caffeinate -is uv run python rust/py/exp_tree.py run scaling [--minutes 19]
+    # run (no --minutes: until Ctrl+C; --arms: a subset)
+    PYTHONPATH=.:rust/py caffeinate -is uv run python rust/py/exp_tree.py run scaling [--minutes 90] [--arms a,b]
     # results so far (also while it runs)
     PYTHONPATH=.:rust/py uv run python rust/py/exp_tree.py report scaling
 
@@ -105,9 +105,9 @@ def read(out: Path) -> list[dict]:
     return [json.loads(line) for line in out.open()] if out.exists() else []
 
 
-def run(set_name: str, out: Path, minutes: float | None, workers: int) -> None:
+def run(set_name: str, out: Path, minutes: float | None, workers: int, only: list[str] | None) -> None:
     cfg = SETS[set_name]
-    arms = cfg["arms"]
+    arms = {k: v for k, v in cfg["arms"].items() if not only or k in only}
     old = read(out)
     first = max([x["deal"] for x in old], default=cfg["first_deal"] - 1) + 1
     print(f"{set_name}: {len(old)} games already in {out}; starting at deal {first}", flush=True)
@@ -146,12 +146,16 @@ if __name__ == "__main__":
     ap.add_argument("set", choices=list(SETS))
     ap.add_argument("--minutes", type=float, default=None, help="stop after this long (default: until Ctrl+C)")
     ap.add_argument("--workers", type=int, default=7)
+    ap.add_argument("--arms", default=None, help="comma-separated subset of the set's arms to run (default: all)")
     ap.add_argument("--out", type=Path, default=None, help="default: experiments/data/exp_<set>/results.jsonl")
     a = ap.parse_args()
     out = a.out or ROOT / f"experiments/data/exp_{a.set}/results.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
+    only = a.arms.split(",") if a.arms else None
+    if only and set(only) - set(SETS[a.set]["arms"]):
+        ap.error(f"unknown arms {sorted(set(only) - set(SETS[a.set]['arms']))}; the set has {list(SETS[a.set]['arms'])}")
     if a.mode == "run":
-        run(a.set, out, a.minutes, a.workers)
+        run(a.set, out, a.minutes, a.workers, only)
     else:
         rows = read(out)
         print(f"{len(rows)} games in {out}")
