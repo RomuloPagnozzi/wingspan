@@ -15,6 +15,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 46,
   "color": "brown"
  },
  {
@@ -37,6 +38,7 @@
   "points": 6,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 79,
   "color": "pink"
  },
  {
@@ -63,6 +65,7 @@
   "points": 7,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 107,
   "color": "brown"
  },
  {
@@ -85,6 +88,7 @@
   "points": 3,
   "nest": "platform",
   "egg_limit": 5,
+  "wingspan": 61,
   "color": "brown"
  },
  {
@@ -105,6 +109,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 99,
   "color": "brown"
  },
  {
@@ -123,6 +128,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 23,
   "color": "white"
  },
  {
@@ -145,6 +151,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 56,
   "color": "brown"
  },
  {
@@ -163,6 +170,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 81,
   "color": "white"
  },
  {
@@ -188,6 +196,7 @@
   "points": 1,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 43,
   "color": "brown"
  },
  {
@@ -206,6 +215,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 1,
+  "wingspan": 274,
   "color": "brown"
  },
  {
@@ -229,6 +239,7 @@
   "points": 9,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 46,
   "color": null
  },
  {
@@ -247,6 +258,7 @@
   "points": 6,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 114,
   "color": "brown"
  },
  {
@@ -267,6 +279,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 13,
   "color": "brown"
  },
  {
@@ -289,6 +302,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 30,
   "color": "white"
  },
  {
@@ -307,6 +321,7 @@
   "points": 8,
   "nest": "wild",
   "egg_limit": 1,
+  "wingspan": 53,
   "color": "white"
  },
  {
@@ -329,6 +344,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -351,6 +367,7 @@
   "points": 9,
   "nest": "platform",
   "egg_limit": 1,
+  "wingspan": 203,
   "color": "white"
  },
  {
@@ -373,6 +390,7 @@
   "points": 9,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 30,
   "color": "brown"
  },
  {
@@ -393,6 +411,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 107,
   "color": "brown"
  },
  {
@@ -412,6 +431,7 @@
   "points": 1,
   "nest": "wild",
   "egg_limit": 3,
+  "wingspan": 38,
   "color": "brown"
  },
  {
@@ -430,6 +450,7 @@
   "points": 3,
   "nest": "cavity",
   "egg_limit": 2,
+  "wingspan": 107,
   "color": "brown"
  },
  {
@@ -456,6 +477,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 71,
   "color": "pink"
  },
  {
@@ -475,6 +497,7 @@
   "points": 4,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 18,
   "color": "white"
  },
  {
@@ -497,6 +520,7 @@
   "points": 4,
   "nest": "wild",
   "egg_limit": 4,
+  "wingspan": 53,
   "color": "pink"
  },
  {
@@ -521,6 +545,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 18,
   "color": "brown"
  },
  {
@@ -539,6 +564,7 @@
   "points": 6,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 112,
   "color": "brown"
  },
  {
@@ -563,6 +589,7 @@
   "points": 4,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 61,
   "color": "brown"
  },
  {
@@ -574,6 +601,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 1,
+  "wingspan": 150,
   "color": "pink"
  },
  {
@@ -592,6 +620,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 5,
+  "wingspan": 76,
   "color": "brown"
  },
  {
@@ -610,6 +639,7 @@
   "points": 3,
   "nest": "wild",
   "egg_limit": 3,
+  "wingspan": 64,
   "color": "pink"
  },
  {
@@ -636,6 +666,7 @@
   "points": 9,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 112,
   "color": "brown"
  },
  {
@@ -654,6 +685,7 @@
   "points": 4,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 74,
   "color": "white"
  },
  {
@@ -678,6 +710,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 28,
   "color": "brown"
  },
  {
@@ -700,6 +733,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 41,
   "color": "brown"
  },
  {
@@ -718,6 +752,7 @@
   "points": 1,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 15,
   "color": "brown"
  },
  {
@@ -737,6 +772,7 @@
   "points": 8,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 20,
   "color": null
  },
  {
@@ -759,6 +795,7 @@
   "points": 4,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 30,
   "color": "white"
  },
  {
@@ -781,6 +818,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 41,
   "color": "brown"
  },
  {
@@ -803,6 +841,7 @@
   "points": 5,
   "nest": "none",
   "egg_limit": 0,
+  "wingspan": 36,
   "color": "pink"
  },
  {
@@ -821,6 +860,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 201,
   "color": "white"
  },
  {
@@ -839,6 +879,7 @@
   "points": 3,
   "nest": "none",
   "egg_limit": 0,
+  "wingspan": 30,
   "color": "pink"
  },
  {
@@ -861,6 +902,7 @@
   "points": 5,
   "nest": "wild",
   "egg_limit": 4,
+  "wingspan": 53,
   "color": "brown"
  },
  {
@@ -885,6 +927,7 @@
   "points": 2,
   "nest": "wild",
   "egg_limit": 5,
+  "wingspan": 15,
   "color": "brown"
  },
  {
@@ -898,6 +941,7 @@
   "points": 1,
   "nest": "ground",
   "egg_limit": 1,
+  "wingspan": 277,
   "color": "white"
  },
  {
@@ -921,6 +965,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 6,
+  "wingspan": 36,
   "color": "brown"
  },
  {
@@ -940,6 +985,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 132,
   "color": "brown"
  },
  {
@@ -964,6 +1010,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -988,6 +1035,7 @@
   "points": 1,
   "nest": "cavity",
   "egg_limit": 5,
+  "wingspan": 20,
   "color": "white"
  },
  {
@@ -1010,6 +1058,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 30,
   "color": "white"
  },
  {
@@ -1032,6 +1081,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -1051,6 +1101,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 25,
   "color": "brown"
  },
  {
@@ -1073,6 +1124,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 20,
   "color": "white"
  },
  {
@@ -1095,6 +1147,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 25,
   "color": "white"
  },
  {
@@ -1117,6 +1170,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 3,
+  "wingspan": 112,
   "color": "brown"
  },
  {
@@ -1137,6 +1191,7 @@
   "points": 3,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 36,
   "color": "brown"
  },
  {
@@ -1162,6 +1217,7 @@
   "points": 1,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -1180,6 +1236,7 @@
   "points": 5,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 61,
   "color": "brown"
  },
  {
@@ -1202,6 +1259,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 61,
   "color": "brown"
  },
  {
@@ -1226,6 +1284,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 43,
   "color": "brown"
  },
  {
@@ -1248,6 +1307,7 @@
   "points": 6,
   "nest": "ground",
   "egg_limit": 1,
+  "wingspan": 117,
   "color": "brown"
  },
  {
@@ -1270,6 +1330,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 86,
   "color": "brown"
  },
  {
@@ -1290,6 +1351,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 56,
   "color": "brown"
  },
  {
@@ -1314,6 +1376,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 135,
   "color": "brown"
  },
  {
@@ -1332,6 +1395,7 @@
   "points": 1,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 18,
   "color": "brown"
  },
  {
@@ -1350,6 +1414,7 @@
   "points": 3,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 79,
   "color": "brown"
  },
  {
@@ -1373,6 +1438,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -1395,6 +1461,7 @@
   "points": 4,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 25,
   "color": "brown"
  },
  {
@@ -1417,6 +1484,7 @@
   "points": 3,
   "nest": "platform",
   "egg_limit": 3,
+  "wingspan": 132,
   "color": "brown"
  },
  {
@@ -1447,6 +1515,7 @@
   "points": 3,
   "nest": "cavity",
   "egg_limit": 2,
+  "wingspan": 30,
   "color": "white"
  },
  {
@@ -1469,6 +1538,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 5,
+  "wingspan": 33,
   "color": "white"
  },
  {
@@ -1495,6 +1565,7 @@
   "points": 2,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 38,
   "color": "pink"
  },
  {
@@ -1521,6 +1592,7 @@
   "points": 3,
   "nest": "wild",
   "egg_limit": 4,
+  "wingspan": 28,
   "color": "brown"
  },
  {
@@ -1545,6 +1617,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 2,
+  "wingspan": 51,
   "color": "brown"
  },
  {
@@ -1563,6 +1636,7 @@
   "points": 6,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 142,
   "color": "brown"
  },
  {
@@ -1587,6 +1661,7 @@
   "points": 6,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 91,
   "color": "brown"
  },
  {
@@ -1611,6 +1686,7 @@
   "points": 4,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 79,
   "color": "brown"
  },
  {
@@ -1634,6 +1710,7 @@
   "points": 3,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 91,
   "color": "brown"
  },
  {
@@ -1653,6 +1730,7 @@
   "points": 8,
   "nest": "platform",
   "egg_limit": 1,
+  "wingspan": 201,
   "color": "brown"
  },
  {
@@ -1677,6 +1755,7 @@
   "points": 2,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -1701,6 +1780,7 @@
   "points": 5,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 28,
   "color": "brown"
  },
  {
@@ -1723,6 +1803,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 183,
   "color": "white"
  },
  {
@@ -1745,6 +1826,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 33,
   "color": "brown"
  },
  {
@@ -1767,6 +1849,7 @@
   "points": 7,
   "nest": "platform",
   "egg_limit": 3,
+  "wingspan": 130,
   "color": "white"
  },
  {
@@ -1785,6 +1868,7 @@
   "points": 8,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 112,
   "color": "brown"
  },
  {
@@ -1807,6 +1891,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 71,
   "color": "white"
  },
  {
@@ -1833,6 +1918,7 @@
   "points": 7,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 56,
   "color": "brown"
  },
  {
@@ -1857,6 +1943,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 3,
+  "wingspan": 66,
   "color": "brown"
  },
  {
@@ -1879,6 +1966,7 @@
   "points": 7,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 30,
   "color": "brown"
  },
  {
@@ -1901,6 +1989,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 61,
   "color": "brown"
  },
  {
@@ -1919,6 +2008,7 @@
   "points": 7,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 18,
   "color": null
  },
  {
@@ -1941,6 +2031,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 30,
   "color": "pink"
  },
  {
@@ -1965,6 +2056,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 6,
+  "wingspan": 25,
   "color": "brown"
  },
  {
@@ -1984,6 +2076,7 @@
   "points": 1,
   "nest": "cavity",
   "egg_limit": 5,
+  "wingspan": 15,
   "color": "white"
  },
  {
@@ -2002,6 +2095,7 @@
   "points": 2,
   "nest": "platform",
   "egg_limit": 4,
+  "wingspan": 28,
   "color": "white"
  },
  {
@@ -2029,6 +2123,7 @@
   "points": 5,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -2051,6 +2146,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -2076,6 +2172,7 @@
   "points": 1,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 46,
   "color": "brown"
  },
  {
@@ -2102,6 +2199,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 6,
+  "wingspan": 51,
   "color": "white"
  },
  {
@@ -2128,6 +2226,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -2152,6 +2251,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -2175,6 +2275,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 30,
   "color": "pink"
  },
  {
@@ -2199,6 +2300,7 @@
   "points": 0,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 89,
   "color": "brown"
  },
  {
@@ -2224,6 +2326,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 1,
+  "wingspan": 79,
   "color": "brown"
  },
  {
@@ -2246,6 +2349,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 5,
+  "wingspan": 36,
   "color": "white"
  },
  {
@@ -2270,6 +2374,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -2290,6 +2395,7 @@
   "points": 0,
   "nest": "platform",
   "egg_limit": 5,
+  "wingspan": 46,
   "color": "brown"
  },
  {
@@ -2308,6 +2414,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 6,
+  "wingspan": 33,
   "color": "brown"
  },
  {
@@ -2330,6 +2437,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 5,
+  "wingspan": 30,
   "color": "brown"
  },
  {
@@ -2361,6 +2469,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 51,
   "color": "white"
  },
  {
@@ -2380,6 +2489,7 @@
   "points": 3,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 109,
   "color": "brown"
  },
  {
@@ -2404,6 +2514,7 @@
   "points": 2,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 36,
   "color": "brown"
  },
  {
@@ -2426,6 +2537,7 @@
   "points": 7,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 76,
   "color": "brown"
  },
  {
@@ -2444,6 +2556,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 160,
   "color": "brown"
  },
  {
@@ -2466,6 +2579,7 @@
   "points": 5,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 23,
   "color": "white"
  },
  {
@@ -2485,6 +2599,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 104,
   "color": "brown"
  },
  {
@@ -2509,6 +2624,7 @@
   "points": 0,
   "nest": "platform",
   "egg_limit": 4,
+  "wingspan": 41,
   "color": "brown"
  },
  {
@@ -2531,6 +2647,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 2,
+  "wingspan": 74,
   "color": "brown"
  },
  {
@@ -2549,6 +2666,7 @@
   "points": 3,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -2572,6 +2690,7 @@
   "points": 8,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 23,
   "color": null
  },
  {
@@ -2598,6 +2717,7 @@
   "points": 7,
   "nest": "platform",
   "egg_limit": 4,
+  "wingspan": 56,
   "color": "brown"
  },
  {
@@ -2617,6 +2737,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 46,
   "color": "brown"
  },
  {
@@ -2639,6 +2760,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -2657,6 +2779,7 @@
   "points": 6,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 28,
   "color": "brown"
  },
  {
@@ -2681,6 +2804,7 @@
   "points": 1,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 41,
   "color": "brown"
  },
  {
@@ -2705,6 +2829,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 23,
   "color": "brown"
  },
  {
@@ -2727,6 +2852,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 2,
+  "wingspan": 36,
   "color": "white"
  },
  {
@@ -2751,6 +2877,7 @@
   "points": 3,
   "nest": "wild",
   "egg_limit": 2,
+  "wingspan": 25,
   "color": "white"
  },
  {
@@ -2779,6 +2906,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 43,
   "color": "brown"
  },
  {
@@ -2797,6 +2925,7 @@
   "points": 3,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 102,
   "color": "brown"
  },
  {
@@ -2817,6 +2946,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 124,
   "color": "brown"
  },
  {
@@ -2836,6 +2966,7 @@
   "points": 2,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 33,
   "color": "brown"
  },
  {
@@ -2854,6 +2985,7 @@
   "points": 4,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 122,
   "color": "brown"
  },
  {
@@ -2880,6 +3012,7 @@
   "points": 6,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 33,
   "color": "brown"
  },
  {
@@ -2906,6 +3039,7 @@
   "points": 6,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 127,
   "color": "white"
  },
  {
@@ -2936,6 +3070,7 @@
   "points": 2,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 20,
   "color": "white"
  },
  {
@@ -2956,6 +3091,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 10,
   "color": "brown"
  },
  {
@@ -2980,6 +3116,7 @@
   "points": 0,
   "nest": "platform",
   "egg_limit": 5,
+  "wingspan": 48,
   "color": "brown"
  },
  {
@@ -3003,6 +3140,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 1,
+  "wingspan": 196,
   "color": "brown"
  },
  {
@@ -3027,6 +3165,7 @@
   "points": 2,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 18,
   "color": "white"
  },
  {
@@ -3045,6 +3184,7 @@
   "points": 5,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 33,
   "color": "white"
  },
  {
@@ -3067,6 +3207,7 @@
   "points": 8,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 38,
   "color": "brown"
  },
  {
@@ -3091,6 +3232,7 @@
   "points": 4,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 104,
   "color": "brown"
  },
  {
@@ -3123,6 +3265,7 @@
   "points": 0,
   "nest": "bowl",
   "egg_limit": 5,
+  "wingspan": 20,
   "color": "brown"
  },
  {
@@ -3141,6 +3284,7 @@
   "points": 5,
   "nest": "cavity",
   "egg_limit": 1,
+  "wingspan": 102,
   "color": "white"
  },
  {
@@ -3159,6 +3303,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 38,
   "color": "brown"
  },
  {
@@ -3190,6 +3335,7 @@
   "points": 0,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 28,
   "color": "brown"
  },
  {
@@ -3212,6 +3358,7 @@
   "points": 3,
   "nest": "ground",
   "egg_limit": 3,
+  "wingspan": 25,
   "color": "white"
  },
  {
@@ -3234,6 +3381,7 @@
   "points": 5,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 48,
   "color": "brown"
  },
  {
@@ -3256,6 +3404,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 130,
   "color": "brown"
  },
  {
@@ -3278,6 +3427,7 @@
   "points": 3,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 38,
   "color": "brown"
  },
  {
@@ -3300,6 +3450,7 @@
   "points": 9,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 203,
   "color": null
  },
  {
@@ -3330,6 +3481,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 25,
   "color": "white"
  },
  {
@@ -3343,6 +3495,7 @@
   "points": 1,
   "nest": "cavity",
   "egg_limit": 1,
+  "wingspan": 170,
   "color": "pink"
  },
  {
@@ -3363,6 +3516,7 @@
   "points": 3,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 36,
   "color": "brown"
  },
  {
@@ -3385,6 +3539,7 @@
   "points": 2,
   "nest": "ground",
   "egg_limit": 4,
+  "wingspan": 38,
   "color": "brown"
  },
  {
@@ -3407,6 +3562,7 @@
   "points": 6,
   "nest": "bowl",
   "egg_limit": 2,
+  "wingspan": 30,
   "color": "brown"
  },
  {
@@ -3431,6 +3587,7 @@
   "points": 2,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 28,
   "color": "brown"
  },
  {
@@ -3455,6 +3612,7 @@
   "points": 2,
   "nest": "ground",
   "egg_limit": 5,
+  "wingspan": 25,
   "color": "brown"
  },
  {
@@ -3477,6 +3635,7 @@
   "points": 8,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 91,
   "color": "brown"
  },
  {
@@ -3495,6 +3654,7 @@
   "points": 6,
   "nest": "ground",
   "egg_limit": 1,
+  "wingspan": 221,
   "color": "white"
  },
  {
@@ -3518,6 +3678,7 @@
   "points": 8,
   "nest": "ground",
   "egg_limit": 5,
+  "wingspan": 135,
   "color": null
  },
  {
@@ -3542,6 +3703,7 @@
   "points": 4,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 66,
   "color": "brown"
  },
  {
@@ -3560,6 +3722,7 @@
   "points": 5,
   "nest": "ground",
   "egg_limit": 2,
+  "wingspan": 41,
   "color": "brown"
  },
  {
@@ -3583,6 +3746,7 @@
   "points": 4,
   "nest": "cavity",
   "egg_limit": 4,
+  "wingspan": 76,
   "color": "brown"
  },
  {
@@ -3609,6 +3773,7 @@
   "points": 6,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 155,
   "color": "white"
  },
  {
@@ -3631,6 +3796,7 @@
   "points": 3,
   "nest": "cavity",
   "egg_limit": 3,
+  "wingspan": 41,
   "color": "brown"
  },
  {
@@ -3653,6 +3819,7 @@
   "points": 5,
   "nest": "platform",
   "egg_limit": 2,
+  "wingspan": 46,
   "color": "pink"
  },
  {
@@ -3677,6 +3844,7 @@
   "points": 5,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 25,
   "color": "brown"
  },
  {
@@ -3699,6 +3867,7 @@
   "points": 4,
   "nest": "bowl",
   "egg_limit": 3,
+  "wingspan": 38,
   "color": "brown"
  },
  {
@@ -3729,6 +3898,7 @@
   "points": 1,
   "nest": "bowl",
   "egg_limit": 4,
+  "wingspan": 23,
   "color": "brown"
  }
 ]

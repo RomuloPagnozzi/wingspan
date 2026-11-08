@@ -19,6 +19,7 @@ birds = [
         "points": b.points,
         "nest": b.nest if isinstance(b.nest, str) else "none",  # two cowbirds have no nest (nan)
         "egg_limit": b.egg_limit,
+        "wingspan": b.wingspan,
         "color": color if isinstance(color := POWER_REGISTRY.get(b.id, {}).get("color"), str) else None,
     }
     for b in BIRD_REGISTRY.values()  # registry order = initial deck order

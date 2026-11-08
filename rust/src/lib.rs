@@ -1,7 +1,9 @@
 pub mod actions;
 pub mod chance;
 pub mod data;
+pub mod powers;
 pub mod rules;
+pub mod search;
 pub mod state;
 
 use std::time::Instant;
@@ -55,6 +57,31 @@ mod python {
         Ok((serde_json::to_string(&s).unwrap(), replay.0.len()))
     }
 
+    /// Flat Monte Carlo for the player to move (see search.rs). Returns (legal action strings, total value
+    /// per move, counted playouts per move), moves in the engine's legal order.
+    #[pyfunction]
+    fn flat_mc(
+        state_json: &str,
+        budget: usize,
+        paired: bool,
+        value_function: &str,
+        seed: u64,
+    ) -> PyResult<(Vec<String>, Vec<f64>, Vec<u32>)> {
+        let s = parse(state_json)?;
+        let vf = crate::search::ValueFunction::parse(value_function)
+            .ok_or_else(|| PyValueError::new_err(format!("unknown value function {value_function}")))?;
+        let (legal, totals, counts) = crate::search::flat_mc(&s, budget, paired, vf, seed);
+        Ok((legal.iter().map(|a| a.to_string()).collect(), totals, counts))
+    }
+
+    /// Re-deal the cards `me` can't see; returns the new state json.
+    #[pyfunction]
+    fn redeterminize(state_json: &str, me: usize, seed: u64) -> PyResult<String> {
+        let s = parse(state_json)?;
+        let w = crate::search::redeterminize(&s, me, &mut crate::chance::Rng::new(seed));
+        Ok(serde_json::to_string(&w).unwrap())
+    }
+
     /// Random games from fresh deals, timed inside Rust: (total decisions, seconds).
     #[pyfunction]
     fn bench_games(n_games: usize, seed: u64) -> (usize, f64) {
@@ -66,6 +93,8 @@ mod python {
         m.add_function(wrap_pyfunction!(legal_actions, m)?)?;
         m.add_function(wrap_pyfunction!(apply, m)?)?;
         m.add_function(wrap_pyfunction!(bench_games, m)?)?;
+        m.add_function(wrap_pyfunction!(flat_mc, m)?)?;
+        m.add_function(wrap_pyfunction!(redeterminize, m)?)?;
         Ok(())
     }
 }

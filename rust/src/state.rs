@@ -210,8 +210,94 @@ pub struct PendingCost {
     pub callback_action: PlayCallback,
 }
 
+/// A power waiting in the activation queue (its card data is looked up from `bird_id`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueuedPower {
+    pub power_id: u8,
+    pub bird_id: u16,
+    pub spot_row: u8,
+    pub spot_col: u8,
+    pub player_index: usize,
+}
+
+/// Where a power on the execution stack is waiting for input (Python's `PowerExecution.phase`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PowerPhase {
+    Choices,
+    SelectDiscard,
+    SelectDraw,
+    SelectGain,
+    SelectBonus,
+    SelectCard,
+    ChooseStartingPlayer,
+    SelectDie,
+    SelectFoodType,
+    ChooseCache,
+    SelectHabitat,
+    SelectBird,
+    AwaitingBirdPlay,
+    SelectTrade,
+    SelectFood,
+    EndTurnDiscard,
+}
+
+/// The part of Python's `PowerExecution.context` that changes during play. The rest (the card's power
+/// details, copied in at activation) is looked up from the bird instead.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Context {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub activator: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub awaiting_players: Option<Vec<usize>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub draw_amount: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bonus_options: Option<Vec<u16>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available_cards: Option<Vec<u16>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub food_type: Option<Food>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available_foods: Option<Vec<Food>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining_quantity: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_habitats: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_bird_ids: Option<Vec<u16>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_habitat: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eligible_birds: Option<Vec<(u16, u8, u8)>>, // (bird, row, col)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<i32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Execution {
+    pub power_id: u8,
+    pub bird_id: u16,
+    pub spot_row: u8,
+    pub spot_col: u8,
+    pub player_index: usize,
+    pub phase: Option<PowerPhase>,
+    pub context: Context,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EndTurnEffect {
+    pub effect_type: String, // only "discard_cards"
+    pub player_index: usize,
+    pub amount: i32,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ActionData {
+    pub powers_queue: Vec<QueuedPower>,
+    pub execution_stack: Vec<Execution>,
+    pub end_turn_effects: Vec<EndTurnEffect>,
     pub current_power_index: i32,
     pub action_player_index: Option<usize>,
     pub food_needed: i32,

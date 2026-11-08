@@ -8,7 +8,8 @@ use crate::state::Food;
 pub enum Action {
     Simple(&'static str),
     Id(&'static str, u16),
-    Name(&'static str, Food),
+    Name(&'static str, &'static str),
+    Trade { from: Food, to: Food },
     PlayBird { bird: u16, row: u8, col: u8 },
     SelectDie { die: u8, food: Food },
     FoodMap(&'static str, Vec<(Food, u8)>), // sorted by food
@@ -34,7 +35,8 @@ impl fmt::Display for Action {
         match self {
             Action::Simple(t) => write!(f, "SimpleAction(type='{t}')"),
             Action::Id(t, id) => write!(f, "IdAction(type='{t}', id={id})"),
-            Action::Name(t, food) => write!(f, "NameAction(type='{t}', name='{}')", food.name()),
+            Action::Name(t, name) => write!(f, "NameAction(type='{t}', name='{name}')"),
+            Action::Trade { from, to } => write!(f, "TradeAction(from_type='{}', to_type='{}')", from.name(), to.name()),
             Action::PlayBird { bird, row, col } => write!(f, "PlayBirdAction(bird_id={bird}, row={row}, col={col})"),
             Action::SelectDie { die, food } => {
                 write!(f, "SelectDieAction(die_index={die}, food_type='{}')", food.name())

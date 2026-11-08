@@ -27,9 +27,30 @@ class RecordingRandom(random.Random):
         self.log.append(("shuffle", list(x)))
 
 
+# PowerExecution.context keys that change during play. The others are copies of the card's power details
+# (looked up from the bird in Rust), so they are left out of the comparison.
+DYNAMIC = {
+    "activator", "awaiting_players", "draw_amount", "bonus_options", "available_cards", "food_type",
+    "available_foods", "remaining_quantity", "valid_habitats", "valid_bird_ids", "target_habitat",
+    "eligible_birds", "amount",
+}
+STATIC = {
+    "power_data", "nest_type", "discard_type", "gain_type", "gain_qty", "action_type", "can_cache", "source",
+    "quantity", "food_types", "types", "repeat_type", "current_habitat",
+}
+
+
+def _context(ctx: dict) -> dict:
+    assert set(ctx) <= DYNAMIC | STATIC, f"unknown context keys {set(ctx) - DYNAMIC - STATIC}"
+    out = {k: v for k, v in ctx.items() if k in DYNAMIC}
+    if "eligible_birds" in out:
+        out["eligible_birds"] = [[b["bird_id"], b["spot_row"], b["spot_col"]] for b in out["eligible_birds"]]
+    return out
+
+
 def to_json(s: GameState) -> dict:
     ad = s.action_data
-    assert not (ad.powers_queue or ad.execution_stack or ad.end_turn_effects or ad.pending_callback)
+    assert not ad.pending_callback
     cost = ad.pending_cost
     return {
         "players": [
@@ -76,6 +97,32 @@ def to_json(s: GameState) -> dict:
         "current_player_index": s.current_player_index,
         "game_phase": s.game_phase.value,
         "action_data": {
+            "powers_queue": [
+                {
+                    "power_id": q.power_id,
+                    "bird_id": q.bird_id,
+                    "spot_row": q.spot_row,
+                    "spot_col": q.spot_col,
+                    "player_index": q.player_index,
+                }
+                for q in ad.powers_queue
+            ],
+            "execution_stack": [
+                {
+                    "power_id": e.power_id,
+                    "bird_id": e.bird_id,
+                    "spot_row": e.spot_row,
+                    "spot_col": e.spot_col,
+                    "player_index": e.player_index,
+                    "phase": e.phase,
+                    "context": _context(e.context),
+                }
+                for e in ad.execution_stack
+            ],
+            "end_turn_effects": [
+                {"effect_type": x.effect_type, "player_index": x.player_index, "amount": x.amount}
+                for x in ad.end_turn_effects
+            ],
             "current_power_index": ad.current_power_index,
             "action_player_index": ad.action_player_index,
             "food_needed": ad.food_needed,

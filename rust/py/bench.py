@@ -1,4 +1,4 @@
-"""Python vs Rust random-play speed on the same rules (no powers, M1).
+"""Python vs Rust random-play speed on the same rules.
 
     uv run python rust/py/bench.py [n_games]
 """
@@ -29,11 +29,9 @@ def report(name: str, n: int, steps: int, secs: float) -> float:
 
 if __name__ == "__main__":
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 300
-    report("python (with powers)", n, *python_games(n))
-    import nopowers  # noqa: F401
     import wingspan_rs
 
-    py = report("python (no powers)", n, *python_games(n))
+    py = report("python", n, *python_games(n))
     wingspan_rs.bench_games(10, 0)
-    rs = report("rust (no powers)", 20 * n, *wingspan_rs.bench_games(20 * n, 1))
-    print(f"speedup per decision, same rules: {py / rs:.0f}x")
+    rs = report("rust", 20 * n, *wingspan_rs.bench_games(20 * n, 1))
+    print(f"speedup per decision: {py / rs:.0f}x")

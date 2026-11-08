@@ -1,5 +1,6 @@
 //! Card definitions, loaded once from the JSON that `py/export_data.py` writes from the Python pickles.
 
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -22,17 +23,65 @@ pub enum Color {
     Brown,
     White,
     Pink,
-    Other,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Qty {
+    N(i32),
+    All,
+}
+
+/// Bonus of power 17 ("tuck a card from your hand, then ...").
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TuckBonus {
+    Card,
+    Egg,
+    Foods(Vec<Food>), // one food: gain it; several: choose one
+}
+
+/// The 21 power templates (handlers.py), with their card details parsed.
+#[derive(Clone, Debug)]
+pub enum Kind {
+    AllGain { card: bool, food: Option<Food> },                       // 1
+    AllLayEggs { nest: Nest },                                         // 2
+    CacheSeed,                                                         // 3
+    DiscardToGain { discard_food: Option<Food>, gain_card: bool, gain_qty: u8, draw: bool }, // 4 (None = an egg)
+    Draw { amount: u8, bonus: bool, discard: bool },                   // 5
+    DrawShare,                                                         // 6
+    AllGainDie,                                                        // 7
+    GainFood { can_cache: bool, supply: bool, qty: Qty, foods: Vec<Food> }, // 8
+    MoveBird,                                                          // 9
+    LayEggs { this: bool, nest: Option<Nest> },                        // 10 (nest None = any)
+    Hunt { wingspan: i32 },                                            // 11
+    PlayAnother { habitat: Option<usize> },                            // 12 (None = this bird's)
+    Fewest { habitat: usize, card: bool },                             // 13
+    Repeat { predator: bool },                                         // 14
+    DiceHunt { food: Food },                                           // 15
+    Trade,                                                             // 16
+    Tuck { bonus: TuckBonus },                                         // 17
+    PinkPlayed { habitat: usize, card: bool, food: Option<Food> },     // 18
+    PinkRodent,                                                        // 19
+    PinkLayEgg { nest: Nest },                                         // 20
+    PinkPredator,                                                      // 21
+}
+
+#[derive(Clone, Debug)]
+pub struct Power {
+    pub id: u8,
+    pub color: Color,
+    pub kind: Kind,
 }
 
 pub struct Bird {
     pub habitats: [bool; 3], // forest, grassland, wetland (= board rows)
+    pub habitat_order: Vec<usize>, // as printed on the card
     /// Alternative cost options; within one, (food, amount) in card order. `None` food = wild.
     pub cost: Vec<Vec<(Option<Food>, u8)>>,
     pub points: i32,
     pub nest: Nest,
     pub egg_limit: u8,
-    pub color: Option<Color>,
+    pub wingspan: i32,
+    pub power: Option<Power>,
 }
 
 pub enum BonusScore {
@@ -60,6 +109,9 @@ impl Data {
     pub fn bonus(&self, id: u16) -> &Bonus {
         self.bonuses[id as usize].as_ref().expect("unknown bonus id")
     }
+    pub fn power(&self, id: u16) -> Option<&Power> {
+        self.bird(id).power.as_ref()
+    }
 }
 
 #[derive(Deserialize)]
@@ -70,7 +122,7 @@ struct BirdJson {
     points: i32,
     nest: String,
     egg_limit: u8,
-    color: Option<String>,
+    wingspan: i32,
 }
 
 #[derive(Deserialize)]
@@ -91,9 +143,99 @@ pub fn food_from_str(s: &str) -> Food {
     }
 }
 
+pub fn habitat_row(s: &str) -> usize {
+    match s {
+        "forest" => 0,
+        "grassland" => 1,
+        "wetland" => 2,
+        _ => panic!("unknown habitat {s}"),
+    }
+}
+
+fn nest_from_str(s: &str) -> Nest {
+    match s {
+        "bowl" => Nest::Bowl,
+        "cavity" => Nest::Cavity,
+        "ground" => Nest::Ground,
+        "platform" => Nest::Platform,
+        "wild" => Nest::Wild,
+        _ => Nest::None,
+    }
+}
+
+fn parse_power(v: &Value) -> Option<Power> {
+    let data = v.get("data").filter(|d| d.is_object())?;
+    let id = data.get("id")?.as_u64()? as u8;
+    let color = match v["color"].as_str()? {
+        "brown" => Color::Brown,
+        "white" => Color::White,
+        "pink" => Color::Pink,
+        c => panic!("unknown power color {c}"),
+    };
+    let d = &data["details"];
+    let s = |k: &str| d[k].as_str().unwrap_or("");
+    let b = |k: &str| d[k].as_bool().unwrap_or(false);
+    let foods = |k: &str| d[k].as_array().unwrap().iter().map(|f| food_from_str(f.as_str().unwrap())).collect::<Vec<_>>();
+    let kind = match id {
+        1 => match s("type") {
+            "card" => Kind::AllGain { card: true, food: None },
+            f => Kind::AllGain { card: false, food: Some(food_from_str(f)) },
+        },
+        2 => Kind::AllLayEggs { nest: nest_from_str(s("type")) },
+        3 => Kind::CacheSeed,
+        4 => Kind::DiscardToGain {
+            discard_food: (s("discard") != "egg").then(|| food_from_str(s("discard"))),
+            gain_card: s("gain") == "card",
+            gain_qty: d["gain_qty"].as_u64().unwrap_or(1) as u8,
+            draw: s("action") == "draw",
+        },
+        5 => Kind::Draw { amount: d["amount"].as_u64().unwrap() as u8, bonus: b("bonus"), discard: b("discard") },
+        6 => Kind::DrawShare,
+        7 => Kind::AllGainDie,
+        8 => Kind::GainFood {
+            can_cache: b("can_cache"),
+            supply: s("source") == "supply",
+            qty: match d["quantity"].as_i64() {
+                Some(n) => Qty::N(n as i32),
+                None => Qty::All,
+            },
+            foods: foods("food_types"),
+        },
+        9 => Kind::MoveBird,
+        10 => Kind::LayEggs { this: b("this"), nest: (s("type") != "any").then(|| nest_from_str(s("type"))) },
+        11 => Kind::Hunt { wingspan: d["wingspan"].as_i64().unwrap() as i32 },
+        12 => Kind::PlayAnother { habitat: (s("habitat") != "this").then(|| habitat_row(s("habitat"))) },
+        13 => Kind::Fewest { habitat: habitat_row(s("habitat")), card: s("item") == "card" },
+        14 => Kind::Repeat { predator: s("type") == "predator" },
+        15 => Kind::DiceHunt { food: food_from_str(s("type")) },
+        16 => Kind::Trade,
+        17 => {
+            let t: Vec<&str> = d["types"].as_array().unwrap().iter().map(|x| x.as_str().unwrap()).collect();
+            Kind::Tuck {
+                bonus: match t[..] {
+                    ["card"] => TuckBonus::Card,
+                    ["egg"] => TuckBonus::Egg,
+                    _ => TuckBonus::Foods(t.iter().map(|f| food_from_str(f)).collect()),
+                },
+            }
+        }
+        18 => Kind::PinkPlayed {
+            habitat: habitat_row(s("habitat")),
+            card: s("resource") == "card",
+            food: (s("resource") != "card").then(|| food_from_str(s("resource"))),
+        },
+        19 => Kind::PinkRodent,
+        20 => Kind::PinkLayEgg { nest: nest_from_str(s("type")) },
+        21 => Kind::PinkPredator,
+        _ => panic!("unknown power {id}"),
+    };
+    Some(Power { id, color, kind })
+}
+
 fn load() -> Data {
     let birds: Vec<BirdJson> = serde_json::from_str(include_str!("../data/birds.json")).unwrap();
     let bonuses: Vec<BonusJson> = serde_json::from_str(include_str!("../data/bonuses.json")).unwrap();
+    let powers: HashMap<String, Value> = serde_json::from_str(include_str!("../data/powers.json")).unwrap();
     let mut data = Data {
         birds: (0..=birds.iter().map(|b| b.id).max().unwrap()).map(|_| None).collect(),
         bonuses: (0..=bonuses.iter().map(|b| b.id).max().unwrap()).map(|_| None).collect(),
@@ -101,9 +243,10 @@ fn load() -> Data {
         bonus_ids: bonuses.iter().map(|b| b.id).collect(),
     };
     for b in birds {
-        let habitat = |h: &str| b.habitats.iter().any(|x| x == h);
+        let habitat_order: Vec<usize> = b.habitats.iter().map(|h| habitat_row(h)).collect();
         data.birds[b.id as usize] = Some(Bird {
-            habitats: [habitat("forest"), habitat("grassland"), habitat("wetland")],
+            habitats: std::array::from_fn(|r| habitat_order.contains(&r)),
+            habitat_order,
             cost: b
                 .cost
                 .iter()
@@ -114,21 +257,10 @@ fn load() -> Data {
                 })
                 .collect(),
             points: b.points,
-            nest: match b.nest.as_str() {
-                "bowl" => Nest::Bowl,
-                "cavity" => Nest::Cavity,
-                "ground" => Nest::Ground,
-                "platform" => Nest::Platform,
-                "wild" => Nest::Wild,
-                _ => Nest::None,
-            },
+            nest: nest_from_str(&b.nest),
             egg_limit: b.egg_limit,
-            color: b.color.map(|c| match c.as_str() {
-                "brown" => Color::Brown,
-                "white" => Color::White,
-                "pink" => Color::Pink,
-                _ => Color::Other,
-            }),
+            wingspan: b.wingspan,
+            power: powers.get(&b.id.to_string()).and_then(parse_power),
         });
     }
     for b in bonuses {

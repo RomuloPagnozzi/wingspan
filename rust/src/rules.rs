@@ -1,20 +1,19 @@
 //! The rules: setup, legal actions, transitions, scoring. A port of engine/{actions,engine,phase_handlers,
 //! effects,utils,scoring}.py that keeps the same orders (of actions, of draws, of dict iteration), because
 //! rollouts pick moves by index and the action strings are data keys.
-//!
-//! M1: bird powers are not implemented yet. `triggered_powers` is the one place they hook in; until then it
-//! returns nothing, which matches the Python engine with its power lookups patched out (see py/nopowers.py).
+//! Bird powers live in powers.rs; this file runs their queue (engine.py `activate_powers`, end of turn).
 
 use crate::actions::Action;
 use crate::chance::{Chance, Rng};
-use crate::data::{data, BonusScore, Nest};
+use crate::data::{data, BonusScore, Color, Nest};
+use crate::powers::{self, Pink};
 use crate::state::*;
 
 // Board layout (models.py `_build_board_layout`). Rows: forest, grassland, wetland.
 const RESOURCE_AMOUNT: [[i32; 5]; 3] = [[1, 1, 2, 2, 3], [2, 2, 3, 3, 4], [1, 1, 2, 2, 3]];
 const EXTRA_RESOURCE: [bool; 5] = [false, true, false, true, false];
 const EGG_COST: [u8; 5] = [0, 1, 1, 2, 2];
-const HABITATS: [&str; 3] = ["forest", "grassland", "wetland"];
+pub const HABITATS: [&str; 3] = ["forest", "grassland", "wetland"];
 
 type R = Result<(), String>;
 
@@ -44,7 +43,7 @@ fn new_player(id: u8) -> Player {
     }
 }
 
-fn roll_feeder(c: &mut impl Chance) -> Vec<(u8, Face)> {
+pub fn roll_feeder(c: &mut impl Chance) -> Vec<(u8, Face)> {
     (0..5).map(|i| (i, Face(c.roll_die()))).collect()
 }
 
@@ -123,11 +122,11 @@ fn next_player_index(s: &State) -> usize {
     (1..n).map(|o| (first + o) % n).find(|&i| s.players[i].action_cubes != first_cubes).unwrap_or(first)
 }
 
-fn leftmost_empty(p: &Player, row: usize) -> Option<usize> {
+pub fn leftmost_empty(p: &Player, row: usize) -> Option<usize> {
     p.board[row].iter().position(|b| b.is_none())
 }
 
-fn has_nest(nest: Nest, wanted: Nest) -> bool {
+pub fn has_nest(nest: Nest, wanted: Nest) -> bool {
     nest == wanted || nest == Nest::Wild
 }
 
@@ -137,12 +136,6 @@ fn has_egg_room(p: &Player) -> bool {
 
 fn total_eggs(p: &Player) -> u32 {
     p.birds().map(|b| b.eggs as u32).sum()
-}
-
-/// Powers that would trigger (brown on a row, white on a played bird, pink on another player's action).
-/// M1: none. Kept as a hook so the call sites already mirror `finish_main_action`.
-fn triggered_powers(_s: &State) -> Vec<()> {
-    vec![]
 }
 
 fn can_afford(cost: &[Vec<(Option<Food>, u8)>], food: [u8; 5]) -> bool {
@@ -168,7 +161,7 @@ fn can_afford(cost: &[Vec<(Option<Food>, u8)>], food: [u8; 5]) -> bool {
 
 /// `generate_playable_bird_spots`: calls `f(bird, row, col)` in hand order, then row order, until it
 /// returns false.
-fn for_playable_spots(p: &Player, mut f: impl FnMut(u16, u8, u8) -> bool) {
+pub fn for_playable_spots(p: &Player, mut f: impl FnMut(u16, u8, u8) -> bool) {
     if p.bird_hand.is_empty() {
         return;
     }
@@ -247,7 +240,7 @@ fn combinations_with_replacement(n: usize, k: usize, mut f: impl FnMut(&[usize])
     }
 }
 
-fn food_map(counts: [u8; 5]) -> Vec<(Food, u8)> {
+pub fn food_map(counts: [u8; 5]) -> Vec<(Food, u8)> {
     Food::ALL.iter().filter(|f| counts[**f as usize] > 0).map(|&f| (f, counts[f as usize])).collect()
 }
 
@@ -370,8 +363,8 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
                 return vec![];
             }
             let mut out = vec![];
-            // With no room for eggs the action is only worth taking for its brown powers (none in M1)
-            if has_egg_room(p) {
+            // With no room for eggs the action is only worth taking for its brown powers
+            if has_egg_room(p) || !powers::triggered(s, s.current_player_index, Color::Brown, Some(1), None).is_empty() {
                 out.push(Simple("lay_eggs"));
             }
             if can_play_a_bird(p) {
@@ -386,17 +379,7 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
         Phase::ExtraFoodAction => vec![Simple("trade_bird"), Simple("skip_trade")],
         Phase::ExtraLayEggsAction => vec![Simple("trade_food"), Simple("skip_trade")],
         Phase::ExtraCardDrawAction => vec![Simple("trade_egg"), Simple("skip_trade")],
-        Phase::CollectFood => {
-            let mut out: Vec<Action> = s
-                .feeder
-                .iter()
-                .flat_map(|&(die, face)| face.foods().iter().map(move |&food| SelectDie { die, food }))
-                .collect();
-            if !s.feeder.is_empty() && s.feeder.iter().all(|&(_, f)| f == s.feeder[0].1) {
-                out.push(Simple("reroll_all"));
-            }
-            out
-        }
+        Phase::CollectFood => collect_food_actions(s),
         Phase::LayEggs => {
             assert!(ad.eggs_needed > 0, "no eggs needed");
             let items: Vec<(u16, u8)> = p
@@ -406,42 +389,25 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
                     (b.eggs < limit).then(|| (b.id, limit - b.eggs))
                 })
                 .collect();
-            assert!(!items.is_empty(), "no birds with egg capacity");
-            let capacity: u32 = items.iter().map(|&(_, c)| c as u32).sum();
-            if ad.eggs_needed as u32 >= capacity {
-                let mut all = items;
-                all.sort_unstable();
-                return vec![EggMap("lay_eggs", all)];
-            }
-            egg_combinations(&items, ad.eggs_needed as u32).into_iter().map(|c| EggMap("lay_eggs", c)).collect()
+            egg_distribution_actions(&items, ad.eggs_needed as u32, "lay_eggs")
         }
-        Phase::DrawCards => {
-            let needed = ad.cards_needed as usize;
-            assert!(needed > 0, "no cards needed");
-            let tray = &s.bird_tray;
-            let deck = s.bird_deck.len() + s.discarded_birds.len();
-            let available = tray.len() + deck;
-            assert!(available > 0, "no cards to draw");
-            let actual = needed.min(available);
-            let mut out = vec![];
-            for t in 0..=actual.min(tray.len()) {
-                let from_deck = actual - t;
-                if from_deck > deck {
-                    continue;
-                }
-                combinations(tray.len(), t, |idx| {
-                    out.push(DrawCards { tray: idx.iter().map(|&i| tray[i]).collect(), deck: from_deck as u8 })
-                });
-            }
-            out
-        }
+        Phase::DrawCards => card_draw_actions(s, ad.cards_needed as usize),
         Phase::SelectBirdToDiscard => p.bird_hand.iter().map(|&id| Id("discard_bird", id)).collect(),
-        Phase::SelectFoodToDiscard => p.food.iter().map(|&(f, _)| Name("discard_food", f)).collect(),
+        Phase::SelectFoodToDiscard => p.food.iter().map(|&(f, _)| Name("discard_food", f.name())).collect(),
         Phase::SelectEggToDiscard => p.birds().filter(|b| b.eggs > 0).map(|b| Id("discard_egg", b.id)).collect(),
         Phase::PlayBird => {
+            // A bird played by a power (12) must go in that power's habitat
+            let target = ad
+                .execution_stack
+                .last()
+                .filter(|e| e.power_id == 12)
+                .and_then(|e| e.context.target_habitat.as_deref())
+                .map(crate::data::habitat_row);
             let mut out = vec![];
             for_playable_spots(p, |bird, row, col| {
-                out.push(PlayBird { bird, row, col });
+                if target.map_or(true, |t| t == row as usize) {
+                    out.push(PlayBird { bird, row, col });
+                }
                 true
             });
             out
@@ -456,16 +422,78 @@ pub fn legal_actions(s: &State) -> Vec<Action> {
             let cost = &data().bird(pending.callback_action.bird).cost;
             food_payments(cost, p.food_counts()).into_iter().map(|c| FoodMap("pay_food", food_map(c))).collect()
         }
-        Phase::ActivatePowers | Phase::EndTurn => unimplemented!("powers are not implemented yet (M1)"),
+        Phase::ActivatePowers => match ad.execution_stack.last() {
+            None => {
+                let q = ad.powers_queue.get(ad.current_power_index as usize).expect("no power in queue");
+                let mut out = vec![Simple("skip_power")];
+                if powers::can_execute(s, q) {
+                    out.push(Simple("activate_power"));
+                }
+                out
+            }
+            Some(e) => powers::choices(s, e),
+        },
+        Phase::EndTurn => match ad.execution_stack.last() {
+            Some(e) if e.phase == Some(PowerPhase::EndTurnDiscard) => {
+                s.players[e.player_index].bird_hand.iter().map(|&id| Id("discard_card", id)).collect()
+            }
+            _ => vec![],
+        },
         Phase::GameOver => vec![],
     }
+}
+
+/// `get_collect_food_actions`: every food on every die, plus a reroll if all dice show the same face.
+pub fn collect_food_actions(s: &State) -> Vec<Action> {
+    let mut out: Vec<Action> = s
+        .feeder
+        .iter()
+        .flat_map(|&(die, face)| face.foods().iter().map(move |&food| Action::SelectDie { die, food }))
+        .collect();
+    if !s.feeder.is_empty() && s.feeder.iter().all(|&(_, f)| f == s.feeder[0].1) {
+        out.push(Action::Simple("reroll_all"));
+    }
+    out
+}
+
+/// `get_egg_distribution_combinations` over (bird, capacity) items.
+pub fn egg_distribution_actions(items: &[(u16, u8)], eggs: u32, ty: &'static str) -> Vec<Action> {
+    assert!(eggs > 0 && !items.is_empty(), "no eggs to lay or no birds with egg capacity");
+    let capacity: u32 = items.iter().map(|&(_, c)| c as u32).sum();
+    if eggs >= capacity {
+        let mut all = items.to_vec();
+        all.sort_unstable();
+        return vec![Action::EggMap(ty, all)];
+    }
+    egg_combinations(items, eggs).into_iter().map(|c| Action::EggMap(ty, c)).collect()
+}
+
+/// `get_card_draw_combinations`: tray/deck mixes, partial if fewer cards remain.
+pub fn card_draw_actions(s: &State, needed: usize) -> Vec<Action> {
+    assert!(needed > 0, "no cards needed");
+    let tray = &s.bird_tray;
+    let deck = s.bird_deck.len() + s.discarded_birds.len();
+    let available = tray.len() + deck;
+    assert!(available > 0, "no cards to draw");
+    let actual = needed.min(available);
+    let mut out = vec![];
+    for t in 0..=actual.min(tray.len()) {
+        let from_deck = actual - t;
+        if from_deck > deck {
+            continue;
+        }
+        combinations(tray.len(), t, |idx| {
+            out.push(Action::DrawCards { tray: idx.iter().map(|&i| tray[i]).collect(), deck: from_deck as u8 })
+        });
+    }
+    out
 }
 
 // =============================================================================
 // Transitions (phase_handlers.py, engine.py, effects.py)
 // =============================================================================
 
-fn ensure_bird_deck(s: &mut State, c: &mut impl Chance, count: usize) {
+pub fn ensure_bird_deck(s: &mut State, c: &mut impl Chance, count: usize) {
     if s.bird_deck.len() < count && !s.discarded_birds.is_empty() {
         s.bird_deck.append(&mut s.discarded_birds);
         c.shuffle(&mut s.bird_deck);
@@ -492,8 +520,7 @@ fn restock_bird_tray(s: &mut State, c: &mut impl Chance) {
     }
 }
 
-fn draw_cards(s: &mut State, c: &mut impl Chance, tray: &[u16], deck: usize) {
-    let i = s.current_player_index;
+pub fn draw_cards(s: &mut State, c: &mut impl Chance, i: usize, tray: &[u16], deck: usize) {
     for &id in tray {
         if let Some(pos) = s.bird_tray.iter().position(|&b| b == id) {
             s.bird_tray.remove(pos);
@@ -507,14 +534,180 @@ fn draw_cards(s: &mut State, c: &mut impl Chance, tray: &[u16], deck: usize) {
     }
 }
 
-fn finish_main_action(s: &mut State, c: &mut impl Chance, skip_cube: bool) -> R {
+/// `select_die_effect`: take one food from a die; an emptied feeder is rerolled.
+pub fn select_die(s: &mut State, c: &mut impl Chance, die: u8, food: Food, player: usize) -> R {
+    let Some(pos) = s.feeder.iter().position(|&(d, _)| d == die) else {
+        return Err(format!("die {die} not in feeder"));
+    };
+    if !s.feeder[pos].1.foods().contains(&food) {
+        return Err(format!("die {die} doesn't have {}", food.name()));
+    }
+    s.players[player].gain_food(food, 1);
+    s.feeder.remove(pos);
+    if s.feeder.is_empty() {
+        s.feeder = roll_feeder(c);
+    }
+    Ok(())
+}
+
+/// `lay_eggs_effect`: add eggs to birds of `player`, up to their egg limit.
+pub fn lay_eggs_effect(s: &mut State, player: usize, items: &[(u16, u8)]) {
+    let p = &mut s.players[player];
+    for &(id, n) in items {
+        if let Some(b) = p.bird_mut(id) {
+            b.eggs = (b.eggs + n).min(data().bird(id).egg_limit);
+        }
+    }
+}
+
+/// `tuck_cards_effect`: tuck cards from the deck under a bird of the current player.
+pub fn tuck_cards(s: &mut State, c: &mut impl Chance, bird: u16, count: usize) -> R {
+    let cur = s.current_player_index;
+    if s.players[cur].bird_mut(bird).is_none() {
+        return Err(format!("Bird {bird} not found on current player's board"));
+    }
+    ensure_bird_deck(s, c, count);
+    let n = count.min(s.bird_deck.len());
+    s.bird_deck.truncate(s.bird_deck.len() - n);
+    s.players[cur].bird_mut(bird).unwrap().tucked += n as u8;
+    Ok(())
+}
+
+/// Complete a main action: use a cube, then queue the powers it triggers (pink ones of the other
+/// players first), or end the turn if there are none.
+fn finish_main_action(
+    s: &mut State,
+    c: &mut impl Chance,
+    color: Color,
+    row: Option<usize>,
+    spot: Option<(usize, usize)>,
+    skip_cube: bool,
+    pink: Option<Pink>,
+) -> R {
     if !skip_cube {
         s.cur_mut().action_cubes -= 1;
     }
-    let powers = triggered_powers(s);
-    assert!(powers.is_empty());
-    finalize_turn(s, c);
+    let cur = s.current_player_index;
+    let mut queue = pink.map(|t| powers::triggered_pink(s, t, cur)).unwrap_or_default();
+    queue.extend(powers::triggered(s, cur, color, row, spot));
+    if queue.is_empty() {
+        finalize_turn(s, c);
+        return Ok(());
+    }
+    s.game_phase = Phase::ActivatePowers;
+    s.current_player_index = queue[0].player_index;
+    s.action_data.powers_queue = queue;
+    s.action_data.current_power_index = 0;
+    s.action_data.action_player_index = Some(cur);
     Ok(())
+}
+
+/// engine.py `activate_powers`: skip or activate the next queued power, or answer the running one.
+fn activate_powers(s: &mut State, c: &mut impl Chance, a: &Action) -> R {
+    let ad = &mut s.action_data;
+    if ad.execution_stack.is_empty() {
+        match a {
+            Action::Simple("skip_power") => {
+                ad.current_power_index += 1;
+                return check_powers_done(s, c);
+            }
+            Action::Simple("activate_power") => {
+                let q = *ad.powers_queue.get(ad.current_power_index as usize).ok_or("No power to activate")?;
+                if data().power(q.bird_id).map(|p| p.color) == Some(Color::Pink) {
+                    let used = &mut s.players[q.player_index].used_pink_powers;
+                    if let Err(i) = used.binary_search(&q.bird_id) {
+                        used.insert(i, q.bird_id);
+                    }
+                }
+                s.action_data.execution_stack.push(Execution {
+                    power_id: q.power_id,
+                    bird_id: q.bird_id,
+                    spot_row: q.spot_row,
+                    spot_col: q.spot_col,
+                    player_index: q.player_index,
+                    phase: None,
+                    context: Context::default(),
+                });
+                powers::activate(s, c)?;
+                if s.action_data.execution_stack.is_empty() {
+                    s.action_data.current_power_index += 1;
+                    return check_powers_done(s, c);
+                }
+                return Ok(());
+            }
+            _ => return Err(format!("Unknown action with empty stack: {a}")),
+        }
+    }
+    powers::handle(s, c, a)?;
+    loop {
+        match s.action_data.execution_stack.last() {
+            None => {
+                s.action_data.current_power_index += 1;
+                return check_powers_done(s, c);
+            }
+            // A power pushed by another (14 repeating a brown power) starts right away
+            Some(e) if e.phase.is_none() => powers::activate(s, c)?,
+            Some(_) => return Ok(()),
+        }
+    }
+}
+
+fn check_powers_done(s: &mut State, c: &mut impl Chance) -> R {
+    let ad = &s.action_data;
+    match ad.powers_queue.get(ad.current_power_index as usize) {
+        Some(q) => {
+            s.current_player_index = q.player_index;
+            Ok(())
+        }
+        None => {
+            if let Some(i) = ad.action_player_index {
+                s.current_player_index = i;
+            }
+            s.game_phase = Phase::EndTurn;
+            handle_end_turn(s, c, None)
+        }
+    }
+}
+
+/// engine.py `handle_end_turn`: deferred "discard a card at the end of turn" effects, then the turn ends.
+fn handle_end_turn(s: &mut State, c: &mut impl Chance, mut a: Option<&Action>) -> R {
+    loop {
+        let Some(effect) = s.action_data.end_turn_effects.first().cloned() else {
+            finalize_turn(s, c);
+            return Ok(());
+        };
+        if effect.effect_type != "discard_cards" {
+            return Ok(());
+        }
+        let waiting = s.action_data.execution_stack.last().is_some_and(|e| e.phase == Some(PowerPhase::EndTurnDiscard));
+        if !waiting {
+            // Later powers may have used up the drawn card; nothing left to discard
+            if s.players[effect.player_index].bird_hand.is_empty() {
+                s.action_data.end_turn_effects.remove(0);
+                a = None;
+                continue;
+            }
+            s.action_data.execution_stack.push(Execution {
+                power_id: 0,
+                bird_id: 0,
+                spot_row: 0,
+                spot_col: 0,
+                player_index: effect.player_index,
+                phase: Some(PowerPhase::EndTurnDiscard),
+                context: Context { amount: Some(effect.amount), ..Context::default() },
+            });
+            return Ok(());
+        }
+        let Some(Action::Id(_, id)) = a else { return Err(format!("expected a card to discard, got {a:?}")) };
+        let p = &mut s.players[effect.player_index];
+        if let Some(pos) = p.bird_hand.iter().position(|b| b == id) {
+            p.bird_hand.remove(pos);
+            s.discarded_birds.push(*id);
+        }
+        s.action_data.end_turn_effects.remove(0);
+        s.action_data.execution_stack.pop();
+        a = None;
+    }
 }
 
 fn finalize_turn(s: &mut State, c: &mut impl Chance) {
@@ -589,7 +782,13 @@ fn play_bird(s: &mut State, c: &mut impl Chance, pb: PlayCallback) -> R {
     let pos = p.bird_hand.iter().position(|&b| b == pb.bird).unwrap();
     p.bird_hand.remove(pos);
     s.action_data.pending_cost = None; // costs settled; a chained play must pay its own
-    finish_main_action(s, c, false)
+    let pink = Some(Pink::BirdPlayed(row));
+    if s.action_data.execution_stack.last().is_some_and(|e| e.power_id == 12) {
+        s.action_data.execution_stack.pop();
+        s.game_phase = Phase::ActivatePowers;
+        return finish_main_action(s, c, Color::White, None, Some((row, col)), true, pink);
+    }
+    finish_main_action(s, c, Color::White, None, Some((row, col)), false, pink)
 }
 
 /// After a cost is paid, mark it and return to the play-bird handler (Python's `pending_callback`).
@@ -655,7 +854,7 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
                 "play_bird" => s.game_phase = Phase::PlayBird,
                 "lay_eggs" => {
                     if !has_egg_room(p) {
-                        return finish_main_action(s, c, false);
+                        return finish_main_action(s, c, Color::Brown, Some(1), None, false, Some(Pink::LayEggs));
                     }
                     let spot = leftmost_empty(p, 1);
                     let base = spot.map_or(4, |c| RESOURCE_AMOUNT[1][c]);
@@ -682,38 +881,24 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
             }
         }
         (Phase::CollectFood, SelectDie { die, food }) => {
-            let Some(pos) = s.feeder.iter().position(|(d, _)| d == die) else {
-                return Err(format!("die {die} not in feeder"));
-            };
-            if !s.feeder[pos].1.foods().contains(food) {
-                return Err(format!("die {die} doesn't have {}", food.name()));
-            }
-            s.cur_mut().gain_food(*food, 1);
-            s.feeder.remove(pos);
-            if s.feeder.is_empty() {
-                s.feeder = roll_feeder(c);
-            }
+            select_die(s, c, *die, *food, s.current_player_index)?;
             s.action_data.food_needed -= 1;
             if *food == Food::Rodent {
                 s.action_data.gained_rodent = true;
             }
             if s.action_data.food_needed == 0 {
-                return finish_main_action(s, c, false);
+                let pink = s.action_data.gained_rodent.then_some(Pink::GainRodent);
+                return finish_main_action(s, c, Color::Brown, Some(0), None, false, pink);
             }
         }
         (Phase::CollectFood, Simple("reroll_all")) => s.feeder = roll_feeder(c),
         (Phase::LayEggs, EggMap(_, items)) => {
-            let p = s.cur_mut();
-            for &(id, n) in items {
-                if let Some(b) = p.bird_mut(id) {
-                    b.eggs = (b.eggs + n).min(data().bird(id).egg_limit);
-                }
-            }
-            return finish_main_action(s, c, false);
+            lay_eggs_effect(s, s.current_player_index, items);
+            return finish_main_action(s, c, Color::Brown, Some(1), None, false, Some(Pink::LayEggs));
         }
         (Phase::DrawCards, DrawCards { tray, deck }) => {
-            draw_cards(s, c, tray, *deck as usize);
-            return finish_main_action(s, c, false);
+            draw_cards(s, c, s.current_player_index, tray, *deck as usize);
+            return finish_main_action(s, c, Color::Brown, Some(2), None, false, None);
         }
         (Phase::ExtraFoodAction, Simple("trade_bird")) => s.game_phase = Phase::SelectBirdToDiscard,
         (Phase::ExtraFoodAction, Simple("skip_trade")) => {
@@ -741,6 +926,7 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
             s.action_data.food_needed = s.action_data.base_amount + 1;
         }
         (Phase::SelectFoodToDiscard, Name("discard_food", f)) => {
+            let f = &crate::data::food_from_str(f);
             let p = s.cur_mut();
             if p.food_of(*f) == 0 {
                 return Err(format!("no {} to discard", f.name()));
@@ -783,6 +969,8 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
             }
             return resume_play_bird(s, c, CostType::FoodPaid);
         }
+        (Phase::ActivatePowers, _) => return activate_powers(s, c, a),
+        (Phase::EndTurn, _) => return handle_end_turn(s, c, Some(a)),
         _ => return bad(),
     }
     Ok(())
