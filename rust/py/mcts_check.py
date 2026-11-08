@@ -1,8 +1,13 @@
 """Does mcts_rs search like mcts? Champion params (bots.yaml mcts-v1), same positions: Python twice
 (different seeds), Rust once. Equivalent searches disagree with Python no more than Python with itself.
 
-    PYTHONPATH=.:rust/py uv run python rust/py/mcts_check.py [n_positions]
+    uv run python rust/py/mcts_check.py [n_positions]
 """
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
 
 import statistics
 import sys

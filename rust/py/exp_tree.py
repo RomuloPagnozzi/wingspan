@@ -6,13 +6,18 @@ interleaved deal by deal. Results are appended to a JSONL file as games finish, 
 after the last deal in the file, so a run can be stopped (Ctrl+C) and resumed at will.
 
     # run (no --minutes: until Ctrl+C; --arms: a subset)
-    PYTHONPATH=.:rust/py caffeinate -is uv run python rust/py/exp_tree.py run scaling [--minutes 90] [--arms a,b]
+    caffeinate -is uv run python rust/py/exp_tree.py run scaling [--minutes 90] [--arms a,b]
     # results so far (also while it runs)
-    PYTHONPATH=.:rust/py uv run python rust/py/exp_tree.py report scaling
+    uv run python rust/py/exp_tree.py report scaling
 
 Sets: `tree` (EXP-013: tree and flat variants, 2026-11-08), `scaling` (the tree at 3k..100k simulations,
 and at 10k with the flat-MC phase table scaled to the tree: is the table useful at big budgets?).
 """
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
 
 import argparse
 import collections

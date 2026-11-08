@@ -5,8 +5,11 @@ flat_mc_rs (Rust playouts), both seats, one process.
 """
 
 import sys
-import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
+
+import time
 
 import yaml
 

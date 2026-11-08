@@ -1,7 +1,7 @@
 """Is flat_mc_rs as good as flat_mc? Budgets and settings from experiments/selfplay_flat_mc.yaml.
 
-    PYTHONPATH=.:rust/py uv run python rust/py/strength.py values [n_states]   # same estimates?
-    PYTHONPATH=.:rust/py uv run python rust/py/strength.py games [n_deals]     # head to head
+    uv run python rust/py/strength.py values [n_states]   # same estimates?
+    uv run python rust/py/strength.py games [n_deals]     # head to head
 
 `values`: on the same positions, run Python flat MC twice (different seeds) and Rust once. If the estimators
 are equivalent, Rust vs Python disagrees no more than Python vs Python: same gap in per-move values, same
@@ -9,6 +9,11 @@ rate of picking the same move.
 
 `games`: each deal is played twice with seats swapped; prints the running win rate and score difference.
 """
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
 
 import random
 import statistics

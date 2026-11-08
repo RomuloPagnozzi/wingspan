@@ -1,13 +1,16 @@
 """Self-play throughput with 7 worker processes, as in experiments/selfplay_flat_mc.yaml: Python flat_mc
 vs flat_mc_rs. Each engine gets its own pool and a fixed number of games.
 
-    PYTHONPATH=.:rust/py uv run python rust/py/throughput_bench.py [python_games] [rust_games] [workers]
+    uv run python rust/py/throughput_bench.py [python_games] [rust_games] [workers]
 """
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
+
 import time
 from multiprocessing import Pool
-from pathlib import Path
 
 import yaml
 
