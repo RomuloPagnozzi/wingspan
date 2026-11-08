@@ -14,12 +14,34 @@ import sys
 
 if "--no-powers" in sys.argv:
     import nopowers  # noqa: F401  (switches powers off before the engine is used)
-from pystate import RecordingRandom, to_json
 import wingspan_rs
 
+from wingspan.ai.rust import to_json
 from wingspan.engine.actions import get_actions
 from wingspan.engine.core import ScoringMode, copy_state, initiate_state
 from wingspan.engine.engine import transition_state_inplace
+
+
+class RecordingRandom(random.Random):
+    """A Random that logs the outcomes the rules drew, for the Rust engine to replay: ("die", [face index])
+    for each die rolled, ("shuffle", deck after) for each shuffle."""
+
+    FACES = [["fish"], ["fruit"], ["rodent"], ["invertebrate"], ["seed"], ["invertebrate", "seed"]]
+
+    def __init__(self, state):
+        super().__init__()
+        self.setstate(state)
+        self.log = []
+
+    def choice(self, seq):
+        x = super().choice(seq)
+        if seq == self.FACES:
+            self.log.append(("die", [self.FACES.index(x)]))
+        return x
+
+    def shuffle(self, x):
+        super().shuffle(x)
+        self.log.append(("shuffle", list(x)))
 
 
 def diff(a, b, path=""):

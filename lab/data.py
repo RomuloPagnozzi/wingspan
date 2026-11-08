@@ -41,6 +41,11 @@ class GameResult:
     game_seed: int
     total_decisions: int = 0
     scoring: str = "green"  # round-goal scoring side
+    duration_s: float | None = None  # wall time of the whole game, both seats' searches included
+
+    def winner_label(self) -> str | None:
+        """The arm label of the winner, or None for a tie (equal score and food)."""
+        return next((p.arm_label for p in self.players if p.is_winner), None)
 
 
 @dataclass
@@ -84,6 +89,7 @@ def game_result_to_rows(result: GameResult, run_id: str) -> list[dict]:
                 "scoring": result.scoring,
                 "player_count": result.player_count,
                 "total_decisions": result.total_decisions,
+                "duration_s": result.duration_s,
                 "player_position": player.player_position,
                 "is_first_player": player.is_first_player,
                 "is_winner": player.is_winner,
@@ -139,6 +145,7 @@ GAMES_SCHEMA = pa.schema(
         ("scoring", pa.string()),
         ("player_count", pa.int32()),
         ("total_decisions", pa.int32()),
+        ("duration_s", pa.float64()),
         ("player_position", pa.int32()),
         ("is_first_player", pa.bool_()),
         ("is_winner", pa.bool_()),

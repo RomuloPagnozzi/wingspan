@@ -19,8 +19,9 @@ A space YAML lists the params to sweep. Each entry is one of:
     type: categorical
     choices: [score_delta, win_loss, absolute_score]
 
-Anything not listed in `space` falls back to the `base` block, which is a
-literal MCTSConfig partial. Together they form the full per-trial config.
+Anything not listed in `space` falls back to the `base` block, a strategy spec
+(`strategy` defaults to `mcts`; e.g. `strategy: mcts_rs` to tune the Rust tree).
+Together they form the full per-trial config.
 """
 
 from __future__ import annotations

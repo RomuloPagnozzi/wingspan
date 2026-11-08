@@ -1,19 +1,11 @@
-"""Is flat_mc_rs as good as flat_mc? Budgets and settings from experiments/selfplay_flat_mc.yaml.
+"""Does flat_mc_rs estimate like flat_mc? Budgets and settings from experiments/selfplay_flat_mc.yaml.
 
-    uv run python rust/py/strength.py values [n_states]   # same estimates?
-    uv run python rust/py/strength.py games [n_deals]     # head to head
+On the same positions, run Python flat MC twice (different seeds) and Rust once. If the estimators are
+equivalent, Rust vs Python disagrees no more than Python vs Python: same gap in per-move values, same rate
+of picking the same move. (Head to head games: experiments/flat_mc_rs_vs_flat_mc.yaml.)
 
-`values`: on the same positions, run Python flat MC twice (different seeds) and Rust once. If the estimators
-are equivalent, Rust vs Python disagrees no more than Python vs Python: same gap in per-move values, same
-rate of picking the same move.
-
-`games`: each deal is played twice with seats swapped; prints the running win rate and score difference.
+    uv run python rust/py/strength.py [n_positions]
 """
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
 
 import random
 import statistics
@@ -62,8 +54,7 @@ def replay(seed: int, step: int):
 
 
 def estimate(task: tuple[int, int, str, int]) -> list[float]:
-    import flat_mc_rs  # noqa: F401
-    from wingspan.ai.base import create_strategy
+    from wingspan.ai import create_strategy
     from wingspan.engine.actions import get_actions
 
     seed, step, strategy, strategy_seed = task
@@ -102,41 +93,5 @@ def values(n: int) -> None:
     print(f"  mean value (rust - python): {statistics.fmean(bias):+.4f} (sd {statistics.stdev(bias):.4f}; ~0 if unbiased)")
 
 
-def game(task: tuple[int, bool]) -> tuple[int, bool, int, int]:
-    import flat_mc_rs  # noqa: F401
-    from lab.simulation import simulate_game
-    from wingspan.ai.base import create_strategy
-
-    deal, rust_first = task
-    names = ["flat_mc_rs", "flat_mc"] if rust_first else ["flat_mc", "flat_mc_rs"]
-    seats = [create_strategy(n, seed=1000 * deal + i, **params()) for i, n in enumerate(names)]
-    result, _ = simulate_game(seats, game_seed=deal, arm_labels=names)
-    scores = {p.arm_label: p.total_score for p in result.players}
-    return deal, rust_first, scores["flat_mc_rs"], scores["flat_mc"]
-
-
-def games(n: int) -> None:
-    tasks = [(deal, first) for deal in range(10_000, 10_000 + n) for first in (True, False)]
-    wins = ties = done = 0
-    diffs = []
-    with Pool(WORKERS) as pool:
-        for deal, first, rs, py in pool.imap_unordered(game, tasks):
-            done += 1
-            wins += rs > py
-            ties += rs == py
-            diffs.append(rs - py)
-            rate = (wins + ties / 2) / done
-            se = (rate * (1 - rate) / done) ** 0.5
-            sd = statistics.stdev(diffs) if done > 1 else 0
-            print(
-                f"{done:4} games: rust win rate {rate:.1%} ± {1.96 * se:.1%}, "
-                f"score diff {statistics.fmean(diffs):+.2f} ± {1.96 * sd / done**0.5:.2f}  "
-                f"(deal {deal}, rust {'first' if first else 'second'}: {rs}-{py})",
-                flush=True,
-            )
-
-
 if __name__ == "__main__":
-    mode = sys.argv[1]
-    n = int(sys.argv[2]) if len(sys.argv) > 2 else (200 if mode == "values" else 120)
-    {"values": values, "games": games}[mode](n)
+    values(int(sys.argv[1]) if len(sys.argv) > 1 else 200)

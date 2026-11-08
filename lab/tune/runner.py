@@ -12,8 +12,9 @@ import yaml
 from tqdm import tqdm
 
 from lab.data import generate_run_id
+from lab.generators import ConfigError, reference_spec, validate_seeds, validate_strategy_spec
 from lab.tune.merge import merge_study
-from lab.tune.objective import _build_arm_config, run_trial
+from lab.tune.objective import arm_spec, run_trial
 from lab.tune.space import ParamSpec, parse_space, sample_params
 
 TRIALS_CSV_NAME = "trials.csv"
@@ -62,11 +63,16 @@ def validate_tune_config(config: dict) -> None:
             raise ValueError(f"tuning config: missing required key `{key}`")
     if not isinstance(config["space"], list) or not config["space"]:
         raise ValueError("tuning config: `space` must be a non-empty list")
-    seeds = config["seeds"]
-    if "count" not in seeds:
-        raise ValueError("tuning config: `seeds.count` is required")
+    try:
+        validate_seeds(config["seeds"], "tuning config")
+        if "reference" in config:
+            validate_strategy_spec(config["reference"], "tuning config: `reference`")
+    except ConfigError as e:
+        raise ValueError(str(e)) from None
+    if not isinstance(config["seeds"].get("count"), int) or config["seeds"].get("start") == "clock":
+        raise ValueError("tuning config: `seeds` needs a `count` and a fixed `start` (every trial plays the same deals)")
     if config.get("base") and not isinstance(config["base"], dict):
-        raise ValueError("tuning config: `base` must be a mapping")
+        raise ValueError("tuning config: `base` must be a mapping (a strategy spec; `strategy` defaults to mcts)")
 
 
 class TrialsIndex:
@@ -117,6 +123,8 @@ def run_study(config: dict, study_dir: Path, source_yaml_path: Path | None = Non
 
     specs: list[ParamSpec] = parse_space(config["space"])
     base = config.get("base", {}) or {}
+    reference = reference_spec(config)
+    arm_spec(base, {})  # fail before the study starts on an unknown param in `base`
     seeds_cfg = config["seeds"]
     seed_count = int(seeds_cfg["count"])
     seed_start = int(seeds_cfg.get("start", 1))
@@ -141,13 +149,14 @@ def run_study(config: dict, study_dir: Path, source_yaml_path: Path | None = Non
 
     def objective(trial: optuna.Trial) -> float:
         sampled = sample_params(trial, specs)
-        arm_cfg = _build_arm_config(base, sampled)
+        arm = arm_spec(base, sampled)
         run_id = generate_run_id()
         trial.set_user_attr("run_id", run_id)
         try:
             wr = run_trial(
                 trial=trial,
-                arm_cfg=arm_cfg,
+                arm=arm,
+                reference=reference,
                 seed_count=seed_count,
                 seed_start=seed_start,
                 num_workers=num_workers,

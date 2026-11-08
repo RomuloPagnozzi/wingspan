@@ -4,11 +4,6 @@
     uv run python rust/py/mcts_check.py [n_positions]
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
-
 import statistics
 import sys
 from multiprocessing import Pool
@@ -22,8 +17,7 @@ PARAMS = yaml.safe_load((Path(__file__).parents[2] / "src/wingspan/ai/bots.yaml"
 
 
 def search(task):
-    import mcts_rs  # noqa: F401
-    from wingspan.ai.base import create_strategy
+    from wingspan.ai import create_strategy
     from wingspan.engine.actions import get_actions
 
     seed, step, strategy, k = task

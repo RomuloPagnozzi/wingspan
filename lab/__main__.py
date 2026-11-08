@@ -1,44 +1,31 @@
 """Run games between strategies and save results to parquet."""
 
 import argparse
-import itertools
-import multiprocessing as mp
 import random
 import signal
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterator
 
 import yaml
 from tqdm import tqdm
 
 from wingspan.ai import Strategy
-from lab.data import (
-    GameResult,
-    GameDecisions,
-    GamesWriter,
-    DecisionsWriter,
-    generate_run_id,
-)
-from lab.simulation import game_worker_init, run_one_game
+from lab.data import GamesWriter, DecisionsWriter, generate_run_id
+from lab.simulation import play_games
+from lab.summary import format_summary, load_games, summarize
 from lab.generators import (
-    REFERENCE_PARAMS,
     ConfigError,
     build_strategy,
     count_games,
     get_generator,
+    reference_spec,
     validate_config,
 )
 
 _shutdown_requested = False
-
-
-def _arm_desc(arm: dict, param_name: str | None) -> str:
-    """Short human-readable description of one paired/vs_reference arm."""
-    if "overrides" in arm:
-        return ", ".join(f"{k}={v}" for k, v in arm["overrides"].items())
-    return f"{param_name}={arm['value']}"
 
 
 def _signal_handler(signum, frame):
@@ -49,96 +36,42 @@ def _signal_handler(signum, frame):
     _shutdown_requested = True
 
 
-def _attribute_by_position(result, in_group_idx: int) -> str:
-    """Attribute a game result to arm A, arm B, or ties.
-
-    Arm A occupies player position 0 on even in-group games, position 1 on
-    odd ones (position swap). Identical attribution rule for both paired and
-    vs_reference modes — they only differ in what A and B *are*, not where
-    they sit in the player list.
-    """
-    a_idx = 0 if in_group_idx % 2 == 0 else 1
-    if result.players[a_idx].is_winner:
-        return "A"
-    if any(p.is_winner for p in result.players):
-        return "B"
-    return "ties"
+def _arm_desc(arm: dict, param_name: str | None) -> str:
+    """Short human-readable description of one paired/vs_reference arm."""
+    if "overrides" in arm:
+        return ", ".join(f"{k}={v}" for k, v in arm["overrides"].items())
+    return f"{param_name}={arm['value']}"
 
 
-def _print_group_via(write_fn, header: str, r: dict, a_label: str, b_label: str):
-    """Print group summary via a writer (use tqdm.write to avoid clobbering progress bar)."""
-    total = sum(r.values())
-    if total == 0:
-        return
-    write_fn(f"\n{header}:")
-    write_fn(f"  {a_label}: {r['A']}/{total} ({r['A'] / total * 100:.1f}%)")
-    write_fn(f"  {b_label}: {r['B']}/{total} ({r['B'] / total * 100:.1f}%)")
-    if r["ties"] > 0:
-        write_fn(f"  ties: {r['ties']}")
+def _spec_desc(spec: dict) -> str:
+    return f"{spec['strategy']}(" + ", ".join(f"{k}={v}" for k, v in spec.items() if k != "strategy") + ")"
 
 
-def print_config_summary(config: dict, data_dir: Path):
-    """Print experiment configuration summary."""
+def describe_config(config: dict) -> list[str]:
+    """The lines that describe what a config plays (for `--list` and the run header)."""
     mode = config.get("mode", "continuous")
-    total_games = count_games(config)
-    num_workers = int(config.get("num_workers", 1))
-
-    print(f"Experiment Mode: {mode}")
-    print(f"Output: {data_dir}")
-    print(f"Workers: {num_workers}  (games run concurrently)")
-
-    if mode == "paired":
+    total = count_games(config)
+    seeds = config.get("seeds")
+    lines = [f"Experiment Mode: {mode}"]
+    if mode in ("paired", "vs_reference"):
         compare = config["compare"]
-        seeds_config = config["seeds"]
         param_name = compare.get("parameter")
-        arms = compare["values"]
-        pairs = list(itertools.combinations(arms, 2))
-
+        if mode == "vs_reference":
+            lines.append(f"Reference ({compare['reference_label']}): {_spec_desc(reference_spec(compare))}")
         if param_name:
-            print(f"Parameter: {param_name}")
-        print("Arms:")
-        for arm in arms:
-            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
-        print(f"Pairs: {len(pairs)}")
-        print(
-            f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
-        )
-        print(f"Total games: {total_games}")
-    elif mode == "vs_reference":
-        compare = config["compare"]
-        seeds_config = config["seeds"]
-        print(
-            f"Reference ({compare['reference_label']}): MCTS("
-            f"sims={REFERENCE_PARAMS.simulations}, "
-            f"c={REFERENCE_PARAMS.exploration_constant}, "
-            f"vf={REFERENCE_PARAMS.value_function.value})"
-        )
-        param_name = compare.get("parameter")
-        if param_name:
-            print(f"Sweep: {param_name}")
-        for arm in compare["values"]:
-            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
-        print(
-            f"Seeds: {seeds_config['count']} (starting at {seeds_config.get('start', 1)})"
-        )
-        print(f"Total games: {total_games}")
+            lines.append(f"Parameter: {param_name}")
+        lines.append("Arms:")
+        lines += [f"  - {arm['label']} ({_arm_desc(arm, param_name)})" for arm in compare["values"]]
     else:
         defaults = config.get("defaults", {})
-        matchup_specs = config["matchups"]
-        games_per_round = defaults.get("games_per_round", 5)
-
-        print(f"Matchups: {len(matchup_specs)}")
-        for i, spec_list in enumerate(matchup_specs, 1):
-            strategies = [build_strategy(spec, defaults) for spec in spec_list]
-            labels = [spec["label"] for spec in spec_list]
-            named = " vs ".join(
-                f"{label} ({s})" for label, s in zip(labels, strategies)
-            )
-            print(f"  {i}. {named}")
-        print(f"Games per round: {games_per_round}")
-        print("Total games: infinite (Ctrl+C to stop)")
-
-    print("-" * 60)
+        lines.append(f"Matchups: {len(config['matchups'])}")
+        for i, spec_list in enumerate(config["matchups"], 1):
+            named = " vs ".join(f"{spec['label']} ({build_strategy(spec, defaults)})" for spec in spec_list)
+            lines.append(f"  {i}. {named}")
+    if seeds:
+        lines.append(f"Seeds: {seeds.get('count') or 'endless'} (starting at {seeds.get('start', 1)})")
+    lines.append(f"Total games: {total if total is not None else 'until Ctrl+C'}")
+    return lines
 
 
 def scoring_for(game_seed: int, blue_share: float) -> str:
@@ -153,46 +86,14 @@ def _work_iter(
     record_decisions: bool,
     blue_share: float = 0.0,
 ) -> Iterator[tuple[list[Strategy], int, list[str], int, bool, str]]:
-    """Yield work items `(strategies, game_seed, arm_labels, game_idx, record_decisions, scoring)`,
-    halting on shutdown or when total_games is reached.
-
-    `game_idx` is the 0-based global index; the receiver derives
-    `(group_idx, in_group_idx)` from it.
-    """
+    """Yield work items `(strategies, game_seed, arm_labels, game_idx, record_decisions, scoring)`
+    for `lab.simulation.run_one_game`, halting on shutdown or when total_games is reached."""
     for game_idx, (strategies, game_seed, arm_labels) in enumerate(generator):
         if _shutdown_requested:
             return
         if total_games is not None and game_idx >= total_games:
             return
-        scoring = scoring_for(game_seed, blue_share)
-        yield (strategies, game_seed, arm_labels, game_idx, record_decisions, scoring)
-
-
-def _iter_results(
-    work: Iterable[tuple[list[Strategy], int, list[str], int, bool]],
-    num_workers: int,
-) -> Iterator[tuple[GameResult, GameDecisions | None, int]]:
-    """Dispatch `work` items to either an in-process loop (num_workers == 1)
-    or a spawn-based Pool (num_workers > 1) and yield result triples
-    `(result, decisions, game_idx)`.
-
-    Process pool (not thread pool): CPython's GIL serializes pure-Python
-    threads, and free-threaded 3.13t was empirically slower for this
-    workload due to atomic-refcount overhead on shared registry lookups.
-    """
-    if num_workers <= 1:
-        for item in work:
-            yield run_one_game(item)
-        return
-
-    ctx = mp.get_context("spawn")
-    with ctx.Pool(num_workers, initializer=game_worker_init) as pool:
-        # chunksize=1 → each item submitted individually; shutdown can drain
-        # in-flight without buffered work piling up in worker queues.
-        for result, decisions, meta in pool.imap_unordered(
-            run_one_game, work, chunksize=1
-        ):
-            yield result, decisions, meta
+        yield (strategies, game_seed, arm_labels, game_idx, record_decisions, scoring_for(game_seed, blue_share))
 
 
 def run_experiments(
@@ -202,140 +103,38 @@ def run_experiments(
     record_decisions: bool = False,
     rotate: int | None = None,
 ):
-    mode = config.get("mode", "continuous")
     total_games = count_games(config)
     num_workers = int(config.get("num_workers", 1))
-    generator = get_generator(config)
-
-    # Group-based modes (paired, vs_reference) share tracking machinery.
-    # They differ only in how groups are defined and what A/B mean.
-    groups: list = []
-    header_fn = None
-    labels_fn = None
-    results: dict = {}
-    games_per_group = 0
-
-    if mode in ("paired", "vs_reference"):
-        compare = config["compare"]
-        games_per_group = config["seeds"]["count"] * 2  # ×2 for position swap
-
-        if mode == "paired":
-            # Each group is the (label_A, label_B) pair from compare.values.
-            groups = [
-                (a["label"], b["label"])
-                for a, b in itertools.combinations(compare["values"], 2)
-            ]
-        else:  # vs_reference
-            # Each group is (arm_label, reference_label).
-            ref_label = compare["reference_label"]
-            groups = [(a["label"], ref_label) for a in compare["values"]]
-
-        header_fn = lambda g: f"{g[0]} vs {g[1]}"
-        labels_fn = lambda g: g
-        results = {g: {"A": 0, "B": 0, "ties": 0} for g in groups}
-
-    games_played = 0
-    group_completed: dict = {g: 0 for g in groups}
-    group_done_printed: set = set()
-    progress = tqdm(
-        total=total_games,
-        desc="games",
-        unit="game",
-        dynamic_ncols=True,
-        smoothing=0.1,
-    )
+    wins: dict[frozenset, Counter] = {}  # per matchup: wins by label, ties under None
+    progress = tqdm(total=total_games, desc="games", unit="game", dynamic_ncols=True, smoothing=0.1)
 
     with GamesWriter(data_dir, run_id, rotate) as games_writer:
-        decisions_writer = (
-            DecisionsWriter(data_dir, run_id, rotate) if record_decisions else None
-        )
-
+        decisions_writer = DecisionsWriter(data_dir, run_id, rotate) if record_decisions else None
         try:
             # `blue_share` (config): share of games with blue round-goal scoring; default all green
-            work = _work_iter(generator, total_games, record_decisions, config.get("blue_share", 0.0))
-            for result, game_decisions, game_idx in _iter_results(work, num_workers):
+            work = _work_iter(get_generator(config), total_games, record_decisions, config.get("blue_share", 0.0))
+            for result, game_decisions, _game_idx in play_games(work, num_workers):
                 games_writer.add_game(result)
-                games_played += 1
-                progress.update(1)
-
                 if decisions_writer and game_decisions:
                     decisions_writer.add_game_decisions(game_decisions)
-
-                if groups:
-                    group_idx = game_idx // games_per_group
-                    in_group_idx = game_idx % games_per_group
-                    group = groups[group_idx]
-                    outcome = _attribute_by_position(result, in_group_idx)
-                    results[group][outcome] += 1
-                    group_completed[group] += 1
-
-                    # Live A/B tally on the progress bar for the most-recent group.
-                    a_label, b_label = labels_fn(group)
-                    r = results[group]
-                    completed = group_completed[group]
-                    progress.set_postfix_str(
-                        f"{header_fn(group)} | "
-                        f"{a_label}:{r['A']} {b_label}:{r['B']} ties:{r['ties']} "
-                        f"({completed}/{games_per_group})"
-                    )
-
-                    if completed >= games_per_group and group not in group_done_printed:
-                        group_done_printed.add(group)
-                        progress.write("")
-                        _print_group_via(
-                            progress.write,
-                            header_fn(group),
-                            r,
-                            a_label,
-                            b_label,
-                        )
-
+                progress.update(1)
+                labels = sorted(p.arm_label for p in result.players)
+                tally = wins.setdefault(frozenset(labels), Counter())
+                tally[result.winner_label()] += 1
+                progress.set_postfix_str(" ".join(f"{label}:{tally[label]}" for label in labels) + f" ties:{tally[None]}")
         finally:
             progress.close()
             if decisions_writer:
                 decisions_writer.close()
 
-    # Final summary
-    print(f"\n{'=' * 60}")
-    print(f"RESULTS ({games_played} games)")
-    print("=" * 60)
-
-    if groups:
-        for group, r in results.items():
-            a_label, b_label = labels_fn(group)
-            _print_group_via(print, header_fn(group), r, a_label, b_label)
+    games = load_games([data_dir / run_id])
+    print(f"\n{'=' * 60}\nRESULTS ({games.game_id.nunique()} games)\n{'=' * 60}")
+    print(format_summary(summarize(games)))
 
 
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
-
-
-def _print_config_listing(config: dict) -> None:
-    mode = config.get("mode", "continuous")
-    if mode == "continuous":
-        defaults = config.get("defaults", {})
-        print("Configured matchups:")
-        for i, spec_list in enumerate(config["matchups"], 1):
-            strategies = [build_strategy(spec, defaults) for spec in spec_list]
-            labels = [spec["label"] for spec in spec_list]
-            named = " vs ".join(
-                f"{label} ({s})" for label, s in zip(labels, strategies)
-            )
-            print(f"  {i}. {named}")
-    elif mode == "paired":
-        compare = config["compare"]
-        param_name = compare.get("parameter")
-        print(f"Paired comparison{f': {param_name}' if param_name else ''}")
-        for arm in compare["values"]:
-            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
-    elif mode == "vs_reference":
-        compare = config["compare"]
-        param_name = compare.get("parameter")
-        print(f"vs_reference sweep{f': {param_name}' if param_name else ''}")
-        print(f"  reference: {compare['reference_label']}")
-        for arm in compare["values"]:
-            print(f"  - {arm['label']} ({_arm_desc(arm, param_name)})")
 
 
 def code_version() -> str:
@@ -363,7 +162,7 @@ def _run_one_config(
         sys.exit(1)
 
     if list_only:
-        _print_config_listing(config)
+        print("\n".join(describe_config(config)))
         return
 
     run_id = generate_run_id()
@@ -379,7 +178,9 @@ def _run_one_config(
     (run_dir / "code_version.txt").write_text(config.get("code_version") or code_version() + "\n")
 
     print(f"\nRun ID: {run_id}  (config: {config_path})")
-    print_config_summary(config, data_dir)
+    print("\n".join(describe_config(config)))
+    print(f"Output: {data_dir / run_id}\nWorkers: {int(config.get('num_workers', 1))}  (games run concurrently)")
+    print("-" * 60)
     run_experiments(config, data_dir, run_id, record_decisions, rotate)
 
 

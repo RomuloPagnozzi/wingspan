@@ -15,8 +15,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from lab.__main__ import _iter_results, _work_iter
+from lab.__main__ import _work_iter
 from lab.generators import get_generator
+from lab.simulation import play_games
 
 
 def _run(config: dict, num_workers: int):
@@ -27,7 +28,7 @@ def _run(config: dict, num_workers: int):
     work = _work_iter(generator, total_games=None, record_decisions=False)
 
     out = {}
-    for result, _decisions, game_idx in _iter_results(work, num_workers):
+    for result, _decisions, game_idx in play_games(work, num_workers):
         out[game_idx] = (
             tuple(p.total_score for p in result.players),
             tuple(p.is_winner for p in result.players),

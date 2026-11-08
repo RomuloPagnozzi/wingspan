@@ -61,11 +61,17 @@ uv run python -m lab -c path/to/config.yaml --record-decisions
 # Rebuild every per-run report + the analysis.html index
 uv run python -m lab.analysis
 
+# Per-arm results (win rate, score difference, per-seed paired difference, s/game), also while running
+uv run python -m lab.summary experiments/data/<run-id>   # or a folder of runs, e.g. one -o target
+
 # Inspect results
 python -c "import pandas as pd; print(pd.read_parquet('experiments/data/<run-id>/games.parquet').head())"
 ```
 
-Hyperparameter search is a separate entry point, writing to `tuning/<study_name>/`:
+Hyperparameter search is a separate entry point, writing to `tuning/<study_name>/`. It tunes any
+registered strategy: `base` is a strategy spec (`strategy` defaults to `mcts`; e.g. `mcts_rs` for the
+Rust tree), `space` lists the sampled params, and an optional `reference` spec replaces
+`REFERENCE_PARAMS` as the opponent. Unknown params in `base` or `space` are an error.
 
 ```bash
 uv run python -m lab.tune -c path/to/tuning_config.yaml
@@ -80,9 +86,15 @@ Studies are resumable — rerunning against an existing `study.db` continues whe
 
 ### `vs_reference`
 
-Each arm plays the fixed project-wide reference opponent (`REFERENCE_PARAMS` in `lab/generators.py`),
-with shared seeds and position swapping. Win rates across *any* vs_reference experiment are on a
-common scale. Scales linearly in number of arms.
+Each arm plays a reference opponent on every seed, from both seats (position swap). By default the
+reference is the fixed project-wide `REFERENCE_PARAMS` (`lab/generators.py`), which keeps win rates of
+*any* such experiment on a common scale; `compare.reference` (a strategy spec) plays another one, e.g.
+the self-play generator. Scales linearly in number of arms.
+
+Games are seed-major: every arm plays a seed before the next one starts, so a run stopped at any point
+has about as many games per arm. Without `seeds.count` it runs until Ctrl+C; with `start: clock` every
+run plays new deals, so restarting an open-ended experiment just adds to it (point `lab.summary` at the
+shared `-o` folder).
 
 ```yaml
 # widening_k_sweep @2000 sims
@@ -101,17 +113,20 @@ base:                          # shared strategy params for every arm
 compare:
   parameter: widening_k        # required when arms use `value`
   reference_label: "reference" # required; must not collide with an arm label
+  # reference: {strategy: flat_mc_rs, playouts: 1500}   # optional; default REFERENCE_PARAMS
   values:
     - {value: 0.25, label: "k=0.25"}
     - {value: 0.5,  label: "k=0.5"}
     - {value: 0.75, label: "k=0.75"}
 
 seeds:
-  count: 50                    # number of seed pairs
-  start: 1                     # starting seed (reproducibility)
+  count: 50                    # number of seeds (omit: until Ctrl+C)
+  start: 1                     # starting seed (reproducibility), or `clock`
 ```
 
 At least 1 arm. Total games = `len(values) × seeds.count × 2` (the ×2 is the position swap).
+Arms may set `strategy` in their `overrides`, so one experiment can compare different strategies (see
+`experiments/tree_scaling.yaml`; YAML anchors under `x-` keys keep shared specs in one place).
 
 ### `paired`
 
@@ -152,7 +167,8 @@ seeds:
   start: 100
 ```
 
-At least 2 arms. Total games = `C(len(values), 2) × seeds.count × 2`.
+At least 2 arms. Total games = `C(len(values), 2) × seeds.count × 2`. Seed-major like `vs_reference`,
+and open-ended without `seeds.count`.
 
 ### `continuous`
 

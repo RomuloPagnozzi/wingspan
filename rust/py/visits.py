@@ -8,18 +8,14 @@ best move (in points), and how often the most-visited move is also the best-valu
     uv run python rust/py/visits.py [n_games] [positions_per_game]
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parents[2]))  # the repo root, for `lab`
-
 import glob
-import json
 import math
 import random
 import statistics
+import sys
 from collections import defaultdict
 from multiprocessing import Pool
+from pathlib import Path
 
 import pyarrow.parquet as pq
 import yaml
@@ -32,7 +28,8 @@ BUDGETS = (1_500, 3_000, 10_000, 30_000)
 
 def search_game(task):
     import wingspan_rs
-    from pystate import to_json
+
+    from wingspan.ai.rust import state_json
 
     from wingspan.engine.actions import get_actions
     from wingspan.engine.core import ScoringMode, initiate_state
@@ -45,7 +42,7 @@ def search_game(task):
         while len(actions := get_actions(state)) == 1:  # forced steps are not recorded
             state = transition_state(state, actions[0])
         if i in picks:
-            js, legal = json.dumps(to_json(state)), [str(a) for a in actions]
+            js, legal = state_json(state), [str(a) for a in actions]
             for n in BUDGETS:
                 strs, visits, values, _ = wingspan_rs.ismcts(
                     js, n, CHAMPION["exploration_constant"], CHAMPION["value_function"],

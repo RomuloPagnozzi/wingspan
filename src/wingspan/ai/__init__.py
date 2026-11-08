@@ -15,13 +15,10 @@ __all__ = [
     "FlatMCConfig",
 ]
 
-# Optional: `flat_mc_rs` and `mcts_rs` (search run by the Rust engine, rust/) when the extension is built.
-try:
-    import sys as _sys
-    from pathlib import Path as _Path
 
-    _sys.path.append(str(_Path(__file__).parents[3] / "rust" / "py"))
-    import flat_mc_rs as _flat_mc_rs  # noqa: F401  (registers the strategies)
-    import mcts_rs as _mcts_rs  # noqa: F401
-except ImportError:
+try:
+    import wingspan_rs  # noqa: F401  (the Rust engine, built from rust/; see rust/README.md)
+except ModuleNotFoundError:
     pass
+else:
+    from . import rust  # noqa: F401  (registers flat_mc_rs and mcts_rs)

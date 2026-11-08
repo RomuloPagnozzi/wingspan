@@ -31,7 +31,7 @@ Position swapping controls for first-player advantage. Same MCTS seed ensures th
 
 Two run modes implement the paired-comparison machinery, each suited to a different shape of question.
 
-- **`vs_reference`** — every arm pitted against the fixed project-wide reference opponent (`REFERENCE_PARAMS` in `lab/generators.py`). Win rates for any arm in any vs_reference experiment live on the same scale and stack into a coherent ablation table. Linear scaling in number of values swept. **Use for**: sweeping multiple values of a parameter to find the best (best `c`, best sim count, best rollout policy).
+- **`vs_reference`** — every arm pitted against a reference opponent: by default the fixed project-wide `REFERENCE_PARAMS` (`lab/generators.py`), or any strategy via `compare.reference` (e.g. the self-play generator, EXP-013/014). Arms are interleaved seed by seed, and without `seeds.count` it runs until stopped. Win rates for any arm in any vs_reference experiment live on the same scale and stack into a coherent ablation table. Linear scaling in number of values swept. **Use for**: sweeping multiple values of a parameter to find the best (best `c`, best sim count, best rollout policy).
 - **`paired`** — direct A vs B head-to-head with shared seeds. Highest statistical power per binary question. Pairwise combinatorial scaling — expensive at >2 values. **Use for**: specific A/B questions (peek-MCTS vs PIMC, score-aware vs random rollouts) or tiebreaking between two arms that came out close in a `vs_reference` sweep.
 - **`continuous`** — open-ended matchup runs (no fixed seeds, runs until Ctrl+C). **Use for**: exploratory data generation, smoke runs, or accumulating games for later analysis when statistical paired design isn't needed.
 
@@ -178,14 +178,14 @@ At checkpoints along the compute axis, evaluate each NN against the same referen
 
 ### EXP-013: With fast search, does a tree or more simulations beat the data generator?
 **Hypothesis:** EXP-011/012 compared at Python-affordable budgets (1500). With the Rust engine (~30× faster), a real tree (IS-MCTS) or many more simulations may beat the current generator.
-**Config:** `rust/py/exp_tree.py run tree` (set `tree`, deals 20001+, each deal twice with seats swapped, 19 min on 7 cores). Every arm plays the reference = `flat_mc_rs` with the EXP-012 phase table. Arms: champion tree (`mcts-v1` params) at 1500 and 10k sims, 10k with c=0.7, flat 1500 without the table, flat with the table ×10.
+**Config:** `experiments/tree_vs_flat.yaml` (`vs_reference`, each deal from both seats; the 2026-11-08 run used deals 20001+, 19 min on 7 cores, via the since-removed `rust/py/exp_tree.py`, results in `experiments/data/exp_tree/results.jsonl`). Every arm plays the reference = `flat_mc_rs` with the EXP-012 phase table. Arms: champion tree (`mcts-v1` params) at 1500 and 10k sims, 10k with c=0.7, flat 1500 without the table, flat with the table ×10.
 **Result:** see Completed Experiments.
 
 ---
 
 ### EXP-014: Tree scaling curve, and the phase table for the tree
 **Hypothesis:** The tree keeps gaining with simulations; the EXP-012 phase table, scaled to the tree, keeps strength at lower cost as it did for flat MC.
-**Config:** `rust/py/exp_tree.py run scaling --arms tree_3k,tree_10k,tree_30k,tree_table_10k` (deals 30001+, seats swapped, run until stopped). Same reference as EXP-013. `tree_table_10k`: 10k sims by default, the flat table's ratios for the other phases (40k setup, 5k powers, 4k play bird, 2k food/eggs/discards). Results: `experiments/data/exp_scaling/results.jsonl`.
+**Config:** `experiments/tree_scaling.yaml` (`vs_reference`, each deal from both seats, run until stopped; the 2026-11-09 run used deals 30001+ via the since-removed `rust/py/exp_tree.py`, scores only, in `experiments/data/exp_scaling/results.jsonl`). Same reference as EXP-013. `tree_table_10k`: 10k sims by default, the flat table's ratios for the other phases (40k setup, 5k powers, 4k play bird, 2k food/eggs/discards).
 **Result:** see Completed Experiments.
 
 ---
