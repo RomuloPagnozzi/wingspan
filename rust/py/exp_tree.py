@@ -1,17 +1,25 @@
-"""With fast search, re-check old assumptions: does a real tree (IS-MCTS) or many more simulations beat
-the current data generator (flat_mc_rs with the phase-budget table)?
+"""With fast search, re-check old assumptions: does a real tree (IS-MCTS) or more simulations beat the
+current data generator (flat_mc_rs with the phase-budget table)?
 
-Every arm plays the reference on the same fresh deals, each deal twice with seats swapped; arms are
-interleaved deal by deal and the run stops at a deadline. Results go to a JSONL file as games finish.
+Every arm plays that reference on the same fresh deals, each deal twice with seats swapped. Arms are
+interleaved deal by deal. Results are appended to a JSONL file as games finish, and a restart continues
+after the last deal in the file, so a run can be stopped (Ctrl+C) and resumed at will.
 
-    PYTHONPATH=.:rust/py caffeinate -is uv run python rust/py/exp_tree.py [minutes] [out.jsonl]
+    # run (no --minutes: until Ctrl+C)
+    PYTHONPATH=.:rust/py caffeinate -is uv run python rust/py/exp_tree.py run scaling [--minutes 19]
+    # results so far (also while it runs)
+    PYTHONPATH=.:rust/py uv run python rust/py/exp_tree.py report scaling
+
+Sets: `tree` (EXP-013: tree and flat variants, 2026-11-08), `scaling` (the tree at 3k..100k simulations).
 """
 
+import argparse
+import collections
 import json
+import signal
 import statistics
-import sys
 import time
-from multiprocessing import Pool
+from multiprocessing import Pool, TimeoutError
 from pathlib import Path
 
 import yaml
@@ -21,14 +29,22 @@ REF = {k: v for k, v in yaml.safe_load((ROOT / "experiments/selfplay_flat_mc.yam
 CHAMPION = yaml.safe_load((ROOT / "src/wingspan/ai/bots.yaml").read_text())["bots"]["mcts-v1"]["params"]
 X10 = {**REF, "playouts": REF["playouts"] * 10, "phase_playouts": {k: v * 10 for k, v in REF["phase_playouts"].items()}}
 
-ARMS = {
-    "tree_1500": ("mcts_rs", {**CHAMPION, "simulations": 1500}),
-    "tree_10k": ("mcts_rs", {**CHAMPION, "simulations": 10_000}),
-    "tree_10k_c0.7": ("mcts_rs", {**CHAMPION, "simulations": 10_000, "exploration_constant": 0.7}),
-    "flat_1500": ("flat_mc_rs", {"playouts": 1500, "paired": True, "value_function": "absolute_score"}),
-    "flat_x10": ("flat_mc_rs", X10),
+SETS = {
+    "tree": {
+        "first_deal": 20_001,
+        "arms": {
+            "tree_1500": ("mcts_rs", {**CHAMPION, "simulations": 1500}),
+            "tree_10k": ("mcts_rs", {**CHAMPION, "simulations": 10_000}),
+            "tree_10k_c0.7": ("mcts_rs", {**CHAMPION, "simulations": 10_000, "exploration_constant": 0.7}),
+            "flat_1500": ("flat_mc_rs", {"playouts": 1500, "paired": True, "value_function": "absolute_score"}),
+            "flat_x10": ("flat_mc_rs", X10),
+        },
+    },
+    "scaling": {
+        "first_deal": 30_001,
+        "arms": {f"tree_{n // 1000}k": ("mcts_rs", {**CHAMPION, "simulations": n}) for n in (3_000, 10_000, 30_000, 100_000)},
+    },
 }
-FIRST_DEAL = 20_001
 
 
 def play(task):
@@ -37,8 +53,8 @@ def play(task):
     from lab.simulation import simulate_game
     from wingspan.ai.base import create_strategy
 
-    arm, deal, arm_first = task
-    strategy, params = ARMS[arm]
+    set_name, arm, deal, arm_first = task
+    strategy, params = SETS[set_name]["arms"][arm]
     seats = [create_strategy(strategy, seed=deal * 10 + 1, **params), create_strategy("flat_mc_rs", seed=deal * 10 + 2, **REF)]
     labels = [arm, "reference"]
     if not arm_first:
@@ -51,37 +67,79 @@ def play(task):
             "win": 1.0 if winner == arm else 0.0 if winner == "reference" else 0.5, "seconds": time.perf_counter() - t}
 
 
-def summary(rows):
-    print(f"{'arm':<15}{'games':>6}{'win rate':>16}{'score diff':>16}{'s/game':>8}")
-    for arm in ARMS:
+def summary(rows, arms):
+    """Per arm: win rate and score difference over all games, and the score difference averaged per deal
+    over deals with both seats played (removes the luck of the deal)."""
+    print(f"{'arm':<15}{'games':>6}{'win rate':>14}{'score diff':>14}{'deals':>7}{'per-deal diff':>16}{'s/game':>8}")
+    for arm in arms:
         r = [x for x in rows if x["arm"] == arm]
         if not r:
             continue
         w = statistics.fmean(x["win"] for x in r)
         d = [x["arm_score"] - x["ref_score"] for x in r]
-        se_w = (w * (1 - w) / len(r)) ** 0.5
-        se_d = statistics.stdev(d) / len(r) ** 0.5 if len(r) > 1 else 0.0
-        print(f"{arm:<15}{len(r):>6}{w:>9.1%} ±{1.96 * se_w:>4.0%}{statistics.fmean(d):>+9.1f} ±{1.96 * se_d:>4.1f}"
+        se = lambda v: statistics.stdev(v) / len(v) ** 0.5 if len(v) > 1 else 0.0  # noqa: E731
+        by_deal = collections.defaultdict(list)
+        for x in r:
+            by_deal[x["deal"]].append(x["arm_score"] - x["ref_score"])
+        paired = [statistics.fmean(v) for v in by_deal.values() if len(v) == 2]
+        pd = f"{statistics.fmean(paired):+.1f} ± {1.96 * se(paired):.1f}" if paired else "-"
+        print(f"{arm:<15}{len(r):>6}{w:>8.1%} ±{1.96 * (w * (1 - w) / len(r)) ** 0.5:>4.0%}"
+              f"{statistics.fmean(d):>+8.1f} ±{1.96 * se(d):>4.1f}{len(paired):>7}{pd:>16}"
               f"{statistics.fmean(x['seconds'] for x in r):>8.0f}", flush=True)
 
 
+def read(out: Path) -> list[dict]:
+    return [json.loads(line) for line in out.open()] if out.exists() else []
+
+
+def run(set_name: str, out: Path, minutes: float | None, workers: int) -> None:
+    cfg = SETS[set_name]
+    arms = cfg["arms"]
+    old = read(out)
+    first = max([x["deal"] for x in old], default=cfg["first_deal"] - 1) + 1
+    print(f"{set_name}: {len(old)} games already in {out}; starting at deal {first}", flush=True)
+    tasks = ((set_name, arm, deal, f) for deal in range(first, first + 1_000_000) for arm in arms for f in (True, False))
+    deadline = time.time() + 60 * minutes if minutes else None
+    rows = []
+    # Workers ignore Ctrl+C; the parent stops them, so an interrupt leaves no tracebacks behind
+    pool = Pool(workers, initializer=signal.signal, initargs=(signal.SIGINT, signal.SIG_IGN))
+    results = pool.imap_unordered(play, tasks)
+    try:
+        with out.open("a") as f:
+            while not (deadline and time.time() > deadline):
+                try:
+                    # A timeout, so Ctrl+C and the deadline are noticed while games are running
+                    row = results.next(timeout=1)
+                except TimeoutError:
+                    continue
+                rows.append(row)
+                f.write(json.dumps(row) + "\n")
+                f.flush()
+                if len(rows) % 20 == 0:
+                    left = f", {(deadline - time.time()) / 60:.0f} min left" if deadline else ""
+                    print(f"--- {len(rows)} games this session{left}", flush=True)
+                    summary(old + rows, arms)
+    except KeyboardInterrupt:
+        print("\nstopped (games in progress are dropped)")
+    finally:
+        pool.terminate()
+    print(f"=== {len(old) + len(rows)} games in total")
+    summary(old + rows, arms)
+
+
 if __name__ == "__main__":
-    minutes = float(sys.argv[1]) if len(sys.argv) > 1 else 19
-    out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "experiments/data/exp_tree/results.jsonl"
+    ap = argparse.ArgumentParser()
+    ap.add_argument("mode", choices=["run", "report"])
+    ap.add_argument("set", choices=list(SETS))
+    ap.add_argument("--minutes", type=float, default=None, help="stop after this long (default: until Ctrl+C)")
+    ap.add_argument("--workers", type=int, default=7)
+    ap.add_argument("--out", type=Path, default=None, help="default: experiments/data/exp_<set>/results.jsonl")
+    a = ap.parse_args()
+    out = a.out or ROOT / f"experiments/data/exp_{a.set}/results.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
-    tasks = [(arm, deal, first) for deal in range(FIRST_DEAL, FIRST_DEAL + 1000) for arm in ARMS for first in (True, False)]
-    deadline, rows = time.time() + 60 * minutes, []
-    pool = Pool(7)
-    with out.open("a") as f:
-        for row in pool.imap_unordered(play, tasks):
-            rows.append(row)
-            f.write(json.dumps(row) + "\n")
-            f.flush()
-            if len(rows) % 25 == 0:
-                print(f"--- {len(rows)} games, {(deadline - time.time()) / 60:.1f} min left", flush=True)
-                summary(rows)
-            if time.time() > deadline:
-                break
-    pool.terminate()  # games still running are dropped
-    print(f"=== final: {len(rows)} games")
-    summary(rows)
+    if a.mode == "run":
+        run(a.set, out, a.minutes, a.workers)
+    else:
+        rows = read(out)
+        print(f"{len(rows)} games in {out}")
+        summary(rows, SETS[a.set]["arms"])
