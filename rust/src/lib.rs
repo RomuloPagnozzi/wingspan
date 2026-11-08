@@ -57,23 +57,6 @@ mod python {
         Ok((serde_json::to_string(&s).unwrap(), replay.0.len()))
     }
 
-    /// Flat Monte Carlo for the player to move (see search.rs). Returns (legal action strings, total value
-    /// per move, counted playouts per move), moves in the engine's legal order.
-    #[pyfunction]
-    fn flat_mc(
-        state_json: &str,
-        budget: usize,
-        paired: bool,
-        value_function: &str,
-        seed: u64,
-    ) -> PyResult<(Vec<String>, Vec<f64>, Vec<u32>)> {
-        let s = parse(state_json)?;
-        let vf = crate::search::ValueFunction::parse(value_function)
-            .ok_or_else(|| PyValueError::new_err(format!("unknown value function {value_function}")))?;
-        let (legal, totals, counts) = crate::search::flat_mc(&s, budget, paired, vf, seed);
-        Ok((legal.iter().map(|a| a.to_string()).collect(), totals, counts))
-    }
-
     /// IS-MCTS for the player to move (search.rs). Returns (root child move strings, visits, value for
     /// the searcher, root value); children may include moves legal only in some re-dealt world.
     #[pyfunction]
@@ -114,7 +97,6 @@ mod python {
         m.add_function(wrap_pyfunction!(legal_actions, m)?)?;
         m.add_function(wrap_pyfunction!(apply, m)?)?;
         m.add_function(wrap_pyfunction!(bench_games, m)?)?;
-        m.add_function(wrap_pyfunction!(flat_mc, m)?)?;
         m.add_function(wrap_pyfunction!(redeterminize, m)?)?;
         m.add_function(wrap_pyfunction!(ismcts, m)?)?;
         Ok(())

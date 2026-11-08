@@ -7,8 +7,8 @@ from search-generated games save over learning from self-play alone?
 
 ## Plan
 
-1. **Settle the data generator.** Answer the open questions in `EXPERIMENTS.md` (flat MC's value function,
-   the tree at high budgets): pick the generator with the best strength per compute for labels.
+1. **Settle the data generator**: the tuned tree (`experiments/selfplay.yaml`, 10k simulations). Root pairing
+   and tuning at 10k (`EXPERIMENTS.md`) may improve it before the bootstrap dataset is generated.
 2. **Generate the bootstrap dataset** with it: unique deals, decisions recorded.
 3. **Train the networks**: the value net (`lab/train_value.py`), then a policy net over legal moves
    (scoring each move from `wingspan.ai.encoding`). Ship a policy-only bot to the web app.

@@ -1,11 +1,9 @@
-//! Search: re-dealing hidden information (core/redeterminize.py) and flat Monte Carlo (ai/flat_mc.py).
-
-use std::panic::{catch_unwind, AssertUnwindSafe};
+//! Search: re-dealing hidden information (core/redeterminize.py) and IS-MCTS (ai/mcts.py, determinize=True).
 
 use crate::actions::Action;
 use crate::chance::{Chance, Rng};
 use crate::data::data;
-use crate::rules::{apply, legal_actions, legal_actions_into, total_score, update_player_scores};
+use crate::rules::{apply, legal_actions_into, total_score, update_player_scores};
 use crate::state::State;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,57 +101,6 @@ pub fn redeterminize(s: &State, me: usize, rng: &mut Rng) -> State {
         }
     }
     w
-}
-
-/// Play `a` in `world`, then random moves to the end; `me`'s value, or None if `a` is illegal there.
-/// `chance` draws the dice and shuffles, `choices` picks the random moves.
-fn playout(world: &State, a: &Action, me: usize, vf: ValueFunction, chance: &mut Rng, choices: &mut Rng) -> Option<f64> {
-    let mut s = world.clone();
-    // A move legal in the real state may not be in a re-dealt world (Python catches the exception)
-    let ok = catch_unwind(AssertUnwindSafe(|| apply(&mut s, a, chance).is_ok())).unwrap_or(false);
-    if !ok {
-        return None;
-    }
-    let mut actions = Vec::with_capacity(96);
-    loop {
-        legal_actions_into(&s, &mut actions);
-        if actions.is_empty() {
-            return Some(value(&mut s, me, vf));
-        }
-        let a = &actions[choices.below(actions.len())];
-        apply(&mut s, a, chance).expect("legal action failed in a rollout");
-    }
-}
-
-/// Flat Monte Carlo for the player to move: `budget` playouts split evenly over the legal moves. With
-/// `paired`, each re-dealt world and random seed is shared by every move (common random numbers).
-/// Returns (legal action strings, total value per move, playouts that counted per move).
-pub fn flat_mc(s: &State, budget: usize, paired: bool, vf: ValueFunction, seed: u64) -> (Vec<Action>, Vec<f64>, Vec<u32>) {
-    let mut rng = Rng::new(seed);
-    let me = s.current_player_index;
-    let legal = legal_actions(s);
-    let n = legal.len();
-    let (mut totals, mut counts) = (vec![0.0; n], vec![0u32; n]);
-    let mut world = s.clone();
-    let mut world_seeds = (0, 0);
-    for _ in 0..(budget / n.max(1)).max(1) {
-        if paired {
-            world = redeterminize(s, me, &mut rng);
-            world_seeds = (rng.next_u64(), rng.next_u64());
-        }
-        for (i, a) in legal.iter().enumerate() {
-            if !paired {
-                world = redeterminize(s, me, &mut rng);
-                world_seeds = (rng.next_u64(), rng.next_u64());
-            }
-            let (mut chance, mut choices) = (Rng::new(world_seeds.0), Rng::new(world_seeds.1));
-            if let Some(v) = playout(&world, a, me, vf, &mut chance, &mut choices) {
-                totals[i] += v;
-                counts[i] += 1;
-            }
-        }
-    }
-    (legal, totals, counts)
 }
 
 // =============================================================================
@@ -316,7 +263,7 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rules::initiate;
+    use crate::rules::{initiate, legal_actions};
     use crate::state::ScoringMode;
 
     /// Random states from random games: (state, game seed, step).
@@ -363,16 +310,6 @@ mod tests {
             ids.sort_unstable();
             ids.dedup();
             assert_eq!(ids.len(), n);
-        }
-    }
-
-    #[test]
-    fn flat_mc_counts_every_move() {
-        for s in random_states(3).into_iter().take(40) {
-            let (legal, totals, counts) = flat_mc(&s, 200, true, ValueFunction::AbsoluteScore, 1);
-            assert_eq!(legal.len(), totals.len());
-            assert!(counts.iter().all(|&c| c as usize <= (200 / legal.len()).max(1)));
-            assert!(counts.iter().any(|&c| c > 0));
         }
     }
 }

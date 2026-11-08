@@ -1,11 +1,7 @@
 """Strategies whose search runs in the Rust engine (`rust/`, Python module `wingspan_rs`), and the
 state export they use. Importing this module needs the extension built (see rust/README.md);
-`wingspan.ai` imports it when it is, which registers the strategies:
+`wingspan.ai` imports it when it is, which registers the strategy:
 
-- `flat_mc`: flat Monte Carlo. Random playouts for each legal move, then the best average; no tree.
-  With `paired` (common random numbers) each re-dealt world and playout seed is used for every legal
-  move, so the luck those playouts share cancels when moves are compared. `phase_playouts` sets
-  per-phase budgets.
 - `mcts_rs`: IS-MCTS (`mcts` with determinize=True, same MCTSConfig and decision rule: the most visited
   root child legal in the real state), plus `phase_simulations`: per-phase budgets. Its defaults are the
   tuned params (`TUNED_TREE`), so a spec only states what differs. Becomes `mcts` once the web app moves
@@ -16,14 +12,12 @@ the two engines exchange (`rust/src/state.rs`); `rust/py/parity.py` checks them 
 """
 
 import json
-import random
-from dataclasses import dataclass
 
 import wingspan_rs
 
 from wingspan.engine.core import Action, GamePhase, GameState
 
-from .base import Strategy, ValueFunction, register_strategy
+from .base import register_strategy
 from .mcts import MCTSStrategy
 
 
@@ -149,67 +143,6 @@ def to_json(s: GameState) -> dict:
         "scoring_mode": s.round_goal_config.scoring_mode.value,
         "selected_goals": list(s.round_goal_config.selected_goals),
     }
-
-
-@dataclass(frozen=True, slots=True)
-class FlatMCConfig:
-    playouts: int = 1500  # per decision, split evenly across the legal moves
-    paired: bool = True
-    value_function: ValueFunction = ValueFunction.ABSOLUTE_SCORE
-    # Per-phase budgets, e.g. {"lay_eggs": 300}: game phase name -> playouts per decision.
-    # Phases not listed use `playouts`.
-    phase_playouts: dict[str, int] | None = None
-
-    def __post_init__(self):
-        unknown = set(self.phase_playouts or ()) - {p.value for p in GamePhase}
-        if unknown:  # a misspelt phase would silently fall back to the default budget
-            raise ValueError(f"unknown game phases in phase_playouts: {sorted(unknown)}")
-
-    def budget(self, phase: GamePhase) -> int:
-        return (self.phase_playouts or {}).get(phase.value, self.playouts)
-
-
-@register_strategy
-class FlatMCStrategy(Strategy):
-    name = "flat_mc"
-
-    def __init__(self, *, params: FlatMCConfig | None = None, seed: int | None = None, **kwargs):
-        if params is None:
-            kwargs = {k: v for k, v in kwargs.items() if k in FlatMCConfig.__dataclass_fields__}
-            if isinstance(kwargs.get("value_function"), str):
-                kwargs["value_function"] = ValueFunction(kwargs["value_function"])
-            params = FlatMCConfig(**kwargs)
-        self.params = params
-        self.seed: int = seed if seed is not None else random.randint(0, 2**31)
-        self._rng = random.Random(self.seed)
-        self._last_action_values: dict[Action, float] | None = None
-        self._last_visit_counts: dict[Action, int] | None = None
-
-    def get_last_visit_counts(self) -> dict[Action, int] | None:
-        return self._last_visit_counts
-
-    def get_last_action_values(self) -> dict[Action, float] | None:
-        return self._last_action_values
-
-    def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
-        if len(legal_actions) == 1:
-            return legal_actions[0]
-        p = self.params
-        strs, totals, counts = wingspan_rs.flat_mc(
-            state_json(state),
-            p.budget(state.game_phase),
-            p.paired,
-            p.value_function.value,
-            self._rng.getrandbits(64),
-        )
-        assert strs == [str(a) for a in legal_actions], "Rust and Python disagree on the legal moves"
-        means = [t / c if c else float("-inf") for t, c in zip(totals, counts)]
-        self._last_action_values = {a: m for a, m in zip(legal_actions, means) if m > float("-inf")}
-        self._last_visit_counts = dict(zip(legal_actions, counts))
-        return legal_actions[max(range(len(legal_actions)), key=means.__getitem__)]
-
-    def __str__(self) -> str:
-        return f"FlatMC(n={self.params.playouts}, {'paired' if self.params.paired else 'independent'})"
 
 
 # The best tree params found (Optuna search at 1500 simulations against a fixed opponent; best trial won

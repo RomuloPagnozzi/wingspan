@@ -1,11 +1,12 @@
-//! cargo run --release --bin bench [random|flatmc] [n]
+//! cargo run --release --bin bench [random|ismcts|phases] [n]
 //!   random: n random games from fresh deals (default 2000)
-//!   flatmc: flat MC (budget 300, paired) on n fixed mid-game states (default 150), the self-play workload
+//!   ismcts: the tuned tree (1000 simulations) on n fixed mid-game states (default 60); the checksum must
+//!     not change when optimizing (same search, same result)
 use std::time::Instant;
 
 use wingspan_rs::chance::Rng;
 use wingspan_rs::rules::{apply, initiate, legal_actions};
-use wingspan_rs::search::{flat_mc, ismcts, MctsConfig, ValueFunction};
+use wingspan_rs::search::{ismcts, MctsConfig, ValueFunction};
 use wingspan_rs::state::{ScoringMode, State};
 
 fn states(n: usize) -> Vec<State> {
@@ -42,21 +43,6 @@ fn main() {
                 secs * 1e6 / steps as f64
             );
         }
-        "flatmc" => {
-            let states = states(n.unwrap_or(150));
-            let t = Instant::now();
-            let mut checksum = 0.0;
-            for (i, s) in states.iter().enumerate() {
-                let (_, totals, _) = flat_mc(s, 300, true, ValueFunction::AbsoluteScore, i as u64);
-                checksum += totals.iter().sum::<f64>();
-            }
-            let secs = t.elapsed().as_secs_f64();
-            println!(
-                "flat MC on {} states: {secs:.3}s, {:.2} ms/decision (checksum {checksum:.4})",
-                states.len(),
-                secs * 1e3 / states.len() as f64
-            );
-        }
         "ismcts" => {
             // the tuned tree (TUNED_TREE in src/wingspan/ai/rust.py) at 1000 simulations
             let states = states(n.unwrap_or(60));
@@ -68,12 +54,16 @@ fn main() {
                 widening_alpha: 0.6303665309124046,
             };
             let t = Instant::now();
-            let mut visits = 0u64;
+            // The visits and values at every root: identical before and after a change that keeps the search
+            let mut checksum = 0.0;
             for (i, s) in states.iter().enumerate() {
-                visits += ismcts(s, &cfg, i as u64).visits.iter().map(|&v| v as u64).sum::<u64>();
+                let r = ismcts(s, &cfg, i as u64);
+                for (k, (&v, &q)) in r.visits.iter().zip(&r.values).enumerate() {
+                    checksum += (k + 1) as f64 * v as f64 + if q.is_finite() { q } else { 0.0 };
+                }
             }
             let secs = t.elapsed().as_secs_f64();
-            println!("IS-MCTS 1000 sims on {} states: {:.2} ms/decision, {:.1} us/simulation (root visits {visits})",
+            println!("IS-MCTS 1000 sims on {} states: {:.2} ms/decision, {:.1} us/simulation (checksum {checksum:.4})",
                 states.len(), secs * 1e3 / states.len() as f64, secs * 1e6 / (1000.0 * states.len() as f64));
         }
         "phases" => {
@@ -111,6 +101,6 @@ fn main() {
                 println!("{phase:<22} {:5.1}% of states  {ns:7.1} ns/call  {:5.1}% of legal_actions time", 100.0 * n as f64 / total_states as f64, 100.0 * w / all);
             }
         }
-        _ => panic!("mode: random | flatmc | ismcts | phases"),
+        _ => panic!("mode: random | ismcts | phases"),
     }
 }
