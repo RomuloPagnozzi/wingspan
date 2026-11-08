@@ -3,6 +3,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
+# The Rust engine's metadata: the lockfile lists it (lab group), so --locked reads it; not installed here
+COPY rust/pyproject.toml rust/
 RUN uv sync --locked --no-default-groups --group web --no-install-project
 COPY src ./src
 RUN uv sync --locked --no-default-groups --group web --no-editable
