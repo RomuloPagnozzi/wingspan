@@ -1,4 +1,4 @@
-//! Game state. The serde shape is the canonical JSON that `py/pystate.py` produces from a Python
+//! Game state. The serde shape is the canonical JSON that `wingspan.ai.rust.to_json` produces from a Python
 //! GameState, so the two engines can be compared field by field.
 
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};

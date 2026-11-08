@@ -1,5 +1,5 @@
 """How do the tree's root visits and Q values look as simulations grow? Real positions (replayed from the
-Rust self-play games), searched by the tuned IS-MCTS (mcts_joint_v2) at several budgets.
+Rust self-play games), searched by the tuned IS-MCTS (TUNED_TREE) at several budgets.
 
 Per phase and budget: visit spread (effective number of moves = exp(visit entropy); equals the number of
 legal moves when visits are uniform), the top move's visit share, the Q gap between the best and second
@@ -18,15 +18,15 @@ from multiprocessing import Pool
 from pathlib import Path
 
 import pyarrow.parquet as pq
-import yaml
+
+from wingspan.ai.rust import TUNED_TREE
 
 ROOT = Path(__file__).parents[2]
-DATA = ROOT / "experiments/data/selfplay_rs_local"
-# The tuned tree on the fixed engine (not bots.yaml's mcts-v1, which still has the pre-fix v1 params)
-CHAMPION = yaml.safe_load((ROOT / "experiments/tuning/mcts_joint_v2/best_params.yaml").read_text())["params"]
+DATA = ROOT / "experiments/data/selfplay"
+TREE = TUNED_TREE
 BUDGETS = (1_500, 3_000, 10_000, 30_000)
 # Value units -> points: absolute_score = own score / 100, score_delta = (own - best other) / 50
-POINTS = {"absolute_score": 100, "score_delta": 50}[CHAMPION["value_function"]]
+POINTS = {"absolute_score": 100, "score_delta": 50}[TREE["value_function"]]
 
 
 def search_game(task):
@@ -48,8 +48,8 @@ def search_game(task):
             js, legal = state_json(state), [str(a) for a in actions]
             for n in BUDGETS:
                 strs, visits, values, _ = wingspan_rs.ismcts(
-                    js, n, CHAMPION["exploration_constant"], CHAMPION["value_function"],
-                    CHAMPION["widening_k"], CHAMPION["widening_alpha"], game_seed * 1000 + i,
+                    js, n, TREE["exploration_constant"], TREE["value_function"],
+                    TREE["widening_k"], TREE["widening_alpha"], game_seed * 1000 + i,
                 )
                 stats = {s: (v, q) for s, v, q in zip(strs, visits, values) if s in legal}
                 out.append({"phase": row["game_phase"], "sims": n, "n_legal": len(legal),
@@ -97,7 +97,7 @@ if __name__ == "__main__":
         by[(r["phase"], r["sims"])].append(metrics(r))
         by[("ALL", r["sims"])].append(metrics(r))
     phases = ["ALL"] + sorted({p for p, _ in by if p != "ALL"}, key=lambda p: -len(by[(p, BUDGETS[0])]))
-    print(f"{len(results) // len(BUDGETS)} positions from {n_games} games; champion tree, budgets {BUDGETS}\n")
+    print(f"{len(results) // len(BUDGETS)} positions from {n_games} games; tuned tree, budgets {BUDGETS}\n")
     print(f"{'phase':<24}{'n':>4}{'moves':>6} | {'eff. moves / legal (1 = uniform)':^34} | {'top visit share':^31} | "
           f"{'Q gap best-2nd (pts)':^31} | {'most visited = best Q':^31}")
     print(" " * 34 + "|" + "".join(f"{n // 1000 if n >= 1000 else n:>7}k" if n % 1000 == 0 else f"{n / 1000:>7.1f}k" for n in BUDGETS) * 4)

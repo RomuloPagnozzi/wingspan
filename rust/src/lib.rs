@@ -31,7 +31,7 @@ mod python {
         serde_json::from_str(state_json).map_err(|e| PyValueError::new_err(format!("bad state json: {e}")))
     }
 
-    /// Legal actions of a state (canonical JSON from py/pystate.py), as Python action strings.
+    /// Legal actions of a state (canonical JSON from wingspan.ai.rust.to_json), as Python action strings.
     #[pyfunction]
     fn legal_actions(state_json: &str) -> PyResult<Vec<String>> {
         Ok(rules::legal_actions(&parse(state_json)?).iter().map(|a| a.to_string()).collect())

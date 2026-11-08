@@ -19,18 +19,13 @@ dev = [
     "pytest>=9.0.2",
 ]
 lab = [
-    "ipykernel>=7.1.0",
-    "matplotlib>=3.10.8",
     "openpyxl>=3.1.5",
     "optuna>=4.9.0",
     "pandas>=3.0.0",
     "pyarrow>=23.0.0",
-    "pydeps>=3.0.2",
-    "pyinstrument>=5.1.2",
-    "scipy>=1.17.1",
-    "seaborn>=0.13.2",
     "tqdm>=4.67.3",
     "uuid6>=2025.0.1",
+    "wingspan-rs",
 ]
 train = [
     "torch>=2.15.0",
@@ -51,3 +46,6 @@ build-backend = "uv_build"
 
 [tool.uv]
 default-groups = ["dev", "lab", "web"]
+
+[tool.uv.sources]
+wingspan-rs = { path = "rust" }

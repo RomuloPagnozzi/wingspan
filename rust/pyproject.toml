@@ -9,3 +9,7 @@ requires-python = ">=3.13"
 
 [tool.maturin]
 features = ["python"]
+
+[tool.uv]
+# Rebuild when the Rust sources or the card data they embed change
+cache-keys = [{ file = "Cargo.toml" }, { file = "src/**/*.rs" }, { file = "../src/wingspan/engine/assets/*.json" }]

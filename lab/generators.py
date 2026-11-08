@@ -3,23 +3,9 @@
 import itertools
 import random
 import time
-from dataclasses import asdict
-from enum import Enum
 from typing import Iterator
 
-from wingspan.ai import MCTSConfig, Strategy, ValueFunction, create_strategy
-
-# Project-wide fixed reference opponent. Locked strategic params. Changing
-# these constants invalidates cross-experiment comparability — pre-change
-# and post-change win rates do not live on the same scale.
-REFERENCE_PARAMS = MCTSConfig(
-    simulations=1500,
-    exploration_constant=2.27,
-    value_function=ValueFunction.ABSOLUTE_SCORE,
-    determinize=True,
-    widening_alpha=0.83,
-    widening_k=1.7,
-)
+from wingspan.ai import Strategy, create_strategy
 
 
 def instantiate(spec: dict) -> Strategy:
@@ -126,24 +112,16 @@ def paired_generator(
             )
 
 
-def reference_spec(block: dict) -> dict:
-    """The opponent of a `vs_reference` run (`block` = its `compare`) or a tuning study (`block` = the
-    whole config), as a strategy spec: `block["reference"]` if given (e.g. `{strategy: flat_mc_rs,
-    playouts: 1500}`), else the project-wide REFERENCE_PARAMS."""
-    default = {k: v.value if isinstance(v, Enum) else v for k, v in asdict(REFERENCE_PARAMS).items()}
-    return block.get("reference") or {"strategy": "mcts", **default}
-
-
 def vs_reference_generator(
     config: dict,
 ) -> Iterator[tuple[list[Strategy], int, list[str]]]:
-    """Every arm in `compare.values` plays the reference on each seed from both seats.
+    """Every arm in `compare.values` plays `compare.reference` (a strategy spec) on each seed from both seats.
 
     Seed-major like `paired_generator`, so the arms stay balanced however long the run goes.
     """
     base, compare = config["base"], config["compare"]
     param_name = compare.get("parameter")
-    reference = reference_spec(compare)
+    reference = compare["reference"]
     for game_seed in seed_range(config["seeds"]):
         for arm in compare["values"]:
             yield from both_seats(
@@ -279,8 +257,7 @@ def validate_config(config: dict) -> None:
                 f"mode=vs_reference: reference_label {ref_label!r} collides "
                 "with an arm label",
             )
-            if "reference" in compare:
-                validate_strategy_spec(compare["reference"], "compare.reference")
+            validate_strategy_spec(compare.get("reference"), "mode=vs_reference: `compare.reference`")
         return
 
     if mode == "continuous":

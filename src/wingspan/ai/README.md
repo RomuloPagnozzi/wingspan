@@ -1,48 +1,15 @@
 # wingspan.ai
 
-Game-playing strategies. All strategies implement `Strategy.select_action(state, legal_actions) -> Action`.
-
-## Files
+Game-playing strategies: `Strategy.select_action(state, legal_actions) -> Action`. Built by name with
+`create_strategy(name, **params)` (configs do this); each class registers itself with `@register_strategy`.
 
 | File | Role |
 |------|------|
-| `base.py` | `Strategy` ABC, `ValueFunction` enum, name registry, `create_strategy` factory |
-| `random.py` | uniform random action selection (deterministic with a seed) |
-| `mcts.py` | MCTS with UCB1 selection, progressive widening, and optional PIMC/IS-MCTS determinization |
-| `bots.yaml`, `bots.py` | the roster of bots the web app fields: each with a name, strategy and exact params; `champion` is the one new games face |
+| `base.py` | `Strategy`, `ValueFunction`, the registry, `create_strategy` |
+| `random.py` | uniform random moves (`random`) |
+| `mcts.py` | MCTS in Python (`mcts`): UCB1, progressive widening, IS-MCTS determinization; the web app's bot |
+| `rust.py` | searches run by the Rust engine (`flat_mc`, `mcts_rs`) and the state export they use; imported when the extension is built |
+| `bots.yaml`, `bots.py` | the web app's bot roster; `champion` is the one new games face |
+| `encoding.py`, `nets.py` | observation and action encoding for the networks; the networks |
 
-Only AIs that ship with the app live here. Experimental strategies can live in `lab/` and self-register with `@register_strategy`; promote them here once they prove out, and release them to players by adding a `bots.yaml` entry.
-
-## Dependencies
-
-```
-base.py    <- wingspan.engine.core
-random.py  <- wingspan.engine.core, base.py
-mcts.py    <- wingspan.engine.core, wingspan.engine.actions, wingspan.engine.engine, base.py
-```
-
-## Registry
-
-Strategies self-register via `@register_strategy` on the class. `create_strategy(name, **params)` looks the class up by its `name` class attribute (`"random"`, `"mcts"`). The driver in `lab/__main__.py` and the YAML configs reference strategies by this string.
-
-## Usage
-
-```python
-from wingspan.ai import create_strategy
-
-# By name + kwargs (how configs build strategies)
-strategy = create_strategy("mcts", simulations=500, exploration_constant=1.41, seed=42)
-
-# Direct construction
-from wingspan.ai import MCTSStrategy, MCTSConfig, ValueFunction
-strategy = MCTSStrategy(
-    params=MCTSConfig(simulations=500, value_function=ValueFunction.SCORE_DELTA),
-    seed=42,
-)
-
-action = strategy.select_action(state, legal_actions)
-```
-
-## Determinism contract
-
-For paired comparison experiments, `(game_seed, mcts_seed, simulations, exploration_constant, value_function)` must uniquely determine the move sequence. `lab/benchmarks/test_determinism.py` is the regression test — do not introduce non-deterministic shortcuts (sets without sort, dict-order rollout, etc.) in this package.
+Fixed seeds make every strategy deterministic: same game seed and strategy seed, same moves.

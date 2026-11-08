@@ -80,15 +80,6 @@ def test_vs_reference_without_a_count_is_open_ended_and_balanced():
     assert labels.count("a") == labels.count("b")  # interleaved: balanced at any stopping point
 
 
-def test_vs_reference_defaults_to_the_project_reference():
-    from lab.generators import REFERENCE_PARAMS
-
-    config = VS_REF | {"compare": {k: v for k, v in VS_REF["compare"].items() if k != "reference"}}
-    strategies, _, labels = next(get_generator(config))
-    assert labels == ["a", "ref"] and strategies[1].name == "mcts"
-    assert strategies[1].params == REFERENCE_PARAMS
-
-
 def test_paired_plays_every_pair_on_a_seed_before_the_next_seed():
     config = {
         "mode": "paired",
@@ -112,6 +103,7 @@ def test_config_validation_rejects_bad_seeds_and_reference():
         VS_REF | {"seeds": {"count": 0}},
         VS_REF | {"seeds": {"start": "soon"}},
         VS_REF | {"compare": VS_REF["compare"] | {"reference": {"playouts": 5}}},  # no strategy name
+        VS_REF | {"compare": {k: v for k, v in VS_REF["compare"].items() if k != "reference"}},  # no reference
     ):
         with pytest.raises(ConfigError):
             validate_config(bad)

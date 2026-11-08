@@ -16,7 +16,7 @@ Every value is scaled into [0, 1] so no feature dominates the network just by it
 Only what the viewer can legitimately see is encoded: opponents' hands and bonus cards are
 zeros, and nothing depends on the deck order.
 
-Left out in v1: power details (which food, which habitat, how many). The net sees a power's
+Left out: power details (which food, which habitat, how many). The net sees a power's
 color (when it fires) and template (what kind of effect), not its parameters.
 """
 
@@ -545,8 +545,8 @@ class Observation:
     set encoder: summing raw card features (the `hand_*` and `tray_*` columns) loses which
     properties belong to the same card, so a grassland-bowl + wetland-cavity hand looks like
     wetland-bowl + grassland-cavity. A net that transforms each card before summing keeps
-    that. Opponents' hands are hidden, so only the viewer's own is listed. EXP-010 compares
-    the two.
+    that. Opponents' hands are hidden, so only the viewer's own is listed. Whether the set
+    encoder helps is open (docs/INBOX.md).
     """
 
     me: list[float]
@@ -587,7 +587,7 @@ def action_bird_ids(action: Action) -> list[int]:
 
     The `action_bird_*` columns average these, which loses which properties belong to the
     same bird (keeping a grassland-bowl + wetland-cavity pair looks like keeping wetland-bowl
-    + grassland-cavity). A set encoder over these ids keeps it; EXP-010 compares the two.
+    + grassland-cavity). A set encoder over these ids keeps it (open: docs/INBOX.md).
     """
     match action:
         # Bird ids and bonus ids overlap, so the type decides what an IdAction's id means

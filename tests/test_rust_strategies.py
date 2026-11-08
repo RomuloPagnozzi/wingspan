@@ -20,7 +20,7 @@ def _main_turn_state():
 @pytest.mark.parametrize(
     "name, params",
     [
-        ("flat_mc_rs", {"playouts": 60}),
+        ("flat_mc", {"playouts": 60}),
         ("mcts_rs", {"simulations": 60, "determinize": True, "value_function": "absolute_score"}),
     ],
 )
@@ -42,3 +42,28 @@ def test_mcts_rs_spends_its_phase_budget():
     assert strategy.config["phase_simulations"] == {"main_turn": 40}
     with pytest.raises(ValueError, match="main_trun"):
         create_strategy("mcts_rs", phase_simulations={"main_trun": 40})
+
+
+def test_flat_mc_same_seed_same_legal_pick():
+    s = _main_turn_state()
+    legal = get_actions(s)
+    picks = {str(create_strategy("flat_mc", seed=3, playouts=60).select_action(s, legal)) for _ in range(2)}
+    assert len(picks) == 1 and picks <= {str(a) for a in legal}
+
+
+def test_flat_mc_spends_its_phase_budget():
+    s = _main_turn_state()
+    legal = get_actions(s)
+    bot = create_strategy("flat_mc", seed=0, playouts=10_000, phase_playouts={"main_turn": 10 * len(legal)})
+    bot.select_action(s, legal)
+    assert max(bot.get_last_visit_counts().values()) <= 10
+    with pytest.raises(ValueError, match="main_trun"):
+        create_strategy("flat_mc", phase_playouts={"main_trun": 300})
+
+
+def test_mcts_rs_defaults_to_the_tuned_tree():
+    from wingspan.ai.rust import TUNED_TREE
+
+    config = create_strategy("mcts_rs", seed=1).config
+    assert {k: config[k] for k in TUNED_TREE} == TUNED_TREE
+    assert create_strategy("mcts_rs", simulations=10_000).config["simulations"] == 10_000

@@ -1,4 +1,4 @@
-"""Neural networks over the encoder's vectors (wingspan.ai.encoding). Plan step 4."""
+"""Neural networks over the encoder's vectors (wingspan.ai.encoding)."""
 
 import torch
 from torch import nn

@@ -21,7 +21,6 @@ from lab.generators import (
     build_strategy,
     count_games,
     get_generator,
-    reference_spec,
     validate_config,
 )
 
@@ -57,7 +56,7 @@ def describe_config(config: dict) -> list[str]:
         compare = config["compare"]
         param_name = compare.get("parameter")
         if mode == "vs_reference":
-            lines.append(f"Reference ({compare['reference_label']}): {_spec_desc(reference_spec(compare))}")
+            lines.append(f"Reference ({compare['reference_label']}): {_spec_desc(compare['reference'])}")
         if param_name:
             lines.append(f"Parameter: {param_name}")
         lines.append("Arms:")

@@ -410,7 +410,7 @@ def main():
     d.add_argument("--yes", action="store_true", help="really create it; otherwise a dry run")
     d.add_argument("--allow-existing", action="store_true")
     s = sub.add_parser("setup")
-    s.add_argument("--config", default="experiments/selfplay_flat_mc.yaml")
+    s.add_argument("--config", default="experiments/selfplay.yaml")
     for name in ("start", "progress", "stop", "fetch", "destroy"):
         sub.add_parser(name)
     e = sub.add_parser("extend")

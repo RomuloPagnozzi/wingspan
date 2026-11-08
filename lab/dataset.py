@@ -6,8 +6,7 @@ seat. A replay that disagrees with the recording (different legal moves, a diffe
 move) stops the build. Everything is stored raw: visit counts, Q values, the move taken, final
 scores. Targets and weights (softmax(Q/τ), per-phase reliability) are chosen at training time.
 
-    uv run python -m lab.dataset experiments/tuning/mcts_joint_v2 --out experiments/data/datasets/v2
-    uv run python -m lab.dataset experiments/data/cloud/selfplay/*/* --out experiments/data/datasets/selfplay
+    uv run python -m lab.dataset experiments/data/selfplay/* --out experiments/data/datasets/selfplay
 
 N decisions, M legal moves in total. Ragged arrays are sliced by their offsets:
 row i's moves are act[act_off[i]:act_off[i + 1]].
@@ -107,7 +106,6 @@ def build(srcs: list[Path], out: Path, workers: int = 7, max_games: int | None =
         for s in srcs
         for f in sorted(s.glob("games*.parquet"))
     )
-    g["scoring"] = g.scoring.fillna("green")  # recorded since 2026-11; every earlier game was green
     d = d[d.game_id.isin(g.game_id)]  # a rotating run can hold a game's decisions before its result
     game_ids = sorted(d.game_id.unique())[:max_games]
     d = d[d.game_id.isin(game_ids)].sort_values(["game_id", "decision_idx"])

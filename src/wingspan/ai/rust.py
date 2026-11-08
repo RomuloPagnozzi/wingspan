@@ -2,23 +2,28 @@
 state export they use. Importing this module needs the extension built (see rust/README.md);
 `wingspan.ai` imports it when it is, which registers the strategies:
 
-- `flat_mc_rs`: `flat_mc` with its playouts in Rust. Same config (FlatMCConfig) and decision rule.
-- `mcts_rs`: `mcts` IS-MCTS (determinize=True) with its search in Rust. Same config (MCTSConfig) and
-  decision rule (most visited root child legal in the real state), plus `phase_simulations`: per-phase
-  budgets like flat_mc's `phase_playouts`. The peek (determinize=False) mode is not ported.
+- `flat_mc`: flat Monte Carlo. Random playouts for each legal move, then the best average; no tree.
+  With `paired` (common random numbers) each re-dealt world and playout seed is used for every legal
+  move, so the luck those playouts share cancels when moves are compared. `phase_playouts` sets
+  per-phase budgets.
+- `mcts_rs`: IS-MCTS (`mcts` with determinize=True, same MCTSConfig and decision rule: the most visited
+  root child legal in the real state), plus `phase_simulations`: per-phase budgets. Its defaults are the
+  tuned params (`TUNED_TREE`), so a spec only states what differs. Becomes `mcts` once the web app moves
+  to it (docs/INBOX.md).
 
 The game itself stays in the Python engine: Rust only searches. `state_json` is the canonical state
 the two engines exchange (`rust/src/state.rs`); `rust/py/parity.py` checks them against each other.
 """
 
 import json
+import random
+from dataclasses import dataclass
 
 import wingspan_rs
 
 from wingspan.engine.core import Action, GamePhase, GameState
 
-from .base import register_strategy
-from .flat_mc import FlatMCStrategy
+from .base import Strategy, ValueFunction, register_strategy
 from .mcts import MCTSStrategy
 
 
@@ -146,9 +151,45 @@ def to_json(s: GameState) -> dict:
     }
 
 
+@dataclass(frozen=True, slots=True)
+class FlatMCConfig:
+    playouts: int = 1500  # per decision, split evenly across the legal moves
+    paired: bool = True
+    value_function: ValueFunction = ValueFunction.ABSOLUTE_SCORE
+    # Per-phase budgets, e.g. {"lay_eggs": 300}: game phase name -> playouts per decision.
+    # Phases not listed use `playouts`.
+    phase_playouts: dict[str, int] | None = None
+
+    def __post_init__(self):
+        unknown = set(self.phase_playouts or ()) - {p.value for p in GamePhase}
+        if unknown:  # a misspelt phase would silently fall back to the default budget
+            raise ValueError(f"unknown game phases in phase_playouts: {sorted(unknown)}")
+
+    def budget(self, phase: GamePhase) -> int:
+        return (self.phase_playouts or {}).get(phase.value, self.playouts)
+
+
 @register_strategy
-class FlatMCRsStrategy(FlatMCStrategy):
-    name = "flat_mc_rs"
+class FlatMCStrategy(Strategy):
+    name = "flat_mc"
+
+    def __init__(self, *, params: FlatMCConfig | None = None, seed: int | None = None, **kwargs):
+        if params is None:
+            kwargs = {k: v for k, v in kwargs.items() if k in FlatMCConfig.__dataclass_fields__}
+            if isinstance(kwargs.get("value_function"), str):
+                kwargs["value_function"] = ValueFunction(kwargs["value_function"])
+            params = FlatMCConfig(**kwargs)
+        self.params = params
+        self.seed: int = seed if seed is not None else random.randint(0, 2**31)
+        self._rng = random.Random(self.seed)
+        self._last_action_values: dict[Action, float] | None = None
+        self._last_visit_counts: dict[Action, int] | None = None
+
+    def get_last_visit_counts(self) -> dict[Action, int] | None:
+        return self._last_visit_counts
+
+    def get_last_action_values(self) -> dict[Action, float] | None:
+        return self._last_action_values
 
     def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
         if len(legal_actions) == 1:
@@ -168,7 +209,19 @@ class FlatMCRsStrategy(FlatMCStrategy):
         return legal_actions[max(range(len(legal_actions)), key=means.__getitem__)]
 
     def __str__(self) -> str:
-        return "Rust" + super().__str__()
+        return f"FlatMC(n={self.params.playouts}, {'paired' if self.params.paired else 'independent'})"
+
+
+# The best tree params found (Optuna search at 1500 simulations against a fixed opponent; best trial won
+# 73.8%). score_delta won clearly over win_loss and absolute_score (55 of 60 completed trials chose it).
+TUNED_TREE = {
+    "determinize": True,
+    "simulations": 1500,
+    "value_function": "score_delta",
+    "exploration_constant": 1.1354669047764545,
+    "widening_alpha": 0.6303665309124046,
+    "widening_k": 1.412915005594185,
+}
 
 
 @register_strategy
@@ -176,7 +229,7 @@ class MCTSRsStrategy(MCTSStrategy):
     name = "mcts_rs"
 
     def __init__(self, *, phase_simulations: dict[str, int] | None = None, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(**({**TUNED_TREE, **kwargs} if "params" not in kwargs else kwargs))
         unknown = set(phase_simulations or ()) - {p.value for p in GamePhase}
         if unknown:  # a misspelt phase would silently fall back to the default budget
             raise ValueError(f"unknown game phases in phase_simulations: {sorted(unknown)}")

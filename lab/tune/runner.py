@@ -12,7 +12,7 @@ import yaml
 from tqdm import tqdm
 
 from lab.data import generate_run_id
-from lab.generators import ConfigError, reference_spec, validate_seeds, validate_strategy_spec
+from lab.generators import ConfigError, validate_seeds, validate_strategy_spec
 from lab.tune.merge import merge_study
 from lab.tune.objective import arm_spec, run_trial
 from lab.tune.space import ParamSpec, parse_space, sample_params
@@ -65,8 +65,7 @@ def validate_tune_config(config: dict) -> None:
         raise ValueError("tuning config: `space` must be a non-empty list")
     try:
         validate_seeds(config["seeds"], "tuning config")
-        if "reference" in config:
-            validate_strategy_spec(config["reference"], "tuning config: `reference`")
+        validate_strategy_spec(config.get("reference"), "tuning config: `reference`")
     except ConfigError as e:
         raise ValueError(str(e)) from None
     if not isinstance(config["seeds"].get("count"), int) or config["seeds"].get("start") == "clock":
@@ -123,7 +122,7 @@ def run_study(config: dict, study_dir: Path, source_yaml_path: Path | None = Non
 
     specs: list[ParamSpec] = parse_space(config["space"])
     base = config.get("base", {}) or {}
-    reference = reference_spec(config)
+    reference = config["reference"]
     arm_spec(base, {})  # fail before the study starts on an unknown param in `base`
     seeds_cfg = config["seeds"]
     seed_count = int(seeds_cfg["count"])

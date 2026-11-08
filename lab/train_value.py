@@ -1,7 +1,7 @@
 """Train the value net on a replay dataset (lab/dataset.py).
 
-    uv run --group train python -m lab.train_value experiments/data/datasets/v2
-    uv run --group train python -m lab.train_value experiments/data/datasets/v2 --games 0.25   # learning curve
+    uv run --group train python -m lab.train_value experiments/data/datasets/selfplay
+    uv run --group train python -m lab.train_value experiments/data/datasets/selfplay --games 0.25   # learning curve
 
 Targets, from the deciding player's seat: v -> the result (+1 won, 0 tie, -1 lost) and
 margin -> (own score - opponent's score) / MARGIN_SCALE. Train and validation are split by

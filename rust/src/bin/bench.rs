@@ -58,14 +58,14 @@ fn main() {
             );
         }
         "ismcts" => {
-            // the champion's search (mcts-v1 params) at 1000 simulations
+            // the tuned tree (TUNED_TREE in src/wingspan/ai/rust.py) at 1000 simulations
             let states = states(n.unwrap_or(60));
             let cfg = MctsConfig {
                 simulations: 1000,
-                exploration: 2.2709568546160086,
-                value_function: ValueFunction::AbsoluteScore,
-                widening_k: Some(1.7011601880020222),
-                widening_alpha: 0.8342441456576,
+                exploration: 1.1354669047764545,
+                value_function: ValueFunction::ScoreDelta,
+                widening_k: Some(1.412915005594185),
+                widening_alpha: 0.6303665309124046,
             };
             let t = Instant::now();
             let mut visits = 0u64;
