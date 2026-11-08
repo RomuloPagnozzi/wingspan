@@ -1,0 +1,32 @@
+# Same as selfplay_flat_mc.yaml, with the playouts run by the Rust engine (rust/). Self-play training data: paired flat Monte Carlo with per-phase budgets in both seats,
+# a new starting setup every game, 80/20 green/blue scoring. Runs until stopped:
+#   uv run python -m lab -c experiments/selfplay_flat_mc_rs.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay_rs_local
+# Ctrl+C once: in-flight games finish and the files close (twice: quit at once).
+# On a rented server (lab/cloud.py) the agent sets its own seeds and num_workers.
+# Budgets as in EXP-012 (experiments/flat_mc_phase_budget.yaml), where they are explained.
+mode: continuous
+num_workers: 7
+blue_share: 0.2  # 80/20 green/blue round-goal scoring, chosen by each game's seed
+
+seeds:
+  start: clock  # no count: endless; each game gets the next seed
+
+defaults:
+  strategy: flat_mc_rs
+  value_function: absolute_score
+  paired: true
+  playouts: 1500
+  phase_playouts:
+    select_initial_cards: 6000
+    activate_powers: 750
+    play_bird: 600
+    collect_food: 300
+    lay_eggs: 300
+    pay_egg_cost: 300
+    select_food_to_discard: 300
+    select_egg_to_discard: 300
+    end_turn: 300
+
+matchups:
+  - - {label: seat_a}
+    - {label: seat_b}
