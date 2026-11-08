@@ -1,5 +1,5 @@
 """How do the tree's root visits and Q values look as simulations grow? Real positions (replayed from the
-Rust self-play games), searched by the champion IS-MCTS at several budgets.
+Rust self-play games), searched by the tuned IS-MCTS (mcts_joint_v2) at several budgets.
 
 Per phase and budget: visit spread (effective number of moves = exp(visit entropy); equals the number of
 legal moves when visits are uniform), the top move's visit share, the Q gap between the best and second
@@ -22,8 +22,11 @@ import yaml
 
 ROOT = Path(__file__).parents[2]
 DATA = ROOT / "experiments/data/selfplay_rs_local"
-CHAMPION = yaml.safe_load((ROOT / "src/wingspan/ai/bots.yaml").read_text())["bots"]["mcts-v1"]["params"]
+# The tuned tree on the fixed engine (not bots.yaml's mcts-v1, which still has the pre-fix v1 params)
+CHAMPION = yaml.safe_load((ROOT / "experiments/tuning/mcts_joint_v2/best_params.yaml").read_text())["params"]
 BUDGETS = (1_500, 3_000, 10_000, 30_000)
+# Value units -> points: absolute_score = own score / 100, score_delta = (own - best other) / 50
+POINTS = {"absolute_score": 100, "score_delta": 50}[CHAMPION["value_function"]]
 
 
 def search_game(task):
@@ -62,7 +65,7 @@ def metrics(r):
     p = [x / total for x in v if x > 0]
     eff = math.exp(-sum(x * math.log(x) for x in p))
     q = sorted((x for x in r["q"] if not math.isnan(x)), reverse=True)
-    gap = 100 * (q[0] - q[1]) if len(q) > 1 else math.nan  # absolute_score: value = points / 100
+    gap = POINTS * (q[0] - q[1]) if len(q) > 1 else math.nan
     best_q = max(range(len(v)), key=lambda i: -math.inf if math.isnan(r["q"][i]) else r["q"][i])
     return {"eff_frac": eff / r["n_legal"], "eff": eff, "top_share": max(v) / total, "gap": gap,
             "agree": float(max(range(len(v)), key=v.__getitem__) == best_q), "n_legal": r["n_legal"]}
