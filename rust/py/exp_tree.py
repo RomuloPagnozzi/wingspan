@@ -10,7 +10,8 @@ after the last deal in the file, so a run can be stopped (Ctrl+C) and resumed at
     # results so far (also while it runs)
     PYTHONPATH=.:rust/py uv run python rust/py/exp_tree.py report scaling
 
-Sets: `tree` (EXP-013: tree and flat variants, 2026-11-08), `scaling` (the tree at 3k..100k simulations).
+Sets: `tree` (EXP-013: tree and flat variants, 2026-11-08), `scaling` (the tree at 3k..100k simulations,
+and at 10k/30k with the flat-MC phase table scaled to the tree: is the table useful at big budgets?).
 """
 
 import argparse
@@ -27,6 +28,15 @@ import yaml
 ROOT = Path(__file__).parents[2]
 REF = {k: v for k, v in yaml.safe_load((ROOT / "experiments/selfplay_flat_mc.yaml").read_text())["defaults"].items() if k != "strategy"}
 CHAMPION = yaml.safe_load((ROOT / "src/wingspan/ai/bots.yaml").read_text())["bots"]["mcts-v1"]["params"]
+# The flat-MC phase table (EXP-012) as ratios of its default budget, to scale for the tree
+TABLE_RATIO = {k: v / REF["playouts"] for k, v in REF["phase_playouts"].items()}
+
+
+def tree_table(n: int) -> tuple[str, dict]:
+    """The champion tree with `n` simulations by default and the phase table scaled to it."""
+    return ("mcts_rs", {**CHAMPION, "simulations": n, "phase_simulations": {k: round(r * n) for k, r in TABLE_RATIO.items()}})
+
+
 X10 = {**REF, "playouts": REF["playouts"] * 10, "phase_playouts": {k: v * 10 for k, v in REF["phase_playouts"].items()}}
 
 SETS = {
@@ -42,7 +52,11 @@ SETS = {
     },
     "scaling": {
         "first_deal": 30_001,
-        "arms": {f"tree_{n // 1000}k": ("mcts_rs", {**CHAMPION, "simulations": n}) for n in (3_000, 10_000, 30_000, 100_000)},
+        "arms": {
+            **{f"tree_{n // 1000}k": ("mcts_rs", {**CHAMPION, "simulations": n}) for n in (3_000, 10_000, 30_000, 100_000)},
+            "tree_table_10k": tree_table(10_000),
+            "tree_table_30k": tree_table(30_000),
+        },
     },
 }
 
