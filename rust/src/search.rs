@@ -156,6 +156,163 @@ pub fn flat_mc(s: &State, budget: usize, paired: bool, vf: ValueFunction, seed: 
     (legal, totals, counts)
 }
 
+// =============================================================================
+// IS-MCTS (ai/mcts.py, determinize=True): one tree over the player's information set; every
+// simulation re-deals the hidden cards, walks the tree with the moves legal in that world, adds one
+// node and finishes with a random rollout. Values are per player: each node is judged by whoever
+// moves at its parent.
+// =============================================================================
+
+#[derive(Clone, Copy, Debug)]
+pub struct MctsConfig {
+    pub simulations: usize,
+    pub exploration: f64,
+    pub value_function: ValueFunction,
+    pub widening_k: Option<f64>,
+    pub widening_alpha: f64,
+}
+
+struct Node {
+    parent: usize, // usize::MAX at the root
+    children: Vec<(Action, usize)>, // insertion order, as Python's dict
+    visits: u32,
+    availability: u32,
+    total: [f64; 5], // per player
+}
+
+const MAX_PLAYERS: usize = 5;
+
+/// `_compute_values`: every player's value of a finished game.
+fn values_all(s: &mut State, vf: ValueFunction) -> [f64; MAX_PLAYERS] {
+    let mut out = [0.0; MAX_PLAYERS];
+    for (i, v) in out.iter_mut().enumerate().take(s.players.len()) {
+        *v = value(s, i, vf);
+    }
+    out
+}
+
+fn rollout(s: &mut State, vf: ValueFunction, rng: &mut Rng, buf: &mut Vec<Action>) -> [f64; MAX_PLAYERS] {
+    loop {
+        legal_actions_into(s, buf);
+        if buf.is_empty() {
+            return values_all(s, vf);
+        }
+        let a = buf[rng.below(buf.len())].clone();
+        apply(s, &a, rng).expect("legal action failed in a rollout");
+    }
+}
+
+fn backpropagate(nodes: &mut [Node], mut i: usize, v: &[f64; MAX_PLAYERS]) {
+    while i != usize::MAX {
+        let n = &mut nodes[i];
+        n.visits += 1;
+        for (t, x) in n.total.iter_mut().zip(v) {
+            *t += x;
+        }
+        i = n.parent;
+    }
+}
+
+/// `_can_expand` (progressive widening: at most k * visits^alpha children).
+fn can_expand(node: &Node, untried: usize, cfg: &MctsConfig) -> bool {
+    if untried == 0 {
+        return false;
+    }
+    match cfg.widening_k {
+        None => true,
+        Some(k) => node.children.len() < ((k * (node.visits as f64).powf(cfg.widening_alpha)).floor() as usize).max(1),
+    }
+}
+
+fn ucb(n: &Node, c: f64, player: usize) -> f64 {
+    if n.visits == 0 || n.availability == 0 {
+        return f64::INFINITY;
+    }
+    n.total[player] / n.visits as f64 + c * ((n.availability as f64).ln() / n.visits as f64).sqrt()
+}
+
+/// Root statistics after the search: (root child moves, their visits, their value for the searcher),
+/// plus the root value. Children may include moves legal only in some re-dealt world.
+pub struct MctsResult {
+    pub actions: Vec<Action>,
+    pub visits: Vec<u32>,
+    pub values: Vec<f64>,
+    pub root_value: Option<f64>,
+}
+
+pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
+    let mut rng = Rng::new(seed);
+    let me = root_state.current_player_index;
+    let vf = cfg.value_function;
+    let mut nodes = vec![Node { parent: usize::MAX, children: vec![], visits: 0, availability: 0, total: [0.0; 5] }];
+    let (mut legal, mut buf) = (Vec::with_capacity(96), Vec::with_capacity(96));
+    let mut untried: Vec<usize> = vec![];
+    let mut compatible: Vec<usize> = vec![]; // indices into the node's children
+    for _ in 0..cfg.simulations {
+        let mut s = redeterminize(root_state, me, &mut rng);
+        let mut node = 0;
+        loop {
+            legal_actions_into(&s, &mut legal);
+            if legal.is_empty() {
+                let v = values_all(&mut s, vf);
+                backpropagate(&mut nodes, node, &v);
+                break;
+            }
+            let children = &nodes[node].children;
+            untried.clear();
+            compatible.clear();
+            for (i, a) in legal.iter().enumerate() {
+                if !children.iter().any(|(b, _)| b == a) {
+                    untried.push(i);
+                }
+            }
+            for (ci, (b, _)) in children.iter().enumerate() {
+                if legal.contains(b) {
+                    compatible.push(ci);
+                }
+            }
+            if !untried.is_empty() && (compatible.is_empty() || can_expand(&nodes[node], untried.len(), cfg)) {
+                let a = legal[untried[rng.below(untried.len())]].clone();
+                apply(&mut s, &a, &mut rng).expect("legal action failed in the tree");
+                let child = nodes.len();
+                nodes.push(Node { parent: node, children: vec![], visits: 0, availability: 0, total: [0.0; 5] });
+                nodes[node].children.push((a, child));
+                let v = rollout(&mut s, vf, &mut rng, &mut buf);
+                backpropagate(&mut nodes, child, &v);
+                break;
+            }
+            // Every legal move has a child: count availability for each, then UCB from the mover's view
+            let player = s.current_player_index;
+            let (mut best, mut best_ucb) = (usize::MAX, f64::NEG_INFINITY);
+            for &ci in &compatible {
+                let c = nodes[node].children[ci].1;
+                nodes[c].availability += 1;
+                let u = ucb(&nodes[c], cfg.exploration, player);
+                if u > best_ucb {
+                    (best, best_ucb) = (ci, u);
+                }
+            }
+            let (a, c) = nodes[node].children[best].clone();
+            apply(&mut s, &a, &mut rng).expect("legal action failed in the tree");
+            node = c;
+        }
+    }
+    let root = &nodes[0];
+    let mut out = MctsResult {
+        actions: vec![],
+        visits: vec![],
+        values: vec![],
+        root_value: (root.visits > 0).then(|| root.total[me] / root.visits as f64),
+    };
+    for (a, c) in &root.children {
+        let n = &nodes[*c];
+        out.actions.push(a.clone());
+        out.visits.push(n.visits);
+        out.values.push(if n.visits > 0 { n.total[me] / n.visits as f64 } else { f64::NAN });
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

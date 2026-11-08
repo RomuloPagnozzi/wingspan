@@ -74,6 +74,27 @@ mod python {
         Ok((legal.iter().map(|a| a.to_string()).collect(), totals, counts))
     }
 
+    /// IS-MCTS for the player to move (search.rs). Returns (root child move strings, visits, value for
+    /// the searcher, root value); children may include moves legal only in some re-dealt world.
+    #[pyfunction]
+    #[pyo3(signature = (state_json, simulations, exploration, value_function, widening_k, widening_alpha, seed))]
+    fn ismcts(
+        state_json: &str,
+        simulations: usize,
+        exploration: f64,
+        value_function: &str,
+        widening_k: Option<f64>,
+        widening_alpha: f64,
+        seed: u64,
+    ) -> PyResult<(Vec<String>, Vec<u32>, Vec<f64>, Option<f64>)> {
+        let s = parse(state_json)?;
+        let vf = crate::search::ValueFunction::parse(value_function)
+            .ok_or_else(|| PyValueError::new_err(format!("unknown value function {value_function}")))?;
+        let cfg = crate::search::MctsConfig { simulations, exploration, value_function: vf, widening_k, widening_alpha };
+        let r = crate::search::ismcts(&s, &cfg, seed);
+        Ok((r.actions.iter().map(|a| a.to_string()).collect(), r.visits, r.values, r.root_value))
+    }
+
     /// Re-deal the cards `me` can't see; returns the new state json.
     #[pyfunction]
     fn redeterminize(state_json: &str, me: usize, seed: u64) -> PyResult<String> {
@@ -95,6 +116,7 @@ mod python {
         m.add_function(wrap_pyfunction!(bench_games, m)?)?;
         m.add_function(wrap_pyfunction!(flat_mc, m)?)?;
         m.add_function(wrap_pyfunction!(redeterminize, m)?)?;
+        m.add_function(wrap_pyfunction!(ismcts, m)?)?;
         Ok(())
     }
 }

@@ -15,12 +15,13 @@ __all__ = [
     "FlatMCConfig",
 ]
 
-# Optional: `flat_mc_rs` (flat_mc with its playouts in the Rust engine, rust/) when the extension is built.
+# Optional: `flat_mc_rs` and `mcts_rs` (search run by the Rust engine, rust/) when the extension is built.
 try:
     import sys as _sys
     from pathlib import Path as _Path
 
     _sys.path.append(str(_Path(__file__).parents[3] / "rust" / "py"))
-    import flat_mc_rs as _flat_mc_rs  # noqa: F401  (registers the strategy)
+    import flat_mc_rs as _flat_mc_rs  # noqa: F401  (registers the strategies)
+    import mcts_rs as _mcts_rs  # noqa: F401
 except ImportError:
     pass

@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use wingspan_rs::chance::Rng;
 use wingspan_rs::rules::{apply, initiate, legal_actions};
-use wingspan_rs::search::{flat_mc, ValueFunction};
+use wingspan_rs::search::{flat_mc, ismcts, MctsConfig, ValueFunction};
 use wingspan_rs::state::{ScoringMode, State};
 
 fn states(n: usize) -> Vec<State> {
@@ -57,6 +57,25 @@ fn main() {
                 secs * 1e3 / states.len() as f64
             );
         }
+        "ismcts" => {
+            // the champion's search (mcts-v1 params) at 1000 simulations
+            let states = states(n.unwrap_or(60));
+            let cfg = MctsConfig {
+                simulations: 1000,
+                exploration: 2.2709568546160086,
+                value_function: ValueFunction::AbsoluteScore,
+                widening_k: Some(1.7011601880020222),
+                widening_alpha: 0.8342441456576,
+            };
+            let t = Instant::now();
+            let mut visits = 0u64;
+            for (i, s) in states.iter().enumerate() {
+                visits += ismcts(s, &cfg, i as u64).visits.iter().map(|&v| v as u64).sum::<u64>();
+            }
+            let secs = t.elapsed().as_secs_f64();
+            println!("IS-MCTS 1000 sims on {} states: {:.2} ms/decision, {:.1} us/simulation (root visits {visits})",
+                states.len(), secs * 1e3 / states.len() as f64, secs * 1e6 / (1000.0 * states.len() as f64));
+        }
         "phases" => {
             // legal_actions cost by phase, over the states random games pass through
             let mut rng = Rng::new(3);
@@ -92,6 +111,6 @@ fn main() {
                 println!("{phase:<22} {:5.1}% of states  {ns:7.1} ns/call  {:5.1}% of legal_actions time", 100.0 * n as f64 / total_states as f64, 100.0 * w / all);
             }
         }
-        _ => panic!("mode: random | flatmc | phases"),
+        _ => panic!("mode: random | flatmc | ismcts | phases"),
     }
 }
