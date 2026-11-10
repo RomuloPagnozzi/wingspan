@@ -52,6 +52,8 @@ fn main() {
                 value_function: ValueFunction::ScoreDelta,
                 widening_k: Some(1.412915005594185),
                 widening_alpha: 0.6303665309124046,
+                value_net: None,
+                net_mix: 1.0,
             };
             let t = Instant::now();
             // The visits and values at every root: identical before and after a change that keeps the search

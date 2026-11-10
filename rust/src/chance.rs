@@ -85,3 +85,56 @@ impl Chance for Replay {
         }
     }
 }
+
+/// Python's `random.Random` (CPython's Mersenne Twister, `_randbelow`, `choice`, `shuffle`), started from
+/// a state Python hands over (`rng.getstate()[1]`: 624 words and the position). The Python engine draws
+/// every die and shuffle from it, so a recorded game replays in Rust from its seed alone.
+pub struct PyRandom {
+    mt: [u32; 624],
+    i: usize,
+}
+
+impl PyRandom {
+    pub fn from_state(state: &[u32]) -> PyRandom {
+        assert_eq!(state.len(), 625, "Python's Mersenne Twister state is 624 words and a position");
+        PyRandom { mt: state[..624].try_into().unwrap(), i: state[624] as usize }
+    }
+
+    fn next_u32(&mut self) -> u32 {
+        if self.i >= 624 {
+            for k in 0..624 {
+                let y = (self.mt[k] & 0x8000_0000) | (self.mt[(k + 1) % 624] & 0x7fff_ffff);
+                self.mt[k] = self.mt[(k + 397) % 624] ^ (y >> 1) ^ if y & 1 == 1 { 0x9908_b0df } else { 0 };
+            }
+            self.i = 0;
+        }
+        let mut y = self.mt[self.i];
+        self.i += 1;
+        y ^= y >> 11;
+        y ^= (y << 7) & 0x9d2c_5680;
+        y ^= (y << 15) & 0xefc6_0000;
+        y ^ (y >> 18)
+    }
+
+    /// `_randbelow_with_getrandbits`: k-bit draws (the top k bits of a word), rejected until below n.
+    fn below(&mut self, n: usize) -> usize {
+        let k = usize::BITS - n.leading_zeros();
+        loop {
+            let r = (self.next_u32() >> (32 - k)) as usize;
+            if r < n {
+                return r;
+            }
+        }
+    }
+}
+
+impl Chance for PyRandom {
+    fn roll_die(&mut self) -> u8 {
+        self.below(6) as u8 // rng.choice(faces), faces in FACES order
+    }
+    fn shuffle(&mut self, v: &mut Vec<u16>) {
+        for i in (1..v.len()).rev() {
+            v.swap(i, self.below(i + 1));
+        }
+    }
+}

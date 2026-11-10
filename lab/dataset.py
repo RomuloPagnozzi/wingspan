@@ -1,6 +1,7 @@
 """Replay dataset: decisions.parquet -> the arrays the networks train on.
 
-decisions.parquet keeps only action strings, so each game is replayed from its seed: forced
+decisions.parquet keeps only action strings, so each game is replayed from its seed (in Rust, with the
+encodings of wingspan.ai.encoding ported value for value: rust/py/encoding_parity.py): forced
 single-legal steps are applied, and every recorded decision is encoded from the deciding player's
 seat. A replay that disagrees with the recording (different legal moves, a different player to
 move) stops the build. Everything is stored raw: visit counts, Q values, the move taken, final
@@ -26,67 +27,45 @@ meta.json holds the feature names, the phases, each game's id and seed, and the 
 
 import argparse
 import json
-import math
 from contextlib import nullcontext
 from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
 from numpy.lib.format import open_memmap
 
-from wingspan.ai.encoding import (
-    PHASES,
-    action_bird_ids,
-    action_feature_names,
-    encode_action,
-    encode_obs,
-    player_feature_names,
-    shared_feature_names,
-)
-from wingspan.engine.actions import get_actions
+import wingspan_rs
+from wingspan.ai.encoding import PHASES, action_feature_names, player_feature_names, shared_feature_names
+from wingspan.ai.rust import state_json
 from wingspan.engine.core import ScoringMode, init_registries, initiate_state
-from wingspan.engine.engine import transition_state
 
 DECISION_COLUMNS = ["game_id", "decision_idx", "game_seed", "player_position", "round",
                     "action_taken", "legal_actions", "visit_counts", "mcts_action_values", "outcome"]  # fmt: skip
 
 
-def encode_game(task: tuple[int, int, list[dict], str]) -> dict[str, list]:
-    """Replay one game, in the scoring mode it was played in, and encode its recorded decisions."""
+def encode_game(task: tuple[int, int, list[dict], str]) -> dict:
+    """Replay one game, in the scoring mode it was played in, and encode its recorded decisions. The deal
+    is made here; the replay runs in Rust (rust/src/replay.rs), drawing dice and shuffles from the game's
+    own random generator, so it reaches exactly the states the game was played in."""
     game_seed, n_players, rows, scoring = task
     state = initiate_state(n_players, ScoringMode(scoring), seed=game_seed)
-    out: dict[str, list] = {k: [] for k in (
-        "obs", "hand", "tray", "act", "act_birds", "visits", "q", "n_act", "taken", "phase", "round", "player", "outcome",
-    )}  # fmt: skip
-    for row in rows:
-        while len(actions := get_actions(state)) == 1:  # forced steps are not recorded
-            state = transition_state(state, actions[0])
-        by_str = {str(a): a for a in actions}
-        if sorted(by_str) != sorted(row["legal_actions"]):
-            raise ValueError(f"seed {game_seed}: replay diverged at decision {row['decision_idx']}")
-        me = state.current_player_index
-        if me != row["player_position"] - 1:
-            raise ValueError(f"seed {game_seed}: wrong player at decision {row['decision_idx']}")
-
-        obs = encode_obs(state, me)
-        visits = dict(row["visit_counts"] or ())
-        values = dict(row["mcts_action_values"] or ())
-        out["obs"].append(obs.flat())
-        out["hand"].append(obs.hand)
-        out["tray"].append(obs.tray)
-        for action in actions:
-            out["act"].append(encode_action(state, action))
-            out["act_birds"].append(action_bird_ids(action))
-            out["visits"].append(visits.get(str(action), 0))
-            out["q"].append(values.get(str(action), math.nan))
-        out["n_act"].append(len(actions))
-        out["taken"].append([str(a) for a in actions].index(row["action_taken"]))
-        out["phase"].append(PHASES.index(state.game_phase.value))
-        out["round"].append(row["round"])
-        out["player"].append(me)
-        out["outcome"].append(row["outcome"])
-        state = transition_state(state, by_str[row["action_taken"]])
+    recorded = [
+        (r["decision_idx"], list(r["legal_actions"]), r["action_taken"], r["player_position"] - 1,
+         list(dict(r["visit_counts"] or ()).items()), list(dict(r["mcts_action_values"] or ()).items()))
+        for r in rows
+    ]  # fmt: skip
+    try:
+        out = wingspan_rs.replay_game(state_json(state), list(state.rng.getstate()[1]), recorded)
+    except ValueError as e:
+        raise ValueError(f"seed {game_seed}: {e}") from None
+    out["obs"] = np.frombuffer(out["obs"], np.float32).reshape(len(rows), -1)
+    out["act"] = np.frombuffer(out["act"], np.float32).reshape(-1, len(action_feature_names()))
+    out["round"] = [r["round"] for r in rows]
+    out["player"] = [r["player_position"] - 1 for r in rows]
+    out["outcome"] = [r["outcome"] for r in rows]
     return out
 
 
@@ -100,38 +79,52 @@ def _ragged(lists: list[list[int]]) -> tuple[np.ndarray, np.ndarray]:
 def build(srcs: list[Path], out: Path, workers: int = 7, max_games: int | None = None) -> None:
     """`srcs`: run folders (e.g. the chunks of one cloud run), combined into one dataset."""
     # games.parquet, or the games_NNNN.parquet parts of a rotating run (never the open .tmp)
-    d = pd.concat(pd.read_parquet(f, columns=DECISION_COLUMNS) for s in srcs for f in sorted(s.glob("decisions*.parquet")))
+    files = [f for s in srcs for f in sorted(s.glob("decisions*.parquet"))]
     g = pd.concat(
         pd.read_parquet(f).reindex(columns=["game_id", "player_position", "player_count", "total_score", "scoring"])
         for s in srcs
         for f in sorted(s.glob("games*.parquet"))
     )
-    d = d[d.game_id.isin(g.game_id)]  # a rotating run can hold a game's decisions before its result
-    game_ids = sorted(d.game_id.unique())[:max_games]
-    d = d[d.game_id.isin(game_ids)].sort_values(["game_id", "decision_idx"])
+    finished = set(g.game_id)  # a rotating run can hold a game's decisions before its result
+
+    # Files are read one at a time (each holds whole games): all decisions as Python objects don't fit
+    # in memory. A first, cheap pass sizes the arrays: rows and moves per game, in the order written.
+    per_file, game_ids, seeds, n, m = [], [], {}, 0, 0
+    for f in files:
+        t = pq.read_table(f, columns=["game_id", "game_seed", "legal_actions"])
+        seeds |= dict(zip(t["game_id"].to_pylist(), t["game_seed"].to_pylist()))
+        x = pd.DataFrame({"game_id": t["game_id"].to_numpy(), "moves": pc.list_value_length(t["legal_actions"]).to_numpy()})
+        ids = sorted(set(x.game_id) & finished)[: None if max_games is None else max_games - len(game_ids)]
+        x = x[x.game_id.isin(ids)]
+        per_file.append((f, ids))
+        game_ids += ids
+        n, m = n + len(x), m + int(x.moves.sum())
+    if len(set(game_ids)) != len(game_ids):
+        raise ValueError("a game's decisions are split across files")
     if g[g.game_id.isin(game_ids)].player_count.nunique() != 1:
         raise ValueError("games with different player counts have different observation sizes")
     n_players = int(g.player_count.iloc[0])
     score = {(r.game_id, r.player_position - 1): r.total_score for r in g.itertuples()}
-
-    n, m = len(d), int(d.legal_actions.map(len).sum())
+    scoring = g.groupby("game_id").scoring.first()
     n_obs = n_players * len(player_feature_names()) + len(shared_feature_names())
     out.mkdir(parents=True, exist_ok=True)
     obs = open_memmap(out / "obs.npy", "w+", np.float16, (n, n_obs))
     act = open_memmap(out / "act.npy", "w+", np.float16, (m, len(action_feature_names())))
 
-    seeds = d.groupby("game_id").game_seed.first()
-    scoring = g.groupby("game_id").scoring.first()
-    # One game at a time. A pool queues every task up front, so with one worker it is skipped
-    # and only one game's rows are ever held as Python objects.
-    tasks = ((int(seeds[gid]), n_players, x.to_dict("records"), scoring[gid]) for gid, x in d.groupby("game_id", sort=True))
+    def tasks():  # one file's games: a pool queues every task it is given up front
+        for f, ids in per_file:
+            d = pd.read_parquet(f, columns=DECISION_COLUMNS)
+            d = d[d.game_id.isin(ids)].sort_values(["game_id", "decision_idx"])
+            yield [(int(x.game_seed.iloc[0]), n_players, x.to_dict("records"), scoring[gid]) for gid, x in d.groupby("game_id")]
+
     pool = Pool(workers, initializer=init_registries) if workers > 1 else None
     if pool is None:
         init_registries()
     small: dict[str, list] = {}
     i = j = 0
+    results = (res for batch in tasks() for res in (pool.imap(encode_game, batch) if pool else map(encode_game, batch)))
     with pool or nullcontext():
-        for k, res in enumerate(pool.imap(encode_game, tasks, chunksize=2) if pool else map(encode_game, tasks)):
+        for k, res in enumerate(results):
             obs[i : i + len(res["obs"])] = res["obs"]
             act[j : j + len(res["act"])] = res["act"]
             i, j = i + len(res["obs"]), j + len(res["act"])

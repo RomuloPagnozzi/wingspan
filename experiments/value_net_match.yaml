@@ -1,0 +1,14 @@
+# The tree with value-net leaves vs the plain tree (random rollouts), at about equal thinking time.
+# A net leaf costs ~22 us, a rollout ~12 us (net + rollout for the mix ~32 us): net-only gets 1000
+# simulations and the mix 750 against the tree's 2000. Per-game time (lab.summary s/game) checks the match.
+#   caffeinate -dis uv run python -m lab -c experiments/value_net_match.yaml --record-decisions -o experiments/data/value_net_match
+mode: vs_reference
+num_workers: 8
+base: {strategy: mcts_rs, value_net: experiments/data/models/value.bin}
+compare:
+  reference_label: tree_2000
+  reference: {strategy: mcts_rs, simulations: 2000}
+  values:
+    - {label: net_1000, overrides: {simulations: 1000, net_mix: 1.0}}
+    - {label: mix_750, overrides: {simulations: 750, net_mix: 0.5}}
+seeds: {start: 90001, count: 300}

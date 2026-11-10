@@ -4,6 +4,8 @@ use crate::actions::Action;
 use crate::chance::{Chance, Rng};
 use crate::data::data;
 use crate::rules::{apply, legal_actions_into, total_score, update_player_scores};
+use crate::encode::encode_obs;
+use crate::net::ValueNet;
 use crate::state::State;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,13 +112,17 @@ pub fn redeterminize(s: &State, me: usize, rng: &mut Rng) -> State {
 // moves at its parent.
 // =============================================================================
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct MctsConfig {
     pub simulations: usize,
     pub exploration: f64,
     pub value_function: ValueFunction,
     pub widening_k: Option<f64>,
     pub widening_alpha: f64,
+    /// Judge new leaves with this value net instead of (or mixed with) a random rollout: `net_mix` of the
+    /// net's margin plus `1 - net_mix` of the rollout, both in score_delta units.
+    pub value_net: Option<&'static ValueNet>,
+    pub net_mix: f64,
 }
 
 struct Node {
@@ -147,6 +153,48 @@ fn rollout(s: &mut State, vf: ValueFunction, rng: &mut Rng, buf: &mut Vec<Action
         let a = buf[rng.below(buf.len())].clone();
         apply(s, &a, rng).expect("legal action failed in a rollout");
     }
+}
+
+/// `n` random playouts for the player to move, each from a fresh re-deal of what they can't see (as every
+/// simulation of the search does): their final score minus the best opponent's, in points.
+pub fn rollouts(s: &State, n: usize, seed: u64) -> Vec<f64> {
+    let me = s.current_player_index;
+    let (mut rng, mut buf) = (Rng::new(seed), Vec::new());
+    (0..n)
+        .map(|_| 50.0 * rollout(&mut redeterminize(s, me, &mut rng), ValueFunction::ScoreDelta, &mut rng, &mut buf)[me])
+        .collect()
+}
+
+/// The value of a new leaf for every player: a random rollout, or the value net's estimate of the final
+/// margin for the player to move (after any forced steps, as the net only saw decisions), or a mix.
+fn leaf_value(s: &mut State, cfg: &MctsConfig, rng: &mut Rng, buf: &mut Vec<Action>) -> [f64; MAX_PLAYERS] {
+    let Some(net) = cfg.value_net else {
+        return rollout(s, cfg.value_function, rng, buf);
+    };
+    loop {
+        legal_actions_into(s, buf);
+        if buf.len() != 1 {
+            break;
+        }
+        let a = buf[0].clone();
+        apply(s, &a, rng).expect("legal action failed at a leaf");
+    }
+    if buf.is_empty() {
+        return values_all(s, cfg.value_function);
+    }
+    let me = s.current_player_index;
+    let margin = net.evaluate(&encode_obs(s, me)).1 as f64 / 50.0; // score_delta units
+    let mut v = [0.0; MAX_PLAYERS];
+    for (i, x) in v.iter_mut().enumerate().take(s.players.len()) {
+        *x = if i == me { margin } else { -margin };
+    }
+    if cfg.net_mix < 1.0 {
+        let r = rollout(s, cfg.value_function, rng, buf);
+        for (x, r) in v.iter_mut().zip(r) {
+            *x = cfg.net_mix * *x + (1.0 - cfg.net_mix) * r;
+        }
+    }
+    v
 }
 
 fn backpropagate(nodes: &mut [Node], mut i: usize, v: &[f64; MAX_PLAYERS]) {
@@ -188,6 +236,10 @@ pub struct MctsResult {
 }
 
 pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
+    if cfg.value_net.is_some() {
+        // The net's margin is "me minus the opponent", which is score_delta for two players only
+        assert!(root_state.players.len() == 2 && matches!(cfg.value_function, ValueFunction::ScoreDelta));
+    }
     let mut rng = Rng::new(seed);
     let me = root_state.current_player_index;
     let vf = cfg.value_function;
@@ -224,7 +276,7 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
                 let child = nodes.len();
                 nodes.push(Node { parent: node, children: vec![], visits: 0, availability: 0, total: [0.0; 5] });
                 nodes[node].children.push((a, child));
-                let v = rollout(&mut s, vf, &mut rng, &mut buf);
+                let v = leaf_value(&mut s, cfg, &mut rng, &mut buf);
                 backpropagate(&mut nodes, child, &v);
                 break;
             }

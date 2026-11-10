@@ -43,3 +43,17 @@ def test_mcts_rs_defaults_to_the_tuned_tree():
     config = create_strategy("mcts_rs", seed=1).config
     assert {k: config[k] for k in TUNED_TREE} == TUNED_TREE
     assert create_strategy("mcts_rs", simulations=10_000).config["simulations"] == 10_000
+
+
+def test_playout_cap_randomization_mixes_fast_and_full_searches():
+    s = _main_turn_state()
+    legal = get_actions(s)
+    totals = set()
+    bot = create_strategy("mcts_rs", seed=4, simulations=200, fast_simulations=40, full_fraction=0.5)
+    for _ in range(30):
+        bot.select_action(s, legal)
+        totals.add(sum(bot.get_last_visit_counts().values()))
+    assert totals == {40, 200}  # both budgets used
+    assert create_strategy("mcts_rs", fast_simulations=40, full_fraction=0.25).config["full_fraction"] == 0.25
+    with pytest.raises(ValueError):
+        create_strategy("mcts_rs", fast_simulations=40, full_fraction=1.5)

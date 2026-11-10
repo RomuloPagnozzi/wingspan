@@ -26,3 +26,18 @@ class ValueNet(nn.Module):
     def forward(self, obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         h = self.trunk(obs)
         return torch.tanh(self.value(h)).squeeze(-1), self.margin(h).squeeze(-1)
+
+
+def export_value_net(net: ValueNet, path, margin_scale: float) -> None:
+    """Write the weights for the Rust search (rust/src/net.rs reads this layout): f32 margin scale, u32 number
+    of linear layers (trunk, value head, margin head), then per layer u32 out, u32 in, f32 weights, f32 bias."""
+    import struct
+
+    layers = [m for m in net.trunk if isinstance(m, nn.Linear)] + [net.value, net.margin]
+    with open(path, "wb") as f:
+        f.write(struct.pack("<fI", margin_scale, len(layers)))
+        for layer in layers:
+            w = layer.weight.detach().cpu().float().contiguous()
+            f.write(struct.pack("<II", *w.shape))
+            f.write(w.numpy().astype("<f4").tobytes())
+            f.write(layer.bias.detach().cpu().float().numpy().astype("<f4").tobytes())

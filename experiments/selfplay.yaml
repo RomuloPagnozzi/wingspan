@@ -1,4 +1,4 @@
-# Self-play training data: the tuned tree (mcts_rs) at 10k simulations in both seats
+# Self-play training data: the tuned tree (mcts_rs) in both seats, with playout cap randomization
 # A new deal every game, 80/20 green/blue scoring. Runs until stopped (Ctrl+C once: in-flight games
 # finish and the files close; twice: quit at once):
 #   caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay
@@ -10,8 +10,10 @@ seeds:
   start: clock  # no count: endless; each game gets the next seed
 
 defaults:
-  strategy: mcts_rs  # TUNED_TREE defaults otherwise
-  simulations: 10000
+  strategy: mcts_rs        # TUNED_TREE defaults otherwise
+  simulations: 10000       # the full searches, a random 25% of decisions: the policy targets
+  fast_simulations: 2000   # the rest, to play on at decent strength; every game's outcome is a value target
+  full_fraction: 0.25
 
 matchups:
   - - {label: seat_a}
