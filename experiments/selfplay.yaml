@@ -1,7 +1,7 @@
-# Self-play training data: paired flat Monte Carlo with per-phase budgets in both seats
+# Self-play training data: the tuned tree (mcts_rs) in both seats, with playout cap randomization
 # A new deal every game, 80/20 green/blue scoring. Runs until stopped (Ctrl+C once: in-flight games
 # finish and the files close; twice: quit at once):
-#   caffeinate -is uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay
+#   caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay
 mode: continuous
 num_workers: 7
 blue_share: 0.2  # green/blue round-goal scoring, chosen by each game's seed
@@ -10,22 +10,10 @@ seeds:
   start: clock  # no count: endless; each game gets the next seed
 
 defaults:
-  strategy: flat_mc
-  value_function: absolute_score
-  paired: true
-  # Playouts per decision, split across the legal moves; phases not listed use `playouts`. Set from the gap
-  # between the best and second-best move (in final points) and the playouts needed to separate them.
-  playouts: 1500                 # main_turn, draw_cards, pay_food_cost, trades, discard_food: worth it
-  phase_playouts:
-    select_initial_cards: 6000   # 64 options; best vs worst hand ~10 points
-    activate_powers: 750         # ~290 per move separate them
-    play_bird: 600               # ~110 per move separate them
-    collect_food: 300            # the rest: best vs second < 0.1 point, so a wrong pick is cheap and
-    lay_eggs: 300                # separating them would take 5,000-12,000 playouts per move
-    pay_egg_cost: 300
-    select_food_to_discard: 300
-    select_egg_to_discard: 300
-    end_turn: 300
+  strategy: mcts_rs        # TUNED_TREE defaults otherwise
+  simulations: 10000       # the full searches, a random 25% of decisions: the policy targets
+  fast_simulations: 2000   # the rest, to play on at decent strength; every game's outcome is a value target
+  full_fraction: 0.25
 
 matchups:
   - - {label: seat_a}

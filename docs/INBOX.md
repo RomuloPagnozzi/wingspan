@@ -15,8 +15,30 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   current data (its build read games that no longer exist) and the networks as they are.
 - **Lab UI**: a browser UI for experiments, runs and data exploration, built like the game's UI, to replace
   reading tables in the terminal. Big; start from scratch.
+- **Set-encoded cards** (roadmap steps 4-5). Summing raw card features over a hand or a multi-bird move
+  loses which properties belong to the same card (grassland-bowl + wetland-cavity looks like wetland-bowl +
+  grassland-cavity). A set encoder (each card through a shared small net φ, then summed) keeps it. The
+  card ids are ready: `wingspan.ai.encoding` exposes them and the dataset stores them (`hand`, `tray`,
+  `act_birds`); φ and the nets that read them are not built. Compare on the observation (value; main-turn
+  choice once the policy exists) and on multi-bird moves (initial cards, draws); single-bird moves are a
+  control where no gain is expected.
+- **Moves the value net can't tell apart.** Winner accuracy doesn't measure what search needs: ranking the
+  positions one move apart. An offline check (does the net order sibling moves as the search's Q does?)
+  would score value nets for search before a match.
+- **Self-play is paused** (laptop stopped; home server container `wingspan-selfplay` stopped, restart
+  policy off: `docker update --restart=unless-stopped` and `docker start` to resume). Resume when the
+  policy net needs more 10k-simulation decisions.
 
 ## Ideas
+
+### Value net training
+- **More positions per game with mixed targets.** 16 per game was chosen with result-only targets, when
+  a game's positions shared one label. With search values each has its own, and the net no longer
+  memorizes: 32 per game may help (its gathered observations, ~7 GB, approach the laptop's memory).
+- **Seat augmentation.** Two players, zero-sum on the score difference: each position, encoded from the
+  opponent's seat with the negated targets, is a second honest example. Doubles storage, or needs the
+  Rust encoder at training time.
+- **Smaller net, weight averaging (SWA/EMA)**: cheap checks on the regularized recipe.
 
 ### Rollout truncation and a cheap evaluation
 Random playouts to the end of the game are mostly noise in the late tail. Cut them at a fixed depth and
@@ -36,13 +58,6 @@ only if experiments show slow convergence there.
 ### Complexity benchmark
 Branching factor per phase, game length, state-space estimates across player counts: a table that places
 Wingspan among the games in the game-AI literature.
-
-### Set-encoded cards
-Summing raw card features over a hand or a multi-bird move loses which properties belong to the same card
-(grassland-bowl + wetland-cavity looks like wetland-bowl + grassland-cavity). A set encoder (each card
-through a shared small net, then summed) keeps it. Compare the two on the observation (main-turn choice,
-value) and on multi-bird moves (initial cards, draws); single-bird moves are a control where no gain is
-expected. The encoder already exposes the card ids for it (`wingspan.ai.encoding`).
 
 ### 3+ player experiments
 Paired comparisons assume two players. With more: how many seats the reference takes, how wins are

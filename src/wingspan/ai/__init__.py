@@ -18,4 +18,4 @@ try:
 except ModuleNotFoundError:
     pass
 else:
-    from . import rust  # noqa: F401  (registers flat_mc and mcts_rs)
+    from . import rust  # noqa: F401  (registers mcts_rs)

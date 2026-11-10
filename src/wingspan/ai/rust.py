@@ -1,14 +1,15 @@
 """Strategies whose search runs in the Rust engine (`rust/`, Python module `wingspan_rs`), and the
 state export they use. Importing this module needs the extension built (see rust/README.md);
-`wingspan.ai` imports it when it is, which registers the strategies:
+`wingspan.ai` imports it when it is, which registers the strategy:
 
-- `flat_mc`: flat Monte Carlo. Random playouts for each legal move, then the best average; no tree.
-  With `paired` (common random numbers) each re-dealt world and playout seed is used for every legal
-  move, so the luck those playouts share cancels when moves are compared. `phase_playouts` sets
-  per-phase budgets.
 - `mcts_rs`: IS-MCTS (`mcts` with determinize=True, same MCTSConfig and decision rule: the most visited
-  root child legal in the real state), plus `phase_simulations`: per-phase budgets. Its defaults are the
-  tuned params (`TUNED_TREE`), so a spec only states what differs. Becomes `mcts` once the web app moves
+  root child legal in the real state), plus `phase_simulations`: per-phase budgets, and playout cap
+  randomization (`fast_simulations`, `full_fraction`): only a random share of decisions gets the full
+  budget, the rest a fast one, so self-play makes more games while the full searches give the policy
+  targets (a decision's total visits tell which it got). Its defaults are the
+  tuned params (`TUNED_TREE`), so a spec only states what differs. `value_net` (a file written by
+  `wingspan.ai.nets.export_value_net`) judges new leaves by the net's predicted final margin instead of a
+  random rollout; `net_mix` below 1 averages the two (net_mix * net + (1 - net_mix) * rollout). Becomes `mcts` once the web app moves
   to it (docs/INBOX.md).
 
 The game itself stays in the Python engine: Rust only searches. `state_json` is the canonical state
@@ -16,14 +17,12 @@ the two engines exchange (`rust/src/state.rs`); `rust/py/parity.py` checks them 
 """
 
 import json
-import random
-from dataclasses import dataclass
 
 import wingspan_rs
 
 from wingspan.engine.core import Action, GamePhase, GameState
 
-from .base import Strategy, ValueFunction, register_strategy
+from .base import register_strategy
 from .mcts import MCTSStrategy
 
 
@@ -151,67 +150,6 @@ def to_json(s: GameState) -> dict:
     }
 
 
-@dataclass(frozen=True, slots=True)
-class FlatMCConfig:
-    playouts: int = 1500  # per decision, split evenly across the legal moves
-    paired: bool = True
-    value_function: ValueFunction = ValueFunction.ABSOLUTE_SCORE
-    # Per-phase budgets, e.g. {"lay_eggs": 300}: game phase name -> playouts per decision.
-    # Phases not listed use `playouts`.
-    phase_playouts: dict[str, int] | None = None
-
-    def __post_init__(self):
-        unknown = set(self.phase_playouts or ()) - {p.value for p in GamePhase}
-        if unknown:  # a misspelt phase would silently fall back to the default budget
-            raise ValueError(f"unknown game phases in phase_playouts: {sorted(unknown)}")
-
-    def budget(self, phase: GamePhase) -> int:
-        return (self.phase_playouts or {}).get(phase.value, self.playouts)
-
-
-@register_strategy
-class FlatMCStrategy(Strategy):
-    name = "flat_mc"
-
-    def __init__(self, *, params: FlatMCConfig | None = None, seed: int | None = None, **kwargs):
-        if params is None:
-            kwargs = {k: v for k, v in kwargs.items() if k in FlatMCConfig.__dataclass_fields__}
-            if isinstance(kwargs.get("value_function"), str):
-                kwargs["value_function"] = ValueFunction(kwargs["value_function"])
-            params = FlatMCConfig(**kwargs)
-        self.params = params
-        self.seed: int = seed if seed is not None else random.randint(0, 2**31)
-        self._rng = random.Random(self.seed)
-        self._last_action_values: dict[Action, float] | None = None
-        self._last_visit_counts: dict[Action, int] | None = None
-
-    def get_last_visit_counts(self) -> dict[Action, int] | None:
-        return self._last_visit_counts
-
-    def get_last_action_values(self) -> dict[Action, float] | None:
-        return self._last_action_values
-
-    def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
-        if len(legal_actions) == 1:
-            return legal_actions[0]
-        p = self.params
-        strs, totals, counts = wingspan_rs.flat_mc(
-            state_json(state),
-            p.budget(state.game_phase),
-            p.paired,
-            p.value_function.value,
-            self._rng.getrandbits(64),
-        )
-        assert strs == [str(a) for a in legal_actions], "Rust and Python disagree on the legal moves"
-        means = [t / c if c else float("-inf") for t, c in zip(totals, counts)]
-        self._last_action_values = {a: m for a, m in zip(legal_actions, means) if m > float("-inf")}
-        self._last_visit_counts = dict(zip(legal_actions, counts))
-        return legal_actions[max(range(len(legal_actions)), key=means.__getitem__)]
-
-    def __str__(self) -> str:
-        return f"FlatMC(n={self.params.playouts}, {'paired' if self.params.paired else 'independent'})"
-
-
 # The best tree params found (Optuna search at 1500 simulations against a fixed opponent; best trial won
 # 73.8%). score_delta won clearly over win_loss and absolute_score (55 of 60 completed trials chose it).
 TUNED_TREE = {
@@ -228,8 +166,23 @@ TUNED_TREE = {
 class MCTSRsStrategy(MCTSStrategy):
     name = "mcts_rs"
 
-    def __init__(self, *, phase_simulations: dict[str, int] | None = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        phase_simulations: dict[str, int] | None = None,
+        fast_simulations: int | None = None,
+        full_fraction: float = 1.0,
+        value_net: str | None = None,
+        net_mix: float = 1.0,
+        **kwargs,
+    ):
         super().__init__(**({**TUNED_TREE, **kwargs} if "params" not in kwargs else kwargs))
+        if not 0 <= full_fraction <= 1:
+            raise ValueError(f"full_fraction must be in [0, 1], got {full_fraction}")
+        self.fast_simulations, self.full_fraction = fast_simulations, full_fraction
+        if not 0 <= net_mix <= 1:
+            raise ValueError(f"net_mix must be in [0, 1], got {net_mix}")
+        self.value_net, self.net_mix = value_net, net_mix
         unknown = set(phase_simulations or ()) - {p.value for p in GamePhase}
         if unknown:  # a misspelt phase would silently fall back to the default budget
             raise ValueError(f"unknown game phases in phase_simulations: {sorted(unknown)}")
@@ -237,7 +190,20 @@ class MCTSRsStrategy(MCTSStrategy):
 
     @property
     def config(self) -> dict:
-        return {**super().config, **({"phase_simulations": self.phase_simulations} if self.phase_simulations else {})}
+        extra = {"phase_simulations": self.phase_simulations} if self.phase_simulations else {}
+        if self.fast_simulations is not None:
+            extra |= {"fast_simulations": self.fast_simulations, "full_fraction": self.full_fraction}
+        if self.value_net is not None:
+            extra |= {"value_net": self.value_net, "net_mix": self.net_mix}
+        return {**super().config, **extra}
+
+    def budget(self, state: GameState) -> int:
+        """Simulations for this decision: the full budget (per phase), or with playout cap randomization the
+        fast one for all but a random `full_fraction` of decisions."""
+        full = self.phase_simulations.get(state.game_phase.value, self.params.simulations)
+        if self.fast_simulations is None or self._rng.random() < self.full_fraction:
+            return full
+        return self.fast_simulations
 
     def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
         if len(legal_actions) == 1:
@@ -249,12 +215,14 @@ class MCTSRsStrategy(MCTSStrategy):
         assert p.rollout_depth is None, "mcts_rs has no rollout_depth"
         strs, visits, values, root_value = wingspan_rs.ismcts(
             state_json(state),
-            self.phase_simulations.get(state.game_phase.value, p.simulations),
+            self.budget(state),
             p.exploration_constant,
             p.value_function.value,
             p.widening_k,
             p.widening_alpha,
             self._rng.getrandbits(64),
+            self.value_net,
+            self.net_mix,
         )
         by_str = {str(a): a for a in legal_actions}
         # Root children legal only in some re-dealt world are dropped, as Python filters them out

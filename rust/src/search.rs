@@ -1,11 +1,11 @@
-//! Search: re-dealing hidden information (core/redeterminize.py) and flat Monte Carlo (ai/flat_mc.py).
-
-use std::panic::{catch_unwind, AssertUnwindSafe};
+//! Search: re-dealing hidden information (core/redeterminize.py) and IS-MCTS (ai/mcts.py, determinize=True).
 
 use crate::actions::Action;
 use crate::chance::{Chance, Rng};
 use crate::data::data;
-use crate::rules::{apply, legal_actions, legal_actions_into, total_score, update_player_scores};
+use crate::rules::{apply, legal_actions_into, total_score, update_player_scores};
+use crate::encode::encode_obs;
+use crate::net::ValueNet;
 use crate::state::State;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,57 +105,6 @@ pub fn redeterminize(s: &State, me: usize, rng: &mut Rng) -> State {
     w
 }
 
-/// Play `a` in `world`, then random moves to the end; `me`'s value, or None if `a` is illegal there.
-/// `chance` draws the dice and shuffles, `choices` picks the random moves.
-fn playout(world: &State, a: &Action, me: usize, vf: ValueFunction, chance: &mut Rng, choices: &mut Rng) -> Option<f64> {
-    let mut s = world.clone();
-    // A move legal in the real state may not be in a re-dealt world (Python catches the exception)
-    let ok = catch_unwind(AssertUnwindSafe(|| apply(&mut s, a, chance).is_ok())).unwrap_or(false);
-    if !ok {
-        return None;
-    }
-    let mut actions = Vec::with_capacity(96);
-    loop {
-        legal_actions_into(&s, &mut actions);
-        if actions.is_empty() {
-            return Some(value(&mut s, me, vf));
-        }
-        let a = &actions[choices.below(actions.len())];
-        apply(&mut s, a, chance).expect("legal action failed in a rollout");
-    }
-}
-
-/// Flat Monte Carlo for the player to move: `budget` playouts split evenly over the legal moves. With
-/// `paired`, each re-dealt world and random seed is shared by every move (common random numbers).
-/// Returns (legal action strings, total value per move, playouts that counted per move).
-pub fn flat_mc(s: &State, budget: usize, paired: bool, vf: ValueFunction, seed: u64) -> (Vec<Action>, Vec<f64>, Vec<u32>) {
-    let mut rng = Rng::new(seed);
-    let me = s.current_player_index;
-    let legal = legal_actions(s);
-    let n = legal.len();
-    let (mut totals, mut counts) = (vec![0.0; n], vec![0u32; n]);
-    let mut world = s.clone();
-    let mut world_seeds = (0, 0);
-    for _ in 0..(budget / n.max(1)).max(1) {
-        if paired {
-            world = redeterminize(s, me, &mut rng);
-            world_seeds = (rng.next_u64(), rng.next_u64());
-        }
-        for (i, a) in legal.iter().enumerate() {
-            if !paired {
-                world = redeterminize(s, me, &mut rng);
-                world_seeds = (rng.next_u64(), rng.next_u64());
-            }
-            let (mut chance, mut choices) = (Rng::new(world_seeds.0), Rng::new(world_seeds.1));
-            if let Some(v) = playout(&world, a, me, vf, &mut chance, &mut choices) {
-                totals[i] += v;
-                counts[i] += 1;
-            }
-        }
-    }
-    (legal, totals, counts)
-}
-
 // =============================================================================
 // IS-MCTS (ai/mcts.py, determinize=True): one tree over the player's information set; every
 // simulation re-deals the hidden cards, walks the tree with the moves legal in that world, adds one
@@ -163,13 +112,17 @@ pub fn flat_mc(s: &State, budget: usize, paired: bool, vf: ValueFunction, seed: 
 // moves at its parent.
 // =============================================================================
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct MctsConfig {
     pub simulations: usize,
     pub exploration: f64,
     pub value_function: ValueFunction,
     pub widening_k: Option<f64>,
     pub widening_alpha: f64,
+    /// Judge new leaves with this value net instead of (or mixed with) a random rollout: `net_mix` of the
+    /// net's margin plus `1 - net_mix` of the rollout, both in score_delta units.
+    pub value_net: Option<&'static ValueNet>,
+    pub net_mix: f64,
 }
 
 struct Node {
@@ -200,6 +153,48 @@ fn rollout(s: &mut State, vf: ValueFunction, rng: &mut Rng, buf: &mut Vec<Action
         let a = buf[rng.below(buf.len())].clone();
         apply(s, &a, rng).expect("legal action failed in a rollout");
     }
+}
+
+/// `n` random playouts for the player to move, each from a fresh re-deal of what they can't see (as every
+/// simulation of the search does): their final score minus the best opponent's, in points.
+pub fn rollouts(s: &State, n: usize, seed: u64) -> Vec<f64> {
+    let me = s.current_player_index;
+    let (mut rng, mut buf) = (Rng::new(seed), Vec::new());
+    (0..n)
+        .map(|_| 50.0 * rollout(&mut redeterminize(s, me, &mut rng), ValueFunction::ScoreDelta, &mut rng, &mut buf)[me])
+        .collect()
+}
+
+/// The value of a new leaf for every player: a random rollout, or the value net's estimate of the final
+/// margin for the player to move (after any forced steps, as the net only saw decisions), or a mix.
+fn leaf_value(s: &mut State, cfg: &MctsConfig, rng: &mut Rng, buf: &mut Vec<Action>) -> [f64; MAX_PLAYERS] {
+    let Some(net) = cfg.value_net else {
+        return rollout(s, cfg.value_function, rng, buf);
+    };
+    loop {
+        legal_actions_into(s, buf);
+        if buf.len() != 1 {
+            break;
+        }
+        let a = buf[0].clone();
+        apply(s, &a, rng).expect("legal action failed at a leaf");
+    }
+    if buf.is_empty() {
+        return values_all(s, cfg.value_function);
+    }
+    let me = s.current_player_index;
+    let margin = net.evaluate(&encode_obs(s, me)).1 as f64 / 50.0; // score_delta units
+    let mut v = [0.0; MAX_PLAYERS];
+    for (i, x) in v.iter_mut().enumerate().take(s.players.len()) {
+        *x = if i == me { margin } else { -margin };
+    }
+    if cfg.net_mix < 1.0 {
+        let r = rollout(s, cfg.value_function, rng, buf);
+        for (x, r) in v.iter_mut().zip(r) {
+            *x = cfg.net_mix * *x + (1.0 - cfg.net_mix) * r;
+        }
+    }
+    v
 }
 
 fn backpropagate(nodes: &mut [Node], mut i: usize, v: &[f64; MAX_PLAYERS]) {
@@ -241,6 +236,10 @@ pub struct MctsResult {
 }
 
 pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
+    if cfg.value_net.is_some() {
+        // The net's margin is "me minus the opponent", which is score_delta for two players only
+        assert!(root_state.players.len() == 2 && matches!(cfg.value_function, ValueFunction::ScoreDelta));
+    }
     let mut rng = Rng::new(seed);
     let me = root_state.current_player_index;
     let vf = cfg.value_function;
@@ -277,7 +276,7 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
                 let child = nodes.len();
                 nodes.push(Node { parent: node, children: vec![], visits: 0, availability: 0, total: [0.0; 5] });
                 nodes[node].children.push((a, child));
-                let v = rollout(&mut s, vf, &mut rng, &mut buf);
+                let v = leaf_value(&mut s, cfg, &mut rng, &mut buf);
                 backpropagate(&mut nodes, child, &v);
                 break;
             }
@@ -316,7 +315,7 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rules::initiate;
+    use crate::rules::{initiate, legal_actions};
     use crate::state::ScoringMode;
 
     /// Random states from random games: (state, game seed, step).
@@ -363,16 +362,6 @@ mod tests {
             ids.sort_unstable();
             ids.dedup();
             assert_eq!(ids.len(), n);
-        }
-    }
-
-    #[test]
-    fn flat_mc_counts_every_move() {
-        for s in random_states(3).into_iter().take(40) {
-            let (legal, totals, counts) = flat_mc(&s, 200, true, ValueFunction::AbsoluteScore, 1);
-            assert_eq!(legal.len(), totals.len());
-            assert!(counts.iter().all(|&c| c as usize <= (200 / legal.len()).max(1)));
-            assert!(counts.iter().any(|&c| c > 0));
         }
     }
 }

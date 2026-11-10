@@ -10,9 +10,9 @@ use crate::powers::{self, Pink};
 use crate::state::*;
 
 // Board layout (models.py `_build_board_layout`). Rows: forest, grassland, wetland.
-const RESOURCE_AMOUNT: [[i32; 5]; 3] = [[1, 1, 2, 2, 3], [2, 2, 3, 3, 4], [1, 1, 2, 2, 3]];
-const EXTRA_RESOURCE: [bool; 5] = [false, true, false, true, false];
-const EGG_COST: [u8; 5] = [0, 1, 1, 2, 2];
+pub const RESOURCE_AMOUNT: [[i32; 5]; 3] = [[1, 1, 2, 2, 3], [2, 2, 3, 3, 4], [1, 1, 2, 2, 3]];
+pub const EXTRA_RESOURCE: [bool; 5] = [false, true, false, true, false];
+pub const EGG_COST: [u8; 5] = [0, 1, 1, 2, 2];
 pub const HABITATS: [&str; 3] = ["forest", "grassland", "wetland"];
 
 type R = Result<(), String>;
@@ -977,7 +977,7 @@ pub fn apply(s: &mut State, a: &Action, c: &mut impl Chance) -> R {
 // Scoring (scoring.py)
 // =============================================================================
 
-fn count_bonus_birds(bonus_id: u16, p: &Player) -> usize {
+pub fn count_bonus_birds(bonus_id: u16, p: &Player) -> usize {
     let bonus = data().bonus(bonus_id);
     if !bonus.valid_birds.is_empty() {
         return p.birds().filter(|b| bonus.valid_birds.binary_search(&b.id).is_ok()).count();
@@ -991,7 +991,7 @@ fn count_bonus_birds(bonus_id: u16, p: &Player) -> usize {
     }
 }
 
-fn score_bonus(bonus_id: u16, p: &Player) -> i32 {
+pub fn score_bonus(bonus_id: u16, p: &Player) -> i32 {
     let n = count_bonus_birds(bonus_id, p);
     if n == 0 {
         return 0;
@@ -1038,7 +1038,7 @@ pub fn total_score(p: &Player) -> i32 {
         + s.bonus_scores.iter().map(|&(_, v)| v).sum::<i32>()
 }
 
-fn evaluate_goal(p: &Player, goal: &str) -> i32 {
+pub fn evaluate_goal(p: &Player, goal: &str) -> i32 {
     let d = data();
     let nest = |n: &str| match n {
         "bowl" => Nest::Bowl,

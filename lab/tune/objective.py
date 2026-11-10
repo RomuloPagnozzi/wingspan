@@ -1,7 +1,7 @@
 """Run a single Optuna trial: N seeds vs the reference, each from both seats; return the win rate.
 
 Same games as a `vs_reference` run (`lab.generators.both_seats`), with any registered strategy as the
-candidate (`mcts`, `mcts_rs`, `flat_mc`, ...) and any strategy spec as the reference. Reports the
+candidate (`mcts_rs`, `mcts`, ...) and any strategy spec as the reference. Reports the
 running win rate to Optuna after each seed so the pruner can cut losers short.
 """
 

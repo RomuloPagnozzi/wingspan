@@ -27,7 +27,7 @@ uv run --group train python -m lab.train_value experiments/data/datasets/selfpla
 ```
 
 Always pass `--record-decisions`: legal moves, visits and Q per move are what any later analysis needs.
-Long runs: prefix with `caffeinate -is`. Ctrl+C once lets in-flight games finish; twice quits.
+Long runs: prefix with `caffeinate -dis`. Ctrl+C once lets in-flight games finish; twice quits.
 
 Each run writes `<output dir>/<run_id>/`: `config.yaml` (copied), `code_version.txt`, `games.parquet` (one
 row per game and player, with `duration_s`) and `decisions.parquet`; with `--rotate-every N`, numbered
@@ -36,7 +36,7 @@ parts (`games_0000.parquet`, ...) so a long run can be read or copied while it g
 ## Configs
 
 The first `#` line of a config is its description. Every arm has a unique `label`; strategy specs are
-`{strategy: <name>, <params>...}` (`flat_mc`, `mcts_rs`, `mcts`, `random`). YAML anchors under `x-` keys
+`{strategy: <name>, <params>...}` (`mcts_rs`, `mcts`, `random`). YAML anchors under `x-` keys
 can hold shared specs. `seeds: {start, count}`: `start` an int or `clock` (new deals every run), no `count`
 runs until Ctrl+C. `blue_share`: share of games scored with the blue round-goal side (default 0).
 
@@ -44,13 +44,13 @@ runs until Ctrl+C. `blue_share`: share of games scored with the blue round-goal 
 arm plays a seed before the next starts, so arms stay balanced whenever the run stops.
 
 ```yaml
-# exploration constant of the tree at 10k simulations, vs the self-play generator
+# exploration constant of the tree at 10k simulations, vs the tuned tree at 1500
 mode: vs_reference
 num_workers: 7
 base: {strategy: mcts_rs, simulations: 10000}
 compare:
-  reference_label: generator
-  reference: {strategy: flat_mc, playouts: 1500}
+  reference_label: tree_1500
+  reference: {strategy: mcts_rs}
   parameter: exploration_constant            # arms with `value`; or `overrides: {...}` per arm
   values:
     - {label: c0.3, value: 0.3}
@@ -74,7 +74,7 @@ n_trials: 30
 num_workers: 7
 seeds: {start: 40001, count: 30}
 base: {strategy: mcts_rs, simulations: 10000}
-reference: {strategy: flat_mc, playouts: 1500}
+reference: {strategy: mcts_rs}
 space:
   - {name: exploration_constant, type: float, low: 0.02, high: 3.0, log: true}
   - {name: widening_k, type: float, low: 0.5, high: 3.0}

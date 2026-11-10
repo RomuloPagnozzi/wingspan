@@ -1,0 +1,19 @@
+# Tune the tree at 10k simulations: c and progressive widening, against the current tuned tree at 10k
+#   caffeinate -dis uv run python -m lab.tune -c experiments/tune_tree_10k.yaml
+# Results: experiments/tuning/tree_10k/ (trials.csv, best_params.yaml, each trial's games and decisions).
+# Rerunning the same command resumes the study.
+study_name: tree_10k
+n_trials: 60          # stop it whenever; trials so far are kept
+num_workers: 4   # the other cores generate self-play games (experiments/selfplay.yaml)
+
+sampler: {name: tpe, seed: 1}
+pruner: {name: median, n_startup_trials: 5, n_warmup_steps: 30}   # cut trials below the median after 30 deals
+
+seeds: {start: 80001, count: 100}   # the same 100 deals for every trial, each from both seats
+
+base: {strategy: mcts_rs, simulations: 10000}
+reference: {strategy: mcts_rs, simulations: 10000}   # TUNED_TREE defaults at 10k: 50% = no better
+space:
+  - {name: exploration_constant, type: float, low: 0.1, high: 3.0, log: true}
+  - {name: widening_k, type: float, low: 0.5, high: 3.0}
+  - {name: widening_alpha, type: float, low: 0.3, high: 0.95}

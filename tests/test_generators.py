@@ -102,7 +102,7 @@ def test_config_validation_rejects_bad_seeds_and_reference():
     for bad in (
         VS_REF | {"seeds": {"count": 0}},
         VS_REF | {"seeds": {"start": "soon"}},
-        VS_REF | {"compare": VS_REF["compare"] | {"reference": {"playouts": 5}}},  # no strategy name
+        VS_REF | {"compare": VS_REF["compare"] | {"reference": {"simulations": 5}}},  # no strategy name
         VS_REF | {"compare": {k: v for k, v in VS_REF["compare"].items() if k != "reference"}},  # no reference
     ):
         with pytest.raises(ConfigError):
