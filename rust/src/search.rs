@@ -129,6 +129,9 @@ pub struct MctsConfig {
     /// visited once.
     pub policy: Option<&'static PolicyNet>,
     pub prior_min_visits: u32,
+    /// Self-play exploration (AlphaZero): the root's priors are mixed with this share of Dirichlet noise,
+    /// concentration 10 / legal moves, so moves the policy dislikes still get tried. 0 when playing.
+    pub root_noise: f64,
 }
 
 struct Node {
@@ -226,14 +229,42 @@ fn can_expand(node: &Node, untried: usize, cfg: &MctsConfig) -> bool {
     }
 }
 
+/// A uniform draw in (0, 1).
+fn unit(rng: &mut Rng) -> f64 {
+    ((rng.next_u64() >> 11) as f64 + 0.5) / (1u64 << 53) as f64
+}
+
+/// A Gamma(alpha, 1) draw (Marsaglia and Tsang; alpha < 1 through Gamma(alpha + 1) * U^(1 / alpha)).
+fn gamma(alpha: f64, rng: &mut Rng) -> f64 {
+    if alpha < 1.0 {
+        return gamma(alpha + 1.0, rng) * unit(rng).powf(1.0 / alpha);
+    }
+    let d = alpha - 1.0 / 3.0;
+    let c = 1.0 / (9.0 * d).sqrt();
+    loop {
+        let x = (-2.0 * unit(rng).ln()).sqrt() * (std::f64::consts::TAU * unit(rng)).cos(); // standard normal
+        let v = (1.0 + c * x).powi(3);
+        if v > 0.0 && unit(rng).ln() < 0.5 * x * x + d - d * v + d * v.ln() {
+            return d * v;
+        }
+    }
+}
+
 /// PUCT: the legal move to follow from `node` (index into `legal`), computing its priors when due.
-fn puct(nodes: &mut [Node], node: usize, s: &State, legal: &[Action], cfg: &MctsConfig) -> usize {
+fn puct(nodes: &mut [Node], node: usize, s: &State, legal: &[Action], cfg: &MctsConfig, rng: &mut Rng) -> usize {
     let n = &nodes[node];
     let player = s.current_player_index;
     if let Some(policy) = cfg.policy {
         // Once per node, in the world it is due in; moves legal only in other worlds get the uniform share
         if n.visits >= cfg.prior_min_visits && n.priors.is_empty() {
-            let p = policy.priors(s, legal);
+            let mut p = policy.priors(s, legal);
+            if node == 0 && cfg.root_noise > 0.0 {
+                let noise: Vec<f64> = legal.iter().map(|_| gamma(10.0 / legal.len() as f64, rng)).collect();
+                let total: f64 = noise.iter().sum();
+                for (x, e) in p.iter_mut().zip(noise) {
+                    *x = ((1.0 - cfg.root_noise) * *x as f64 + cfg.root_noise * e / total) as f32;
+                }
+            }
             nodes[node].priors = legal.iter().cloned().zip(p).collect();
         }
     }
@@ -296,7 +327,7 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
                 break;
             }
             if cfg.policy.is_some() {
-                let i = puct(&mut nodes, node, &s, &legal, cfg);
+                let i = puct(&mut nodes, node, &s, &legal, cfg, &mut rng);
                 let a = legal[i].clone();
                 apply(&mut s, &a, &mut rng).expect("legal action failed in the tree");
                 if let Some(&(_, c)) = nodes[node].children.iter().find(|(b, _)| *b == a) {
@@ -390,6 +421,18 @@ mod tests {
             }
         }
         out
+    }
+
+    #[test]
+    fn gamma_has_mean_and_variance_alpha() {
+        let mut rng = Rng::new(3);
+        for alpha in [0.15, 1.0, 3.3] {
+            let x: Vec<f64> = (0..200_000).map(|_| gamma(alpha, &mut rng)).collect();
+            let mean = x.iter().sum::<f64>() / x.len() as f64;
+            let var = x.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / x.len() as f64;
+            assert!((mean - alpha).abs() < 0.02 * alpha.max(1.0), "alpha {alpha}: mean {mean}");
+            assert!((var - alpha).abs() < 0.05 * alpha.max(1.0), "alpha {alpha}: variance {var}");
+        }
     }
 
     #[test]

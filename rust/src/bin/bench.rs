@@ -56,6 +56,7 @@ fn main() {
                 net_mix: 1.0,
                 policy: None,
                 prior_min_visits: 1,
+                root_noise: 0.0,
             };
             let t = Instant::now();
             // The visits and values at every root: identical before and after a change that keeps the search

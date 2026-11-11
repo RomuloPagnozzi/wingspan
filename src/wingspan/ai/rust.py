@@ -12,7 +12,8 @@ state export they use. Importing this module needs the extension built (see rust
   random rollout; `net_mix` below 1 averages the two (net_mix * net + (1 - net_mix) * rollout). `policy`
   (a file written by `wingspan.ai.nets.export_policy_net`) switches selection to PUCT with the policy's
   priors (no progressive widening; `exploration_constant` is PUCT's c), computed at nodes with
-  `prior_min_visits` visits. Becomes `mcts` once the web app moves to it (docs/INBOX.md).
+  `prior_min_visits` visits; `root_noise` mixes that share of Dirichlet noise into the root's priors
+  (self-play exploration). Becomes `mcts` once the web app moves to it (docs/INBOX.md).
 - `policy_rs`: no search, the policy net's most likely move (`policy`: a file written by
   `wingspan.ai.nets.export_policy_net`).
 
@@ -180,6 +181,7 @@ class MCTSRsStrategy(MCTSStrategy):
         net_mix: float = 1.0,
         policy: str | None = None,
         prior_min_visits: int = 1,
+        root_noise: float = 0.0,
         **kwargs,
     ):
         super().__init__(**({**TUNED_TREE, **kwargs} if "params" not in kwargs else kwargs))
@@ -189,7 +191,7 @@ class MCTSRsStrategy(MCTSStrategy):
         if not 0 <= net_mix <= 1:
             raise ValueError(f"net_mix must be in [0, 1], got {net_mix}")
         self.value_net, self.net_mix = value_net, net_mix
-        self.policy, self.prior_min_visits = policy, prior_min_visits
+        self.policy, self.prior_min_visits, self.root_noise = policy, prior_min_visits, root_noise
         unknown = set(phase_simulations or ()) - {p.value for p in GamePhase}
         if unknown:  # a misspelt phase would silently fall back to the default budget
             raise ValueError(f"unknown game phases in phase_simulations: {sorted(unknown)}")
@@ -203,7 +205,7 @@ class MCTSRsStrategy(MCTSStrategy):
         if self.value_net is not None:
             extra |= {"value_net": self.value_net, "net_mix": self.net_mix}
         if self.policy is not None:
-            extra |= {"policy": self.policy, "prior_min_visits": self.prior_min_visits}
+            extra |= {"policy": self.policy, "prior_min_visits": self.prior_min_visits, "root_noise": self.root_noise}
         return {**super().config, **extra}
 
     def budget(self, state: GameState) -> int:
@@ -234,6 +236,7 @@ class MCTSRsStrategy(MCTSStrategy):
             self.net_mix,
             self.policy,
             self.prior_min_visits,
+            self.root_noise,
         )
         by_str = {str(a): a for a in legal_actions}
         # Root children legal only in some re-dealt world are dropped, as Python filters them out
