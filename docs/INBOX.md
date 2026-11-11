@@ -20,7 +20,7 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   would score value nets for search before a match.
 - **Self-play generation 1 is running** (`experiments/selfplay.yaml`, PUCT): laptop into
   `experiments/data/selfplay_g1`, home server (container `wingspan-selfplay`, `~/wingspan-data/run.sh`,
-  3 workers) into `~/wingspan-data/selfplay_g1`, rsynced to `experiments/data/selfplay_g1_homelab`. To
+  1 worker: with 3 it overheated and shut down, with 2 it reached 87°C) into `~/wingspan-data/selfplay_g1`, rsynced to `experiments/data/selfplay_g1_homelab`. To
   pause the server: `docker update --restart=no` and `docker kill --signal=INT`.
 
 ## Ideas
