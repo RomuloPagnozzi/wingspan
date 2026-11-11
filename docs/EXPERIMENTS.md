@@ -113,6 +113,11 @@ explained afterwards from visits and Q per move.
   playout (575) +0.0 ± 0.7. The prior hides much of the net's blind spot (without one it lost by 9.5 to
   the plain tree), but Q still comes from the leaves. The mix runs both a net call and a playout per leaf
   (41 µs per simulation, 2.3× a playout leaf): it ties, so no cheaper either.
+- **In self-play the search still overrules its prior** (`lab/prior_vs_search.py`, 300 generation-1
+  games, 13.7k full-budget decisions; root noise 0.25): its most visited move is the policy's top move 64%
+  of the time (main turn 73%, play bird 82%, draws 49%), about as often as the plain tree agreed with the
+  policy. When it agrees it sharpens: main turn, prior 0.51 on that move, visits 0.68. No sign of the loop
+  reinforcing itself; watch the agreement and the prior's confidence across generations.
 - **Priors cost**: a policy call costs a few playouts. Computed once per node, at nodes with 4+ visits
   (uniform before), a PUCT simulation costs 1.45× a plain one (1.1× from 16 visits, 2.3× from 1).
   Computing them again whenever another re-dealt world shows a new legal move made it 4-6×.

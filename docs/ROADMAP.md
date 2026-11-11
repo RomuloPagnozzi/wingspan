@@ -10,8 +10,9 @@ from search-generated games save over learning from self-play alone?
 1. **Data generator** (done): the tuned tree (`experiments/selfplay.yaml`) with playout cap randomization:
    10k simulations on a random 25% of decisions (the policy targets), 2k on the rest (every game's result
    is a value target). Runs on the laptop and the home server.
-2. **Bootstrap dataset** (56.5k games, generation paused): new deals, decisions recorded;
-   `lab/dataset.py` replays them in Rust into training arrays (`experiments/data/datasets/selfplay`).
+2. **Bootstrap dataset** (generation 0, done: 56.5k games of the plain tree in `experiments/data/selfplay`
+   and `selfplay_homelab`): new deals, decisions recorded; `lab/dataset.py` replays them in Rust into
+   training arrays (`experiments/data/datasets/selfplay`).
 3. **Value net** (done, `lab/train_value.py`): an MLP on the flat observation, trained on the result mixed
    with the search's value of the position. It predicts the winner better than the score gap (77% vs
    66%), but as the search's only leaf evaluation it loses clearly to random playouts: it judges who is
@@ -24,9 +25,18 @@ from search-generated games save over learning from self-play alone?
    `policy`) beats the plain tree at equal time (61%, +2.7 points per game); the policy alone, with no
    search, wins 34% (`policy_rs`). The value net at PUCT's leaves loses (alone) or ties (mixed with a
    playout): playouts stay.
-6. **Self-play loop** (next): generate games with PUCT and playouts, retrain the policy and the value net,
-   repeat. Each generation, rerun the leaf match (playouts, net, mix) and move to the net as it wins. One
-   net with a shared trunk and both heads is a lever for the value net: the policy's features capture
+6. **Self-play loop** (in progress): generate games with PUCT and playouts, retrain the policy and the value
+   net, repeat. Generation 1 is generating (`experiments/selfplay.yaml`, guided by the generation-0 policy;
+   `docs/INBOX.md` says where and how to resume). Next, at ~20k generation-1 games (~900k full-budget
+   decisions, about a day):
+   1. Build its dataset (`lab/dataset.py experiments/data/selfplay_g1/* experiments/data/selfplay_g1_homelab/*`)
+      and retrain the policy on generation 1 plus the latest generation-0 games (a sliding window, as
+      AlphaZero: enough data while the newest search dominates); the value net likewise.
+   2. Evaluate: the new policy alone against the old one alone (`policy_rs`, cheap), then PUCT with each at
+      equal time. Keep the new policy only if it wins; it then guides generation 2.
+   3. Check the search against its prior (`lab/prior_vs_search.py`) and rerun the leaf match (playouts,
+      net, mix; `experiments/puct_value_match.yaml`) to see if the value net now helps.
+   One net with a shared trunk and both heads is a lever for the value net: the policy's features capture
    what one move changes.
 
 Each new, stronger bot ships to the web app as an entry in `src/wingspan/ai/bots.yaml` and becomes its

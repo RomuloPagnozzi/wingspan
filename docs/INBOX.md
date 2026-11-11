@@ -18,10 +18,15 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
 - **Moves the value net can't tell apart.** Winner accuracy doesn't measure what search needs: ranking the
   positions one move apart. An offline check (does the net order sibling moves as the search's Q does?)
   would score value nets for search before a match.
-- **Self-play generation 1 is running** (`experiments/selfplay.yaml`, PUCT): laptop into
-  `experiments/data/selfplay_g1`, home server (container `wingspan-selfplay`, `~/wingspan-data/run.sh`,
-  1 worker: with 3 it overheated and shut down, with 2 it reached 87°C) into `~/wingspan-data/selfplay_g1`, rsynced to `experiments/data/selfplay_g1_homelab`. To
-  pause the server: `docker update --restart=no` and `docker kill --signal=INT`.
+- **Self-play generation 1** (`experiments/selfplay.yaml`, PUCT; laptop 1,966 games and the server ~100 by 2026-11-11).
+  - Laptop, into `experiments/data/selfplay_g1`, from a terminal (Ctrl+C once stops cleanly):
+    `caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay_g1`
+  - Home server: container `wingspan-selfplay` (`~/wingspan-data/run.sh`, 1 worker: with 3 it overheated
+    and shut down, with 2 it reached 87°C) into `~/wingspan-data/selfplay_g1`; fetch with
+    `rsync -az homelab:~/wingspan-data/selfplay_g1/ experiments/data/selfplay_g1_homelab/`. It runs the code
+    in `~/wingspan`, synced from here: after a change to code or `policy.bin`, rsync again and restart the
+    container. To pause it: `docker update --restart=no wingspan-selfplay` and
+    `docker kill --signal=INT wingspan-selfplay`.
 
 ## Ideas
 
