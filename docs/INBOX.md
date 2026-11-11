@@ -15,21 +15,29 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   current data (its build read games that no longer exist) and the networks as they are.
 - **Lab UI**: a browser UI for experiments, runs and data exploration, built like the game's UI, to replace
   reading tables in the terminal. Big; start from scratch.
-- **Set-encoded cards** (roadmap steps 4-5). Summing raw card features over a hand or a multi-bird move
-  loses which properties belong to the same card (grassland-bowl + wetland-cavity looks like wetland-bowl +
-  grassland-cavity). A set encoder (each card through a shared small net φ, then summed) keeps it. The
-  card ids are ready: `wingspan.ai.encoding` exposes them and the dataset stores them (`hand`, `tray`,
-  `act_birds`); φ and the nets that read them are not built. Compare on the observation (value; main-turn
-  choice once the policy exists) and on multi-bird moves (initial cards, draws); single-bird moves are a
-  control where no gain is expected.
 - **Moves the value net can't tell apart.** Winner accuracy doesn't measure what search needs: ranking the
   positions one move apart. An offline check (does the net order sibling moves as the search's Q does?)
   would score value nets for search before a match.
-- **Self-play is paused** (laptop stopped; home server container `wingspan-selfplay` stopped, restart
-  policy off: `docker update --restart=unless-stopped` and `docker start` to resume). Resume when the
-  policy net needs more 10k-simulation decisions.
+- **Self-play generation 1** (`experiments/selfplay.yaml`, PUCT; laptop 1,966 games and the server ~100 by 2026-11-11).
+  - Laptop, into `experiments/data/selfplay_g1`, from a terminal (Ctrl+C once stops cleanly):
+    `caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay_g1`
+  - Home server: container `wingspan-selfplay` (`~/wingspan-data/run.sh`, 1 worker: with 3 it overheated
+    and shut down, with 2 it reached 87°C) into `~/wingspan-data/selfplay_g1`; fetch with
+    `rsync -az homelab:~/wingspan-data/selfplay_g1/ experiments/data/selfplay_g1_homelab/`. It runs the code
+    in `~/wingspan`, synced from here: after a change to code or `policy.bin`, rsync again and restart the
+    container. To pause it: `docker update --restart=no wingspan-selfplay` and
+    `docker kill --signal=INT wingspan-selfplay`.
 
 ## Ideas
+
+### Policy net training
+- **Longer training**: validation still falls at epoch 8 on all decisions.
+
+### Network-guided search
+- **PUCT tuning**: c between 0.5 and 1.5 (only 4 values tried), `prior_min_visits`, normalizing Q to the
+  tree's range (it isn't: c absorbs the score_delta scale).
+- **Priors at the opponent's nodes** read the re-dealt world they are computed in (its hand is a guess);
+  averaging over worlds, or encoding the opponent's hand as unknown, would be cleaner.
 
 ### Value net training
 - **More positions per game with mixed targets.** 16 per game was chosen with result-only targets, when

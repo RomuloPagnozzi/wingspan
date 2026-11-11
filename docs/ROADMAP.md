@@ -10,24 +10,34 @@ from search-generated games save over learning from self-play alone?
 1. **Data generator** (done): the tuned tree (`experiments/selfplay.yaml`) with playout cap randomization:
    10k simulations on a random 25% of decisions (the policy targets), 2k on the rest (every game's result
    is a value target). Runs on the laptop and the home server.
-2. **Bootstrap dataset** (56.5k games, generation paused): new deals, decisions recorded;
-   `lab/dataset.py` replays them in Rust into training arrays (`experiments/data/datasets/selfplay`).
+2. **Bootstrap dataset** (generation 0, done: 56.5k games of the plain tree in `experiments/data/selfplay`
+   and `selfplay_homelab`): new deals, decisions recorded; `lab/dataset.py` replays them in Rust into
+   training arrays (`experiments/data/datasets/selfplay`).
 3. **Value net** (done, `lab/train_value.py`): an MLP on the flat observation, trained on the result mixed
    with the search's value of the position. It predicts the winner better than the score gap (77% vs
    66%), but as the search's only leaf evaluation it loses clearly to random playouts: it judges who is
    ahead, not what one move changes. Mixed half and half with a playout it plays about even.
-4. **Set encoders on the observation** (next): each card of the hand and tray through a shared small net φ,
-   then summed, next to the summed columns (`docs/INBOX.md`, "Set-encoded cards"). Measured on the value
-   net first: regularized, it has capacity to spare, so its inputs are the suspect.
-5. **Policy net**: scores each legal move as h · aₖ (the trunk's summary of the position against the
-   move's encoding), trained on the visits of the 10k searches; set encoders on multi-bird moves are
-   compared here. Ship a policy-only bot to the web app.
-6. **Network-guided search**: PUCT in the Rust search with the policy as prior, Q normalized to the tree's
-   range, and the value net at the leaves, alone or mixed with playouts. In place: the observation and move
-   encodings in Rust (`rust/src/encode.rs`), the value net's forward pass (`rust/src/net.rs`) and net leaves
-   (`mcts_rs` options `value_net`, `net_mix`).
-7. **Self-play loop**: one net with a shared trunk and both heads; generate games with the network-guided
-   search, retrain, repeat.
+4. **Policy net** (done, `lab/train_policy.py`): scores each legal move as h · g(move) (the trunk's summary
+   of the position against the move's encoding), trained on the visits of the 10k searches. It picks the
+   search's top move 66% of the time (a prior on the move's kind: 51%), 79% in main turns. Set encoders
+   on the cards (hand, tray, a move's birds) added nothing to either net.
+5. **Network-guided search** (done): PUCT in the Rust search with the policy's priors (`mcts_rs` option
+   `policy`) beats the plain tree at equal time (61%, +2.7 points per game); the policy alone, with no
+   search, wins 34% (`policy_rs`). The value net at PUCT's leaves loses (alone) or ties (mixed with a
+   playout): playouts stay.
+6. **Self-play loop** (in progress): generate games with PUCT and playouts, retrain the policy and the value
+   net, repeat. Generation 1 is generating (`experiments/selfplay.yaml`, guided by the generation-0 policy;
+   `docs/INBOX.md` says where and how to resume). Next, at ~20k generation-1 games (~900k full-budget
+   decisions, about a day):
+   1. Build its dataset (`lab/dataset.py experiments/data/selfplay_g1/* experiments/data/selfplay_g1_homelab/*`)
+      and retrain the policy on generation 1 plus the latest generation-0 games (a sliding window, as
+      AlphaZero: enough data while the newest search dominates); the value net likewise.
+   2. Evaluate: the new policy alone against the old one alone (`policy_rs`, cheap), then PUCT with each at
+      equal time. Keep the new policy only if it wins; it then guides generation 2.
+   3. Check the search against its prior (`lab/prior_vs_search.py`) and rerun the leaf match (playouts,
+      net, mix; `experiments/puct_value_match.yaml`) to see if the value net now helps.
+   One net with a shared trunk and both heads is a lever for the value net: the policy's features capture
+   what one move changes.
 
 Each new, stronger bot ships to the web app as an entry in `src/wingspan/ai/bots.yaml` and becomes its
 `champion`.

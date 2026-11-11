@@ -9,8 +9,13 @@ state export they use. Importing this module needs the extension built (see rust
   targets (a decision's total visits tell which it got). Its defaults are the
   tuned params (`TUNED_TREE`), so a spec only states what differs. `value_net` (a file written by
   `wingspan.ai.nets.export_value_net`) judges new leaves by the net's predicted final margin instead of a
-  random rollout; `net_mix` below 1 averages the two (net_mix * net + (1 - net_mix) * rollout). Becomes `mcts` once the web app moves
-  to it (docs/INBOX.md).
+  random rollout; `net_mix` below 1 averages the two (net_mix * net + (1 - net_mix) * rollout). `policy`
+  (a file written by `wingspan.ai.nets.export_policy_net`) switches selection to PUCT with the policy's
+  priors (no progressive widening; `exploration_constant` is PUCT's c), computed at nodes with
+  `prior_min_visits` visits; `root_noise` mixes that share of Dirichlet noise into the root's priors
+  (self-play exploration). Becomes `mcts` once the web app moves to it (docs/INBOX.md).
+- `policy_rs`: no search, the policy net's most likely move (`policy`: a file written by
+  `wingspan.ai.nets.export_policy_net`).
 
 The game itself stays in the Python engine: Rust only searches. `state_json` is the canonical state
 the two engines exchange (`rust/src/state.rs`); `rust/py/parity.py` checks them against each other.
@@ -22,7 +27,7 @@ import wingspan_rs
 
 from wingspan.engine.core import Action, GamePhase, GameState
 
-from .base import register_strategy
+from .base import Strategy, register_strategy
 from .mcts import MCTSStrategy
 
 
@@ -174,6 +179,9 @@ class MCTSRsStrategy(MCTSStrategy):
         full_fraction: float = 1.0,
         value_net: str | None = None,
         net_mix: float = 1.0,
+        policy: str | None = None,
+        prior_min_visits: int = 1,
+        root_noise: float = 0.0,
         **kwargs,
     ):
         super().__init__(**({**TUNED_TREE, **kwargs} if "params" not in kwargs else kwargs))
@@ -183,6 +191,7 @@ class MCTSRsStrategy(MCTSStrategy):
         if not 0 <= net_mix <= 1:
             raise ValueError(f"net_mix must be in [0, 1], got {net_mix}")
         self.value_net, self.net_mix = value_net, net_mix
+        self.policy, self.prior_min_visits, self.root_noise = policy, prior_min_visits, root_noise
         unknown = set(phase_simulations or ()) - {p.value for p in GamePhase}
         if unknown:  # a misspelt phase would silently fall back to the default budget
             raise ValueError(f"unknown game phases in phase_simulations: {sorted(unknown)}")
@@ -195,6 +204,8 @@ class MCTSRsStrategy(MCTSStrategy):
             extra |= {"fast_simulations": self.fast_simulations, "full_fraction": self.full_fraction}
         if self.value_net is not None:
             extra |= {"value_net": self.value_net, "net_mix": self.net_mix}
+        if self.policy is not None:
+            extra |= {"policy": self.policy, "prior_min_visits": self.prior_min_visits, "root_noise": self.root_noise}
         return {**super().config, **extra}
 
     def budget(self, state: GameState) -> int:
@@ -223,6 +234,9 @@ class MCTSRsStrategy(MCTSStrategy):
             self._rng.getrandbits(64),
             self.value_net,
             self.net_mix,
+            self.policy,
+            self.prior_min_visits,
+            self.root_noise,
         )
         by_str = {str(a): a for a in legal_actions}
         # Root children legal only in some re-dealt world are dropped, as Python filters them out
@@ -236,3 +250,25 @@ class MCTSRsStrategy(MCTSStrategy):
 
     def __str__(self) -> str:
         return "Rust" + super().__str__()
+
+
+@register_strategy
+class PolicyRsStrategy(Strategy):
+    name = "policy_rs"
+
+    def __init__(self, *, policy: str = "experiments/data/models/policy.bin", seed: int | None = None):
+        self.policy, self.seed = policy, seed if seed is not None else 0
+
+    @property
+    def config(self) -> dict:
+        return {"policy": self.policy}
+
+    def select_action(self, state: GameState, legal_actions: list[Action]) -> Action:
+        if len(legal_actions) == 1:
+            return legal_actions[0]
+        priors = wingspan_rs.policy_net(self.policy, state_json(state))  # in legal-move order, as get_actions
+        assert len(priors) == len(legal_actions), "the engines disagree on the legal moves"
+        return legal_actions[max(range(len(priors)), key=priors.__getitem__)]
+
+    def __str__(self) -> str:
+        return "Policy"

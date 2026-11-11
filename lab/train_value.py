@@ -62,16 +62,16 @@ def score_gap(obs: np.ndarray, n_player: int, i_score: int) -> np.ndarray:
     return 120 * (obs[:, i_score].astype(np.float32) - obs[:, n_player + i_score].astype(np.float32))
 
 
-def gathered(dataset: Path, obs: np.ndarray, rows: np.ndarray) -> np.ndarray:
-    """obs[rows] (rows sorted), written once to dataset/cache/ and memory-mapped. The full array is several
+def gathered(dataset: Path, name: str, array: np.ndarray, rows: np.ndarray) -> np.ndarray:
+    """array[rows] (rows sorted), written once to dataset/cache/ and memory-mapped. The full array is several
     times the machine's memory: reading scattered rows from it every epoch makes training disk-bound."""
-    path = dataset / "cache" / f"obs_{hashlib.sha1(rows.tobytes()).hexdigest()[:12]}.npy"
+    path = dataset / "cache" / f"{name}_{hashlib.sha1(rows.tobytes()).hexdigest()[:12]}.npy"
     if not path.exists():
         path.parent.mkdir(exist_ok=True)
         tmp = path.with_suffix(".tmp")
-        out = open_memmap(tmp, "w+", np.float16, (len(rows), obs.shape[1]))
+        out = open_memmap(tmp, "w+", array.dtype, (len(rows), array.shape[1]))
         for b in range(0, len(rows), 65536):
-            out[b : b + 65536] = obs[rows[b : b + 65536]]
+            out[b : b + 65536] = array[rows[b : b + 65536]]
         out.flush()
         tmp.rename(path)
     return np.load(path, mmap_mode="r")
@@ -134,7 +134,7 @@ def main():
     # From here on positions are indices into x, the observations of the rows used
     rows = np.sort(np.concatenate([train, val]))
     t0 = time.time()
-    x = gathered(args.dataset, obs, rows)
+    x = gathered(args.dataset, "obs", obs, rows)
     print(f"observations of the used rows: {x.nbytes / 1e9:.1f} GB ({time.time() - t0:.0f}s)")
     train, val = np.searchsorted(rows, train), np.searchsorted(rows, val)
     z, margin, rounds = z[rows], margin[rows], rounds[rows]

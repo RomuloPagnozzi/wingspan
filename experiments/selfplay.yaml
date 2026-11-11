@@ -1,7 +1,9 @@
-# Self-play training data: the tuned tree (mcts_rs) in both seats, with playout cap randomization
-# A new deal every game, 80/20 green/blue scoring. Runs until stopped (Ctrl+C once: in-flight games
-# finish and the files close; twice: quit at once):
-#   caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay
+# Self-play training data: PUCT (the tree with the policy's priors, playouts at the leaves) in both seats,
+# with playout cap randomization, and Dirichlet noise on the root's priors so moves the policy dislikes
+# still get tried. A new deal every game, 80/20 green/blue scoring. One folder per generation of the loop
+# (the policy that guides it: experiments/data/models/policy.bin). Runs until stopped (Ctrl+C once:
+# in-flight games finish and the files close; twice: quit at once):
+#   caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay_g1
 mode: continuous
 num_workers: 7
 blue_share: 0.2  # green/blue round-goal scoring, chosen by each game's seed
@@ -11,6 +13,10 @@ seeds:
 
 defaults:
   strategy: mcts_rs        # TUNED_TREE defaults otherwise
+  policy: experiments/data/models/policy.bin
+  exploration_constant: 0.5  # PUCT's c (experiments/puct_c.yaml)
+  prior_min_visits: 4
+  root_noise: 0.25
   simulations: 10000       # the full searches, a random 25% of decisions: the policy targets
   fast_simulations: 2000   # the rest, to play on at decent strength; every game's outcome is a value target
   full_fraction: 0.25

@@ -1,0 +1,16 @@
+# PUCT (the tree with the policy's priors) vs the plain tree at about equal time: PUCT's exploration
+# constant c. Priors at nodes with 4+ visits cost ~1.45x a plain simulation (18 vs 12.6 us), so 1380
+# simulations against 2000. Deals apart from the matches' (90001+).
+#   caffeinate -dis uv run python -m lab -c experiments/puct_c.yaml --record-decisions -o experiments/data/puct_c
+mode: vs_reference
+num_workers: 7
+base: {strategy: mcts_rs, policy: experiments/data/models/policy.bin, prior_min_visits: 4, simulations: 1380}
+compare:
+  reference_label: tree_2000
+  reference: {strategy: mcts_rs, simulations: 2000}
+  values:
+    - {label: c0.05, overrides: {exploration_constant: 0.05}}
+    - {label: c0.15, overrides: {exploration_constant: 0.15}}
+    - {label: c0.5, overrides: {exploration_constant: 0.5}}
+    - {label: c1.5, overrides: {exploration_constant: 1.5}}
+seeds: {start: 91001, count: 100}
