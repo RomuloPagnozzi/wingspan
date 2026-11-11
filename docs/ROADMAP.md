@@ -20,12 +20,14 @@ from search-generated games save over learning from self-play alone?
    of the position against the move's encoding), trained on the visits of the 10k searches. It picks the
    search's top move 66% of the time (a prior on the move's kind: 51%), 79% in main turns. Set encoders
    on the cards (hand, tray, a move's birds) added nothing to either net.
-5. **Network-guided search** (in progress): PUCT in the Rust search with the policy's priors (`mcts_rs`
-   option `policy`) beats the plain tree at equal time (61%, +2.7 points per game); the policy alone, with
-   no search, wins 34% (`policy_rs`). Next: the value net at PUCT's leaves, alone or mixed with playouts
-   (`value_net`, `net_mix`).
-6. **Self-play loop**: one net with a shared trunk and both heads; generate games with the network-guided
-   search, retrain, repeat.
+5. **Network-guided search** (done): PUCT in the Rust search with the policy's priors (`mcts_rs` option
+   `policy`) beats the plain tree at equal time (61%, +2.7 points per game); the policy alone, with no
+   search, wins 34% (`policy_rs`). The value net at PUCT's leaves loses (alone) or ties (mixed with a
+   playout): playouts stay.
+6. **Self-play loop** (next): generate games with PUCT and playouts, retrain the policy and the value net,
+   repeat. Each generation, rerun the leaf match (playouts, net, mix) and move to the net as it wins. One
+   net with a shared trunk and both heads is a lever for the value net: the policy's features capture
+   what one move changes.
 
 Each new, stronger bot ships to the web app as an entry in `src/wingspan/ai/bots.yaml` and becomes its
 `champion`.

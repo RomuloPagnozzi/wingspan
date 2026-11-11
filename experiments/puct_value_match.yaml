@@ -1,0 +1,16 @@
+# PUCT with the value net at the leaves (alone, or mixed half and half with a playout) vs PUCT with random
+# playouts, at about equal time (~24 ms per decision: net 730 simulations, mix 575, playouts 1380), on the
+# deals of the other matches.
+#   caffeinate -dis uv run python -m lab -c experiments/puct_value_match.yaml --record-decisions -o experiments/data/puct_value_match
+mode: vs_reference
+num_workers: 7
+base: {strategy: mcts_rs, policy: experiments/data/models/policy.bin, prior_min_visits: 4, exploration_constant: 0.5,
+       value_net: experiments/data/models/value.bin}
+compare:
+  reference_label: puct_playouts
+  reference: {strategy: mcts_rs, policy: experiments/data/models/policy.bin, prior_min_visits: 4,
+              exploration_constant: 0.5, simulations: 1380}
+  values:
+    - {label: puct_net, overrides: {simulations: 730, net_mix: 1.0}}
+    - {label: puct_mix, overrides: {simulations: 575, net_mix: 0.5}}
+seeds: {start: 90001, count: 300}

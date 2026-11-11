@@ -107,6 +107,12 @@ explained afterwards from visits and Q per move.
   1.5 → −6.0 / −1.0 / +2.2 / +1.2). Its bonus c · P · √N / (1 + n) is much larger than UCT's at these
   budgets, against Q gaps of ~0.02 (a point): too small a c and the search ignores what the prior
   doesn't favor, too large and it just follows the prior.
+- **The value net at PUCT's leaves doesn't help** (`experiments/puct_value_match.yaml`: against PUCT with
+  playouts at equal time, 300 deals): net only (730 simulations against 1380) −3.8 ± 0.9, with the same
+  signature as without a prior (3.3 unused food against 1.5, −1.3 eggs, −2.0 round goals); half net, half
+  playout (575) +0.0 ± 0.7. The prior hides much of the net's blind spot (without one it lost by 9.5 to
+  the plain tree), but Q still comes from the leaves. The mix runs both a net call and a playout per leaf
+  (41 µs per simulation, 2.3× a playout leaf): it ties, so no cheaper either.
 - **Priors cost**: a policy call costs a few playouts. Computed once per node, at nodes with 4+ visits
   (uniform before), a PUCT simulation costs 1.45× a plain one (1.1× from 16 visits, 2.3× from 1).
   Computing them again whenever another re-dealt world shows a new legal move made it 4-6×.
