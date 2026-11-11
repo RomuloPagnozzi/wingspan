@@ -18,9 +18,10 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
 - **Moves the value net can't tell apart.** Winner accuracy doesn't measure what search needs: ranking the
   positions one move apart. An offline check (does the net order sibling moves as the search's Q does?)
   would score value nets for search before a match.
-- **Self-play is paused** (laptop stopped; home server container `wingspan-selfplay` stopped, restart
-  policy off: `docker update --restart=unless-stopped` and `docker start` to resume). Resume when the
-  policy net needs more 10k-simulation decisions.
+- **Self-play generation 1 is running** (`experiments/selfplay.yaml`, PUCT): laptop into
+  `experiments/data/selfplay_g1`, home server (container `wingspan-selfplay`, `~/wingspan-data/run.sh`,
+  3 workers) into `~/wingspan-data/selfplay_g1`, rsynced to `experiments/data/selfplay_g1_homelab`. To
+  pause the server: `docker update --restart=no` and `docker kill --signal=INT`.
 
 ## Ideas
 
