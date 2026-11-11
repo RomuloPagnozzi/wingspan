@@ -21,7 +21,7 @@ import torch
 from lab.dataset import load
 from lab.train_value import gathered, per_game, split_games
 from wingspan.ai.encoding import ACTION_KINDS
-from wingspan.ai.nets import PolicyNet, log_softmax_by
+from wingspan.ai.nets import PolicyNet, export_policy_net, log_softmax_by
 
 FULL_BUDGET = 10_000
 
@@ -177,7 +177,8 @@ def main():
     args.out.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"state": best_state, "n_obs": x.shape[1], "n_act": acts.shape[1], "dropout": args.dropout, "val_ce": best,
                 "args": vars(args) | {"out": str(args.out), "dataset": str(args.dataset)}}, args.out)  # fmt: skip
-    print(f"saved {args.out}")
+    export_policy_net(net, args.out.with_suffix(".bin"))  # for the Rust search
+    print(f"saved {args.out} and {args.out.with_suffix('.bin')}")
 
 
 if __name__ == "__main__":

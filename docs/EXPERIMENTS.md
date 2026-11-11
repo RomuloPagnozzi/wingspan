@@ -91,6 +91,25 @@ explained afterwards from visits and Q per move.
   that ceiling (the search itself: 32-48%, near a coin flip). Where the choice matters the gap is real:
   main turn 90% vs 79%, which bird to play 95% vs 82%, draws 61% vs 51%. The policy matches a rerun as
   well as the recorded search: it learned the search's preferences, not one run's noise.
+- **Alone, with no search, it wins 34% against the tree at 2000 simulations** (`policy_rs`,
+  `experiments/policy_match.yaml`, the value-net match's 300 deals from both seats): −4.6 ± 0.8 points per
+  game, at ~0.1 ms per move. It plays eggs and food much as the tree does; most of the gap is round goals
+  (−3.2), a race against the opponent that needs look-ahead.
+
+## Network-guided search
+
+- **PUCT with the policy's priors beats the plain tree at equal time: 61%, +2.7 ± 0.7 points per game**
+  (`experiments/puct_match.yaml`: 1380 simulations against 2000, 24.9 vs 24.1 ms per decision, random
+  playouts at the leaves in both; 300 deals from both seats). For scale, 10k simulations over 1500 is
+  worth +3.6 at 6.7× the time. The points come from eggs, cached food, tucked cards (+1.9 together) and
+  round goals (+0.7), where the policy alone lost.
+- **Its exploration constant c is 0.5** (`experiments/puct_c.yaml`, 100 other deals: c 0.05 / 0.15 / 0.5 /
+  1.5 → −6.0 / −1.0 / +2.2 / +1.2). Its bonus c · P · √N / (1 + n) is much larger than UCT's at these
+  budgets, against Q gaps of ~0.02 (a point): too small a c and the search ignores what the prior
+  doesn't favor, too large and it just follows the prior.
+- **Priors cost**: a policy call costs a few playouts. Computed once per node, at nodes with 4+ visits
+  (uniform before), a PUCT simulation costs 1.45× a plain one (1.1× from 16 visits, 2.3× from 1).
+  Computing them again whenever another re-dealt world shows a new legal move made it 4-6×.
 
 ## Open questions
 

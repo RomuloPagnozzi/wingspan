@@ -1,0 +1,12 @@
+# The policy net alone (its most likely move, no search) vs the tree at 2000 simulations, on the deals of
+# the value-net match (never in self-play).
+#   caffeinate -dis uv run python -m lab -c experiments/policy_match.yaml --record-decisions -o experiments/data/policy_match
+mode: vs_reference
+num_workers: 7
+base: {strategy: policy_rs}
+compare:
+  reference_label: tree_2000
+  reference: {strategy: mcts_rs, simulations: 2000}
+  values:
+    - {label: policy, overrides: {policy: experiments/data/models/policy.bin}}
+seeds: {start: 90001, count: 300}

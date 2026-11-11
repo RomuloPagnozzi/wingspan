@@ -20,12 +20,10 @@ from search-generated games save over learning from self-play alone?
    of the position against the move's encoding), trained on the visits of the 10k searches. It picks the
    search's top move 66% of the time (a prior on the move's kind: 51%), 79% in main turns. Set encoders
    on the cards (hand, tray, a move's birds) added nothing to either net.
-5. **Network-guided search** (next): PUCT in the Rust search with the policy as prior, Q normalized to the
-   tree's range, and the value net at the leaves, alone or mixed with playouts; matched against the plain
-   tree at equal time, as the net leaves were. On the side, the policy alone (no search) as a bot: a cheap
-   match, and the web app's next bot. In place: the observation and move encodings in Rust
-   (`rust/src/encode.rs`), the value net's forward pass (`rust/src/net.rs`) and net leaves (`mcts_rs`
-   options `value_net`, `net_mix`). To do: the policy's forward pass in Rust.
+5. **Network-guided search** (in progress): PUCT in the Rust search with the policy's priors (`mcts_rs`
+   option `policy`) beats the plain tree at equal time (61%, +2.7 points per game); the policy alone, with
+   no search, wins 34% (`policy_rs`). Next: the value net at PUCT's leaves, alone or mixed with playouts
+   (`value_net`, `net_mix`).
 6. **Self-play loop**: one net with a shared trunk and both heads; generate games with the network-guided
    search, retrain, repeat.
 

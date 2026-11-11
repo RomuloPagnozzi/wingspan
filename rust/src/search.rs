@@ -5,7 +5,7 @@ use crate::chance::{Chance, Rng};
 use crate::data::data;
 use crate::rules::{apply, legal_actions_into, total_score, update_player_scores};
 use crate::encode::encode_obs;
-use crate::net::ValueNet;
+use crate::net::{PolicyNet, ValueNet};
 use crate::state::State;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,6 +123,12 @@ pub struct MctsConfig {
     /// net's margin plus `1 - net_mix` of the rollout, both in score_delta units.
     pub value_net: Option<&'static ValueNet>,
     pub net_mix: f64,
+    /// PUCT (AlphaZero's selection) with this policy net's priors instead of UCT with progressive widening:
+    /// every legal move scores Q + exploration * P * sqrt(N) / (1 + n). A node gets its priors once it has
+    /// `prior_min_visits` visits (uniform until then): the net costs several rollouts, and most nodes are
+    /// visited once.
+    pub policy: Option<&'static PolicyNet>,
+    pub prior_min_visits: u32,
 }
 
 struct Node {
@@ -131,6 +137,7 @@ struct Node {
     visits: u32,
     availability: u32,
     total: [f64; 5], // per player
+    priors: Vec<(Action, f32)>, // PUCT: the legal moves' priors, from the world they were computed in
 }
 
 const MAX_PLAYERS: usize = 5;
@@ -219,6 +226,36 @@ fn can_expand(node: &Node, untried: usize, cfg: &MctsConfig) -> bool {
     }
 }
 
+/// PUCT: the legal move to follow from `node` (index into `legal`), computing its priors when due.
+fn puct(nodes: &mut [Node], node: usize, s: &State, legal: &[Action], cfg: &MctsConfig) -> usize {
+    let n = &nodes[node];
+    let player = s.current_player_index;
+    if let Some(policy) = cfg.policy {
+        // Once per node, in the world it is due in; moves legal only in other worlds get the uniform share
+        if n.visits >= cfg.prior_min_visits && n.priors.is_empty() {
+            let p = policy.priors(s, legal);
+            nodes[node].priors = legal.iter().cloned().zip(p).collect();
+        }
+    }
+    let n = &nodes[node];
+    let parent_q = if n.visits > 0 { n.total[player] / n.visits as f64 } else { 0.0 };
+    let sqrt_n = (n.visits.max(1) as f64).sqrt();
+    let uniform = 1.0 / legal.len() as f32;
+    let (mut best, mut best_score) = (0, f64::NEG_INFINITY);
+    for (i, a) in legal.iter().enumerate() {
+        let prior = n.priors.iter().find(|(b, _)| b == a).map_or(uniform, |&(_, p)| p) as f64;
+        let (q, visits) = match n.children.iter().find(|(b, _)| b == a) {
+            Some(&(_, c)) if nodes[c].visits > 0 => (nodes[c].total[player] / nodes[c].visits as f64, nodes[c].visits),
+            _ => (parent_q, 0),
+        };
+        let score = q + cfg.exploration * prior * sqrt_n / (1 + visits) as f64;
+        if score > best_score {
+            (best, best_score) = (i, score);
+        }
+    }
+    best
+}
+
 fn ucb(n: &Node, c: f64, player: usize) -> f64 {
     if n.visits == 0 || n.availability == 0 {
         return f64::INFINITY;
@@ -243,7 +280,8 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
     let mut rng = Rng::new(seed);
     let me = root_state.current_player_index;
     let vf = cfg.value_function;
-    let mut nodes = vec![Node { parent: usize::MAX, children: vec![], visits: 0, availability: 0, total: [0.0; 5] }];
+    let new_node = |parent| Node { parent, children: vec![], visits: 0, availability: 0, total: [0.0; 5], priors: vec![] };
+    let mut nodes = vec![new_node(usize::MAX)];
     let (mut legal, mut buf) = (Vec::with_capacity(96), Vec::with_capacity(96));
     let mut untried: Vec<usize> = vec![];
     let mut compatible: Vec<usize> = vec![]; // indices into the node's children
@@ -255,6 +293,21 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
             if legal.is_empty() {
                 let v = values_all(&mut s, vf);
                 backpropagate(&mut nodes, node, &v);
+                break;
+            }
+            if cfg.policy.is_some() {
+                let i = puct(&mut nodes, node, &s, &legal, cfg);
+                let a = legal[i].clone();
+                apply(&mut s, &a, &mut rng).expect("legal action failed in the tree");
+                if let Some(&(_, c)) = nodes[node].children.iter().find(|(b, _)| *b == a) {
+                    node = c;
+                    continue;
+                }
+                let child = nodes.len();
+                nodes.push(new_node(node));
+                nodes[node].children.push((a, child));
+                let v = leaf_value(&mut s, cfg, &mut rng, &mut buf);
+                backpropagate(&mut nodes, child, &v);
                 break;
             }
             let children = &nodes[node].children;
@@ -274,7 +327,7 @@ pub fn ismcts(root_state: &State, cfg: &MctsConfig, seed: u64) -> MctsResult {
                 let a = legal[untried[rng.below(untried.len())]].clone();
                 apply(&mut s, &a, &mut rng).expect("legal action failed in the tree");
                 let child = nodes.len();
-                nodes.push(Node { parent: node, children: vec![], visits: 0, availability: 0, total: [0.0; 5] });
+                nodes.push(new_node(node));
                 nodes[node].children.push((a, child));
                 let v = leaf_value(&mut s, cfg, &mut rng, &mut buf);
                 backpropagate(&mut nodes, child, &v);

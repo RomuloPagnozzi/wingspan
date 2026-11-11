@@ -27,6 +27,12 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
 ### Policy net training
 - **Longer training**: validation still falls at epoch 8 on all decisions.
 
+### Network-guided search
+- **PUCT tuning**: c between 0.5 and 1.5 (only 4 values tried), `prior_min_visits`, normalizing Q to the
+  tree's range (it isn't: c absorbs the score_delta scale).
+- **Priors at the opponent's nodes** read the re-dealt world they are computed in (its hand is a guess);
+  averaging over worlds, or encoding the opponent's hand as unknown, would be cleaner.
+
 ### Value net training
 - **More positions per game with mixed targets.** 16 per game was chosen with result-only targets, when
   a game's positions shared one label. With search values each has its own, and the net no longer

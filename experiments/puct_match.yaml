@@ -1,0 +1,12 @@
+# PUCT (the tree with the policy's priors, c from experiments/puct_c.yaml) vs the plain tree at about equal
+# time (1380 simulations with priors at nodes of 4+ visits ~ 2000 plain), on the deals of the value-net match.
+#   caffeinate -dis uv run python -m lab -c experiments/puct_match.yaml --record-decisions -o experiments/data/puct_match
+mode: vs_reference
+num_workers: 7
+base: {strategy: mcts_rs, policy: experiments/data/models/policy.bin, prior_min_visits: 4, simulations: 1380}
+compare:
+  reference_label: tree_2000
+  reference: {strategy: mcts_rs, simulations: 2000}
+  values:
+    - {label: puct, overrides: {exploration_constant: 0.5}}
+seeds: {start: 90001, count: 300}

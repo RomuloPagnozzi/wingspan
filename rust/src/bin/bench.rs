@@ -54,6 +54,8 @@ fn main() {
                 widening_alpha: 0.6303665309124046,
                 value_net: None,
                 net_mix: 1.0,
+                policy: None,
+                prior_min_visits: 1,
             };
             let t = Instant::now();
             // The visits and values at every root: identical before and after a change that keeps the search

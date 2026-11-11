@@ -64,7 +64,7 @@ mod python {
     /// IS-MCTS for the player to move (search.rs). Returns (root child move strings, visits, value for
     /// the searcher, root value); children may include moves legal only in some re-dealt world.
     #[pyfunction]
-    #[pyo3(signature = (state_json, simulations, exploration, value_function, widening_k, widening_alpha, seed, value_net=None, net_mix=1.0))]
+    #[pyo3(signature = (state_json, simulations, exploration, value_function, widening_k, widening_alpha, seed, value_net=None, net_mix=1.0, policy=None, prior_min_visits=1))]
     fn ismcts(
         state_json: &str,
         simulations: usize,
@@ -75,12 +75,17 @@ mod python {
         seed: u64,
         value_net: Option<&str>,
         net_mix: f64,
+        policy: Option<&str>,
+        prior_min_visits: u32,
     ) -> PyResult<(Vec<String>, Vec<u32>, Vec<f64>, Option<f64>)> {
         let s = parse(state_json)?;
         let vf = crate::search::ValueFunction::parse(value_function)
             .ok_or_else(|| PyValueError::new_err(format!("unknown value function {value_function}")))?;
         let value_net = value_net.map(crate::net::load);
-        let cfg = crate::search::MctsConfig { simulations, exploration, value_function: vf, widening_k, widening_alpha, value_net, net_mix };
+        let policy = policy.map(crate::net::load_policy);
+        let cfg = crate::search::MctsConfig {
+            simulations, exploration, value_function: vf, widening_k, widening_alpha, value_net, net_mix, policy, prior_min_visits,
+        };
         let r = crate::search::ismcts(&s, &cfg, seed);
         Ok((r.actions.iter().map(|a| a.to_string()).collect(), r.visits, r.values, r.root_value))
     }
@@ -109,6 +114,13 @@ mod python {
     #[pyfunction]
     fn value_net(path: &str, obs: Vec<f32>) -> (f32, f32) {
         crate::net::load(path).evaluate(&obs)
+    }
+
+    /// The policy net in `path` on a state: the probability of each legal move, in legal_actions order.
+    #[pyfunction]
+    fn policy_net(path: &str, state_json: &str) -> PyResult<Vec<f32>> {
+        let s = parse(state_json)?;
+        Ok(crate::net::load_policy(path).priors(&s, &rules::legal_actions(&s)))
     }
 
     /// The legal moves of a state, encoded (wingspan.ai.encoding `encode_action`, `action_bird_ids`).
@@ -164,6 +176,7 @@ mod python {
         m.add_function(wrap_pyfunction!(encode_actions, m)?)?;
         m.add_function(wrap_pyfunction!(replay_game, m)?)?;
         m.add_function(wrap_pyfunction!(value_net, m)?)?;
+        m.add_function(wrap_pyfunction!(policy_net, m)?)?;
         m.add_function(wrap_pyfunction!(ismcts, m)?)?;
         Ok(())
     }

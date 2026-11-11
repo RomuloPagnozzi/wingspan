@@ -1,5 +1,7 @@
 """Neural networks over the encoder's vectors (wingspan.ai.encoding)."""
 
+import struct
+
 import torch
 from torch import nn
 
@@ -62,16 +64,33 @@ def log_softmax_by(logits: torch.Tensor, seg: torch.Tensor, n: int) -> torch.Ten
     return shifted - total.log()[seg]
 
 
+def _write_linears(f, layers: list[nn.Linear]) -> None:
+    """Per layer u32 out, u32 in, f32 weights [out][in], f32 bias [out], little-endian."""
+    for layer in layers:
+        w = layer.weight.detach().cpu().float().contiguous()
+        f.write(struct.pack("<II", *w.shape))
+        f.write(w.numpy().astype("<f4").tobytes())
+        f.write(layer.bias.detach().cpu().float().numpy().astype("<f4").tobytes())
+
+
+def _linears(module: nn.Module) -> list[nn.Linear]:
+    return [m for m in module if isinstance(m, nn.Linear)]
+
+
 def export_value_net(net: ValueNet, path, margin_scale: float) -> None:
     """Write the weights for the Rust search (rust/src/net.rs reads this layout): f32 margin scale, u32 number
-    of linear layers (trunk, value head, margin head), then per layer u32 out, u32 in, f32 weights, f32 bias."""
-    import struct
-
-    layers = [m for m in net.trunk if isinstance(m, nn.Linear)] + [net.value, net.margin]
+    of linear layers (trunk, value head, margin head), the layers."""
+    layers = _linears(net.trunk) + [net.value, net.margin]
     with open(path, "wb") as f:
         f.write(struct.pack("<fI", margin_scale, len(layers)))
-        for layer in layers:
-            w = layer.weight.detach().cpu().float().contiguous()
-            f.write(struct.pack("<II", *w.shape))
-            f.write(w.numpy().astype("<f4").tobytes())
-            f.write(layer.bias.detach().cpu().float().numpy().astype("<f4").tobytes())
+        _write_linears(f, layers)
+
+
+def export_policy_net(net: PolicyNet, path) -> None:
+    """Write the weights for the Rust search (rust/src/net.rs reads this layout): u32 number of trunk layers,
+    the trunk, the h layer, u32 number of g layers, the g layers."""
+    with open(path, "wb") as f:
+        f.write(struct.pack("<I", len(_linears(net.trunk))))
+        _write_linears(f, _linears(net.trunk) + [net.h])
+        f.write(struct.pack("<I", len(_linears(net.g))))
+        _write_linears(f, _linears(net.g))
