@@ -15,13 +15,6 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   current data (its build read games that no longer exist) and the networks as they are.
 - **Lab UI**: a browser UI for experiments, runs and data exploration, built like the game's UI, to replace
   reading tables in the terminal. Big; start from scratch.
-- **Set-encoded cards** (roadmap steps 4-5). Summing raw card features over a hand or a multi-bird move
-  loses which properties belong to the same card (grassland-bowl + wetland-cavity looks like wetland-bowl +
-  grassland-cavity). A set encoder (each card through a shared small net φ, then summed) keeps it. The
-  card ids are ready: `wingspan.ai.encoding` exposes them and the dataset stores them (`hand`, `tray`,
-  `act_birds`); φ and the nets that read them are not built. Compare on the observation (value; main-turn
-  choice once the policy exists) and on multi-bird moves (initial cards, draws); single-bird moves are a
-  control where no gain is expected.
 - **Moves the value net can't tell apart.** Winner accuracy doesn't measure what search needs: ranking the
   positions one move apart. An offline check (does the net order sibling moves as the search's Q does?)
   would score value nets for search before a match.
@@ -30,6 +23,9 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   policy net needs more 10k-simulation decisions.
 
 ## Ideas
+
+### Policy net training
+- **Longer training**: validation still falls at epoch 8 on all decisions.
 
 ### Value net training
 - **More positions per game with mixed targets.** 16 per game was chosen with result-only targets, when
