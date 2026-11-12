@@ -6,6 +6,10 @@ seat and deal luck, so this is the precise comparison), all with 95% intervals; 
 When one label is every game's opponent (a `vs_reference` run), only arm-vs-that-label rows are shown;
 otherwise (`paired`) each pair once.
 
+Then, per arm, where its points come from: the mean score and its parts, food left unused, decisions per
+game, and how often it wins when it plays first. In a match this says what a score difference is made of;
+on self-play folders of two generations, how the play changed.
+
     uv run python -m lab.summary DIR [DIR ...]    # run dirs, or folders holding run dirs
 """
 
@@ -17,7 +21,10 @@ from pathlib import Path
 
 import pandas as pd
 
-COLUMNS = ["game_id", "game_seed", "arm_label", "player_position", "total_score", "is_winner", "duration_s"]
+PARTS = {"total_score": "score", "bird_points": "birds", "egg_points": "eggs", "cached_food": "cached",
+         "tucked_cards": "tucked", "round_goals": "goals", "bonus_scores": "bonus", "food_tokens": "food left",
+         "total_decisions": "decisions"}  # fmt: skip
+COLUMNS = ["game_id", "game_seed", "arm_label", "player_position", "is_winner", "is_first_player", "duration_s", *PARTS]
 
 
 def load_games(paths: list[Path]) -> pd.DataFrame:
@@ -78,13 +85,25 @@ def format_summary(table: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def format_parts(games: pd.DataFrame) -> str:
+    """Per arm: games, the mean of each of PARTS, and its win rate when first to play."""
+    lines = [f"{'arm':<18}{'games':>6}" + "".join(f"{name:>10}" for name in PARTS.values()) + f"{'wins 1st':>10}"]
+    for arm, r in games.groupby("arm_label", sort=False):
+        first = r[r.is_first_player == True].is_winner.mean()  # noqa: E712 (NaN in older runs)
+        lines.append(f"{arm:<18}{len(r):>6}" + "".join(f"{r[c].mean():>10.1f}" for c in PARTS) + f"{first:>10.1%}")
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Per-arm results of runs (win rate, score difference, cost)")
     parser.add_argument("paths", nargs="+", type=Path, help="run dirs, or folders holding run dirs")
     args = parser.parse_args()
     games = load_games(args.paths)
-    print(f"{games.game_id.nunique()} games")
+    per_game = games.drop_duplicates("game_id")
+    print(f"{len(per_game)} games on {per_game.game_seed.nunique()} deals, {per_game.duration_s.sum() / 3600:.0f} worker-hours")
     print(format_summary(summarize(games)))
+    print()
+    print(format_parts(games))
 
 
 if __name__ == "__main__":

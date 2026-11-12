@@ -10,7 +10,8 @@ deal share much more, so any finer split lets validation peek at training data.
 
 Reports validation error by round next to two baselines: predicting 0, and a line fitted per round
 on the current score difference (`score_now`, me minus opponent). A net that cannot beat the second
-has learned nothing beyond the scoreboard.
+has learned nothing beyond the scoreboard. Both are repeated per source folder of the games (a window mixes
+generations).
 """
 
 import argparse
@@ -138,6 +139,7 @@ def main():
     print(f"observations of the used rows: {x.nbytes / 1e9:.1f} GB ({time.time() - t0:.0f}s)")
     train, val = np.searchsorted(rows, train), np.searchsorted(rows, val)
     z, margin, rounds = z[rows], margin[rows], rounds[rows]
+    folder = np.array(meta["folders"])[np.asarray(a["game"])[rows]][val]
 
     # Baselines, fitted on the training positions
     n_player, i_score = len(meta["player_features"]), meta["player_features"].index("score_now")
@@ -210,7 +212,13 @@ def main():
             best, best_state = val_mse, {k: t.detach().cpu().clone() for k, t in net.state_dict().items()}
 
     net.load_state_dict(best_state)
-    print(report("value net (best epoch)", evaluate(x_val)[0], z[val], rounds[val]))
+    v_val = evaluate(x_val)[0]
+    print(report("value net (best epoch)", v_val, z[val], rounds[val]))
+    for f in sorted(set(folder)):
+        m = folder == f
+        print(f"{f} ({m.sum():,} positions)")
+        print(report("  line on score gap", line[m], z[val][m], rounds[val][m]))
+        print(report("  value net", v_val[m], z[val][m], rounds[val][m]))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"state": best_state, "n_obs": x.shape[1], "dropout": args.dropout, "dataset": str(args.dataset),
                 "val_mse": best, "args": vars(args) | {"out": str(args.out), "dataset": str(args.dataset)}}, args.out)  # fmt: skip

@@ -1,0 +1,12 @@
+# The candidate policy alone (its most likely move, no search) vs the champion policy alone: seconds to run,
+# a sanity check before the PUCT match (docs/SELFPLAY_LOOP.md).
+#   uv run python -m lab -c experiments/candidate_policy_match.yaml --record-decisions -o experiments/data/candidate_policy_match
+mode: vs_reference
+num_workers: 7
+base: {strategy: policy_rs}
+compare:
+  reference_label: champion
+  reference: {strategy: policy_rs, policy: experiments/data/models/policy.bin}
+  values:
+    - {label: candidate, overrides: {policy: experiments/data/models/policy_candidate.bin}}
+seeds: {start: 90001, count: 1000}
