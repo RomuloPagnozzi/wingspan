@@ -67,6 +67,7 @@ def summarize(games: pd.DataFrame) -> pd.DataFrame:
             "score_diff": r["diff"].mean(), "diff_ci": _ci(r["diff"]),
             "seeds": len(per_seed), "per_seed_diff": per_seed.mean() if len(per_seed) else math.nan,
             "per_seed_ci": _ci(per_seed), "s_per_game": r.duration_s.mean(),
+            "seed_diffs": per_seed.tolist(),  # in seed order: the ledger keeps them, so a match can be pooled and replotted
         })
     return pd.DataFrame(out)
 
@@ -92,6 +93,20 @@ def format_parts(games: pd.DataFrame) -> str:
         first = r[r.is_first_player == True].is_winner.mean()  # noqa: E712 (NaN in older runs)
         lines.append(f"{arm:<18}{len(r):>6}" + "".join(f"{r[c].mean():>10.1f}" for c in PARTS) + f"{first:>10.1%}")
     return "\n".join(lines)
+
+
+def as_dict(games: pd.DataFrame) -> dict:
+    """What main() prints, as data (for lab.ledger and the lab UI): the totals, summarize()'s rows, and per
+    arm the means of PARTS and the win rate when first to play."""
+    per_game = games.drop_duplicates("game_id")
+    out = {"games": len(per_game), "deals": per_game.game_seed.nunique(), "worker_hours": per_game.duration_s.sum() / 3600,
+           "arms": [], "parts": []}  # fmt: skip
+    if len(per_game):
+        parts = games.groupby("arm_label", sort=False)[list(PARTS)].mean()
+        parts["games"] = games.groupby("arm_label").size()
+        parts["wins_first"] = games[games.is_first_player == True].groupby("arm_label").is_winner.mean()  # noqa: E712
+        out |= {"arms": summarize(games).to_dict("records"), "parts": parts.reset_index().to_dict("records")}
+    return out
 
 
 def main() -> None:

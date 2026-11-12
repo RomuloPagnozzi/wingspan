@@ -1,6 +1,7 @@
 """Run games between strategies and save results to parquet."""
 
 import argparse
+import json
 import random
 import signal
 import subprocess
@@ -15,7 +16,8 @@ from tqdm import tqdm
 from wingspan.ai import Strategy
 from lab.data import GamesWriter, DecisionsWriter, generate_run_id
 from lab.simulation import play_games
-from lab.summary import format_summary, load_games, summarize
+from lab import ledger
+from lab.summary import as_dict, format_summary, load_games, summarize
 from lab.generators import (
     ConfigError,
     build_strategy,
@@ -117,6 +119,8 @@ def run_experiments(
                 if decisions_writer and game_decisions:
                     decisions_writer.add_game_decisions(game_decisions)
                 progress.update(1)
+                # An unrotated parquet can't be read until it closes: this is how the lab UI follows the run
+                (data_dir / run_id / "progress.json").write_text(json.dumps({"games": progress.n, "total": total_games}))
                 labels = sorted(p.arm_label for p in result.players)
                 tally = wins.setdefault(frozenset(labels), Counter())
                 tally[result.winner_label()] += 1
@@ -129,6 +133,8 @@ def run_experiments(
     games = load_games([data_dir / run_id])
     print(f"\n{'=' * 60}\nRESULTS ({games.game_id.nunique()} games)\n{'=' * 60}")
     print(format_summary(summarize(games)))
+    description = (data_dir / run_id / "config.yaml").read_text().split("\n")[0].lstrip("# ")
+    ledger.record("run", experiment=data_dir.name, run_id=run_id, description=description, config=config, nets=ledger.nets_in(config), **as_dict(games))
 
 
 def load_config(config_path: Path) -> dict:

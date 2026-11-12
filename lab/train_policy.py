@@ -13,11 +13,13 @@ KL(π ‖ net), next to two baselines: uniform over the legal moves, and a prior
 
 import argparse
 import time
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 import torch
 
+from lab import ledger
 from lab.dataset import load
 from lab.train_value import gathered, per_game, split_games
 from wingspan.ai.encoding import ACTION_KINDS
@@ -126,7 +128,7 @@ def main():
     blocks = np.array_split(np.sort(train), max(1, len(train) // 65536))
     steps = args.epochs * sum(-(-len(blk) // args.batch) for blk in blocks)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
-    best, best_state = float("inf"), None
+    best, best_state, epochs = float("inf"), None, []
     for epoch in range(1, args.epochs + 1):
         net.train()
         t0 = time.time()
@@ -144,8 +146,9 @@ def main():
                 loss.backward()
                 opt.step()
                 sched.step()
-        val_ce = cross_entropy(val, evaluate(val))
-        print(f"epoch {epoch:2}  train CE {cross_entropy(sample, evaluate(sample)):.3f}  val CE {val_ce:.3f}  "
+        train_ce, val_ce = cross_entropy(sample, evaluate(sample)), cross_entropy(val, evaluate(val))
+        epochs.append({"train_ce": train_ce, "val_ce": val_ce})
+        print(f"epoch {epoch:2}  train CE {train_ce:.3f}  val CE {val_ce:.3f}  "
               f"({time.time() - t0:.0f}s)", flush=True)  # fmt: skip
         if val_ce < best:
             best, best_state = val_ce, {k: t.detach().cpu().clone() for k, t in net.state_dict().items()}
@@ -169,8 +172,11 @@ def main():
           "KL(visits ‖ policy) (same order)")  # fmt: skip
     print(f"{'phase':24} {'decisions':>9} {'moves':>6}   {'top move':^22}   {'KL':^22}")
     groups = [("all", np.ones(len(val), bool))] + [(name, phase[val] == i) for i, name in enumerate(meta["phases"])]
+    table = []
     for name, sel in groups + [(f, folder[val] == f) for f in sorted(set(folder))]:
         if sel.any():
+            table.append({"name": name, "decisions": sel.sum(), "moves": n_moves[sel].mean(),
+                          "top": {k: hits[k][sel].mean() for k in candidates}, "kl": {k: kls[k][sel].mean() for k in candidates}})  # fmt: skip
             top = " / ".join(f"{hits[k][sel].mean():5.0%}" for k in candidates)
             kl = " / ".join(f"{kls[k][sel].mean():5.2f}" for k in candidates)
             print(f"{name:24} {sel.sum():9,} {n_moves[sel].mean():6.1f}   {top}   {kl}")
@@ -180,6 +186,9 @@ def main():
                 "args": vars(args) | {"out": str(args.out), "dataset": str(args.dataset)}}, args.out)  # fmt: skip
     export_policy_net(net, args.out.with_suffix(".bin"))  # for the Rust search
     print(f"saved {args.out} and {args.out.with_suffix('.bin')}")
+    ledger.record("train_policy", out=args.out, net=ledger.net_id(args.out.with_suffix(".bin")), args=vars(args),
+                  window=Counter(meta["folders"]), decisions={"train": len(train), "val": len(val)}, epochs=epochs,
+                  val_ce=best, validation=table)  # fmt: skip
 
 
 if __name__ == "__main__":
