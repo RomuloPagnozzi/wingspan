@@ -26,16 +26,10 @@ from search-generated games save over learning from self-play alone?
    search, wins 34% (`policy_rs`). The value net at PUCT's leaves loses (alone) or ties (mixed with a
    playout): playouts stay.
 6. **Self-play loop** (in progress): generate games with PUCT and playouts, retrain the policy and the value
-   net, repeat. Generation 1 is generating (`experiments/selfplay.yaml`, guided by the generation-0 policy;
-   `docs/INBOX.md` says where and how to resume). Next, at ~20k generation-1 games (~900k full-budget
-   decisions, about a day):
-   1. Build its dataset (`lab/dataset.py experiments/data/selfplay_g1/* experiments/data/selfplay_g1_homelab/*`)
-      and retrain the policy on generation 1 plus the latest generation-0 games (a sliding window, as
-      AlphaZero: enough data while the newest search dominates); the value net likewise.
-   2. Evaluate: the new policy alone against the old one alone (`policy_rs`, cheap), then PUCT with each at
-      equal time. Keep the new policy only if it wins; it then guides generation 2.
-   3. Check the search against its prior (`lab/prior_vs_search.py`) and rerun the leaf match (playouts,
-      net, mix; `experiments/puct_value_match.yaml`) to see if the value net now helps.
+   net on a sliding window, test the candidate against the champion, repeat: one iteration is the checklist
+   in `docs/SELFPLAY_LOOP.md`. Generation 1's iteration promoted a stronger policy (EXPERIMENTS.md,
+   "Self-play loop"); generation 2 is generating, guided by it. The value net stays out of the search until
+   it ranks sibling moves better (EXPERIMENTS.md, "Value net"; ideas in docs/INBOX.md).
    One net with a shared trunk and both heads is a lever for the value net: the policy's features capture
    what one move changes.
 

@@ -22,7 +22,8 @@ row i's moves are act[act_off[i]:act_off[i + 1]].
     game [N] int32, phase [N] int8 (index into PHASES), round [N] int8, player [N] int8
     outcome [N] float32 (+1 won, 0 tie, -1 lost), score [N] int16, opp_score [N] int16
 
-meta.json holds the feature names, the phases, each game's id and seed, and the data's source.
+meta.json holds the feature names, the phases, each game's id, seed and folder (the output folder of the
+run that played it, e.g. selfplay_g1: training reports validation per folder), and the data's source.
 """
 
 import argparse
@@ -89,7 +90,7 @@ def build(srcs: list[Path], out: Path, workers: int = 7, max_games: int | None =
 
     # Files are read one at a time (each holds whole games): all decisions as Python objects don't fit
     # in memory. A first, cheap pass sizes the arrays: rows and moves per game, in the order written.
-    per_file, game_ids, seeds, n, m = [], [], {}, 0, 0
+    per_file, game_ids, folders, seeds, n, m = [], [], [], {}, 0, 0
     for f in files:
         t = pq.read_table(f, columns=["game_id", "game_seed", "legal_actions"])
         seeds |= dict(zip(t["game_id"].to_pylist(), t["game_seed"].to_pylist()))
@@ -98,6 +99,7 @@ def build(srcs: list[Path], out: Path, workers: int = 7, max_games: int | None =
         x = x[x.game_id.isin(ids)]
         per_file.append((f, ids))
         game_ids += ids
+        folders += [f.resolve().parent.parent.name] * len(ids)
         n, m = n + len(x), m + int(x.moves.sum())
     if len(set(game_ids)) != len(game_ids):
         raise ValueError("a game's decisions are split across files")
@@ -156,7 +158,7 @@ def build(srcs: list[Path], out: Path, workers: int = 7, max_games: int | None =
     for name, a in arrays.items():
         np.save(out / f"{name}.npy", a)
     meta = dict(
-        sources=[str(s) for s in srcs], games=game_ids, seeds=[int(seeds[gid]) for gid in game_ids], n_players=n_players, n_decisions=n, n_moves=m, phases=list(PHASES),
+        sources=[str(s) for s in srcs], games=game_ids, seeds=[int(seeds[gid]) for gid in game_ids], folders=folders, n_players=n_players, n_decisions=n, n_moves=m, phases=list(PHASES),
         player_features=list(player_feature_names()), shared_features=list(shared_feature_names()),
         action_features=list(action_feature_names()),
     )  # fmt: skip

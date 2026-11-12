@@ -6,7 +6,7 @@ Only the decisions searched with the full budget (10k simulations, a random quar
 randomization) are targets; the others' visits are too noisy. The loss is the cross-entropy between the
 visit shares π and the net's softmax over the legal moves. Same split by deal as lab/train_value.py.
 
-Reports per phase, on validation: how often the net's top move is the search's most visited one, and
+Reports per phase and per source folder of the games (a window mixes generations), on validation: how often the net's top move is the search's most visited one, and
 KL(π ‖ net), next to two baselines: uniform over the legal moves, and a prior on the move's kind alone
 (per phase, the average visit share of that kind of move, e.g. main turn: lay eggs vs draw cards).
 """
@@ -87,6 +87,7 @@ def main():
           f"{(x.nbytes + acts.nbytes) / 1e9:.1f} GB ({time.time() - t0:.0f}s)")  # fmt: skip
     train, val = np.searchsorted(rows, train), np.searchsorted(rows, val)
     phase = np.asarray(a["phase"])[rows]
+    folder = np.array(meta["folders"])[np.asarray(a["game"])[rows]]
     v = visits[act_rows].astype(np.float32)
     pi = v / np.repeat(np.add.reduceat(v, off[:-1]), np.diff(off))
     kind = np.concatenate([acts[b : b + (1 << 20), : len(ACTION_KINDS)].argmax(1) for b in range(0, len(acts), 1 << 20)])
@@ -164,11 +165,11 @@ def main():
     plogp = np.where(pi[m] > 0, pi[m] * np.log(np.maximum(pi[m], 1e-12)), 0)
     hits = {k: top1(lp, best_move, off_val) for k, lp in candidates.items()}
     kls = {k: np.add.reduceat(plogp - pi[m] * lp, off_val[:-1]) for k, lp in candidates.items()}
-    print("\nvalidation, per phase: top move = the search's most visited (net / kind prior / uniform), "
+    print("\nvalidation, per phase and per folder of games: top move = the search's most visited (net / kind prior / uniform), "
           "KL(visits ‖ policy) (same order)")  # fmt: skip
     print(f"{'phase':24} {'decisions':>9} {'moves':>6}   {'top move':^22}   {'KL':^22}")
-    for i, name in [(-1, "all")] + list(enumerate(meta["phases"])):
-        sel = np.ones(len(val), bool) if i < 0 else phase[val] == i
+    groups = [("all", np.ones(len(val), bool))] + [(name, phase[val] == i) for i, name in enumerate(meta["phases"])]
+    for name, sel in groups + [(f, folder[val] == f) for f in sorted(set(folder))]:
         if sel.any():
             top = " / ".join(f"{hits[k][sel].mean():5.0%}" for k in candidates)
             kl = " / ".join(f"{kls[k][sel].mean():5.2f}" for k in candidates)

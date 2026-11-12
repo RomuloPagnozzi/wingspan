@@ -70,6 +70,19 @@ explained afterwards from visits and Q per move.
   the net's quality reaches play, but not its failure: it judges who is ahead, not what one move changes.
   In round 4 it rates gaining food above laying eggs, and ends games with 6.3 unused food (the tree: 1.4)
   and 5 fewer egg points. Winner accuracy doesn't measure this.
+- **What the search needs is ranking sibling moves, and there the net is biased** (`lab/sibling_values.py`:
+  each legal move of a 10k decision applied, the resulting position scored, the order compared to the
+  search's Q per move; 200 unseen generation-2 games, 27.8k pairs of moves whose Q differ by ≥ 0.5 points).
+  Pairwise accuracy: net 62%, as good as 16 random playouts (62%; 1 playout 55%, 64 playouts 66%, the score
+  gap after the move 51%). But a playout's error is noise, which the search averages away over hundreds of
+  leaves per move, while the net's is bias, the same every call: where it is wrong, more simulations don't
+  help. It is wrong where the leaf matches lose points: main turn 61% (64 playouts 74%), which bird to
+  play 61% (83%), and the choice to lay an extra egg 34%, below chance (68%): it prefers not to lay it. It
+  beats playouts on paying food (74% vs 54%), where random play wastes food anyway. This is why net leaves
+  lose and the half-and-half mix only ties.
+- **More games don't fix it**: on all 76.8k games (generations 0 and 1) instead of the 40k window, the same
+  validation MSE (0.60), winner accuracy (77%) and sibling ranking (62%). The bias is in what the net sees
+  or is trained toward, not in the amount of data.
 
 ## Policy net
 
@@ -91,26 +104,30 @@ explained afterwards from visits and Q per move.
   that ceiling (the search itself: 32-48%, near a coin flip). Where the choice matters the gap is real:
   main turn 90% vs 79%, which bird to play 95% vs 82%, draws 61% vs 51%. The policy matches a rerun as
   well as the recorded search: it learned the search's preferences, not one run's noise.
-- **Alone, with no search, it wins 34% against the tree at 2000 simulations** (`policy_rs`,
-  `experiments/policy_match.yaml`, the value-net match's 300 deals from both seats): −4.6 ± 0.8 points per
-  game, at ~0.1 ms per move. It plays eggs and food much as the tree does; most of the gap is round goals
-  (−3.2), a race against the opponent that needs look-ahead.
+- **Alone, with no search, it wins 36% against the tree at 2000 simulations** (`policy_rs`,
+  `experiments/policy_match.yaml`, the value-net match's 300 deals from both seats): −3.9 ± 0.8 points per
+  game, at ~0.1 ms per move (the policy trained on generation 0 alone: −4.6, 34%). It plays eggs and food
+  much as the tree does; most of the gap is round goals, a race against the opponent that needs look-ahead.
+- **16 epochs instead of 8 gain nothing offline** (validation cross-entropy 1.033 vs 1.032; the last
+  epochs' drop is the learning rate annealing, at any length) and nothing clear in the search (PUCT +0.0 ±
+  0.7, 300 deals), though the policy alone gains (+0.9 ± 0.4): 8 stays the default; see docs/INBOX.md.
 
 ## Network-guided search
 
-- **PUCT with the policy's priors beats the plain tree at equal time: 61%, +2.7 ± 0.7 points per game**
-  (`experiments/puct_match.yaml`: 1380 simulations against 2000, 24.9 vs 24.1 ms per decision, random
-  playouts at the leaves in both; 300 deals from both seats). For scale, 10k simulations over 1500 is
-  worth +3.6 at 6.7× the time. The points come from eggs, cached food, tucked cards (+1.9 together) and
-  round goals (+0.7), where the policy alone lost.
+- **PUCT with the policy's priors beats the plain tree at equal time: 65%, +3.8 ± 0.8 points per game**
+  (`experiments/puct_match.yaml`: 1380 simulations against 2000, ~25 ms per decision each, random
+  playouts at the leaves in both; 300 deals from both seats; the policy trained on generation 0 alone gave
+  +2.7, 61%). For scale, 10k simulations over 1500 is worth +3.6 at 6.7× the time. The points come from
+  birds, cached food, tucked cards and round goals, where the policy alone loses.
 - **Its exploration constant c is 0.5** (`experiments/puct_c.yaml`, 100 other deals: c 0.05 / 0.15 / 0.5 /
   1.5 → −6.0 / −1.0 / +2.2 / +1.2). Its bonus c · P · √N / (1 + n) is much larger than UCT's at these
   budgets, against Q gaps of ~0.02 (a point): too small a c and the search ignores what the prior
   doesn't favor, too large and it just follows the prior.
 - **The value net at PUCT's leaves doesn't help** (`experiments/puct_value_match.yaml`: against PUCT with
-  playouts at equal time, 300 deals): net only (730 simulations against 1380) −3.8 ± 0.9, with the same
-  signature as without a prior (3.3 unused food against 1.5, −1.3 eggs, −2.0 round goals); half net, half
-  playout (575) +0.0 ± 0.7. The prior hides much of the net's blind spot (without one it lost by 9.5 to
+  playouts at equal time, 300 deals): net only (730 simulations against 1380) −3.0 ± 0.8, with the same
+  signature as without a prior (2.7 unused food against 1.3, −1.0 eggs, −1.7 round goals); half net, half
+  playout (575) −0.7 ± 0.7. Nets trained on generation 0 alone did the same (−3.8, +0.0). Why: "Value net",
+  sibling ranking. The prior hides much of the net's blind spot (without one it lost by 9.5 to
   the plain tree), but Q still comes from the leaves. The mix runs both a net call and a playout per leaf
   (41 µs per simulation, 2.3× a playout leaf): it ties, so no cheaper either.
 - **In self-play the search still overrules its prior** (`lab/prior_vs_search.py`, 300 generation-1
@@ -121,6 +138,27 @@ explained afterwards from visits and Q per move.
 - **Priors cost**: a policy call costs a few playouts. Computed once per node, at nodes with 4+ visits
   (uniform before), a PUCT simulation costs 1.45× a plain one (1.1× from 16 visits, 2.3× from 1).
   Computing them again whenever another re-dealt world shows a new legal move made it 4-6×.
+
+## Self-play loop
+
+One iteration (`docs/SELFPLAY_LOOP.md`): games from the search guided by the champion policy, a candidate
+trained on a sliding window, matches against the champion and fixed anchors.
+
+- **Generation 1 made the policy stronger.** 20.3k games of PUCT guided by the generation-0 policy (183
+  worker-hours: 33 s per game against the plain tree's 20, priors cost 1.45× per simulation); window: all
+  of them plus the 19.7k newest generation-0 games, 1.79M full-budget decisions. The candidate beat the
+  generation-0 policy in PUCT by **+1.2 ± 0.4 points per deal** (55%, 1000 deals; the first 300 alone said
+  +0.7 ± 0.7) and alone by +1.2 ± 0.4, and gained on both anchors (above). Promoted: it guides generation 2.
+- **The gain holds at the generator's budget, a little smaller**: PUCT at 10k simulations, the same two
+  policies, +0.8 ± 0.5 (54%, 500 deals, 28 worker-hours). With more simulations the search corrects more of
+  its prior's mistakes, so a better prior matters less. Whether PUCT at 10k beats the plain tree at equal
+  time is open (docs/INBOX.md): bootstrapping pays only if it does.
+- **Generation-1 games score more**: 71.3 points per player against 68.8 (birds, tucked cards, bonus; food
+  left 1.3 vs 1.5), seats even (50.0%).
+- **PUCT's visit targets are much sharper than the plain tree's** (KL from uniform 0.45 against 0.07):
+  priors concentrate the visits, which is not the loop confirming itself (the search kept the policy's top
+  move 64%, as before). Later generations compare to 0.45. Policy agreement with the search is 65% on both
+  generations' validation games (main turn 75%, play bird 75%, draws 49%).
 
 ## Open questions
 

@@ -8,10 +8,12 @@ Experiments, tuning and the training pipeline. Strategies come from `wingspan.ai
 | `generators.py` | the games each mode plays (`continuous`, `paired`, `vs_reference`); config validation |
 | `simulation.py` | play one game (`simulate_game`), or many in a worker pool (`play_games`) |
 | `data.py` | `GameResult` / `DecisionRecord` and the incremental parquet writers |
-| `summary.py` | per-arm results: win rate, score difference, per-seed paired difference, s/game |
+| `summary.py` | per-arm results: win rate, score difference, per-seed paired difference, s/game; the score's parts |
 | `tune/` | Optuna search over any strategy's params against a reference |
 | `dataset.py` | replay recorded games into training arrays |
-| `train_value.py` | train the value net on a dataset |
+| `train_value.py`, `train_policy.py` | train the value and the policy net on a dataset |
+| `prior_vs_search.py` | self-play: how often the search keeps the policy's top move |
+| `sibling_values.py` | does a leaf evaluation (value nets, score gap, playouts) rank sibling moves as the search's Q does |
 | `cloud.py`, `cloud_agent.py` | self-play on a rented server (outdated, see docs/INBOX.md) |
 | `explainer/` | interactive page explaining the encoder (outdated, see docs/INBOX.md) |
 

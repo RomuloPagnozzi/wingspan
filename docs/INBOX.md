@@ -15,31 +15,50 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   current data (its build read games that no longer exist) and the networks as they are.
 - **Lab UI**: a browser UI for experiments, runs and data exploration, built like the game's UI, to replace
   reading tables in the terminal. Big; start from scratch.
-- **Moves the value net can't tell apart.** Winner accuracy doesn't measure what search needs: ranking the
-  positions one move apart. An offline check (does the net order sibling moves as the search's Q does?)
-  would score value nets for search before a match.
-- **Self-play generation 1** (`experiments/selfplay.yaml`, PUCT; laptop 1,966 games and the server ~100 by 2026-11-11).
-  - Laptop, into `experiments/data/selfplay_g1`, from a terminal (Ctrl+C once stops cleanly):
-    `caffeinate -dis uv run python -m lab -c experiments/selfplay.yaml --record-decisions --rotate-every 50 -o experiments/data/selfplay_g1`
-  - Home server: container `wingspan-selfplay` (`~/wingspan-data/run.sh`, 1 worker: with 3 it overheated
-    and shut down, with 2 it reached 87°C) into `~/wingspan-data/selfplay_g1`; fetch with
-    `rsync -az homelab:~/wingspan-data/selfplay_g1/ experiments/data/selfplay_g1_homelab/`. It runs the code
-    in `~/wingspan`, synced from here: after a change to code or `policy.bin`, rsync again and restart the
-    container. To pause it: `docker update --restart=no wingspan-selfplay` and
-    `docker kill --signal=INT wingspan-selfplay`.
 
 ## Ideas
 
 ### Policy net training
-- **Longer training**: validation still falls at epoch 8 on all decisions.
+- **Longer training** (16 epochs against 8, generation-1 window): no offline gain (validation CE 1.033 vs
+  1.032, train/validation gap 0.023 vs 0.012), a clear gain alone (+0.9 ± 0.4 over 1000 deals) and an
+  unresolved one inside the search (PUCT +0.0 ± 0.7 over 300 deals: not extended). To settle: retrain and
+  extend the PUCT match by 700 deals; also compare the two nets' confidence (prior entropy), the suspected
+  reason a net can gain alone but not in the search. Validation spiked at epochs 5, 7, 9 (to 1.074): try a
+  lower peak learning rate too.
 
 ### Network-guided search
+- **Does the network still help at 10k simulations?** The only evidence that PUCT beats the plain tree is at
+  ~2000 simulations' worth of time (+3.8). Gen 0's data came from the plain tree at 10k: bootstrapping
+  pays only if the guided search beats it at the generator's budget. Match: PUCT + champion at 10k vs the
+  plain tree at equal time (~14.5k: a PUCT simulation costs ~1.45×), 300 deals, ~17 worker-hours. The
+  same budget's gap between the policy alone and the 10k search it imitates is a third readout.
 - **PUCT tuning**: c between 0.5 and 1.5 (only 4 values tried), `prior_min_visits`, normalizing Q to the
   tree's range (it isn't: c absorbs the score_delta scale).
 - **Priors at the opponent's nodes** read the re-dealt world they are computed in (its hand is a guess);
   averaging over worlds, or encoding the opponent's hand as unknown, would be cleaner.
 
 ### Value net training
+Score every idea with `lab/sibling_values.py` first (minutes, on games no net trained on): pairwise accuracy
+overall and in main turn, play bird, lay eggs and the extra-egg choice, against 16 and 64 playouts. Only a
+net that closes the gap to 64 playouts there is worth a leaf match. Ideas, most promising first:
+- **Targets that carry what a move changes.** Half of each target is the game's result, shared by every
+  position of a game: it teaches the level (who is ahead), not the slope between siblings. The search's Q
+  differs between sibling positions. Retune the mix (`--q-mix`: 0.5 was chosen on winner accuracy, the
+  wrong metric), and take Q only from the 10k decisions (the 2k ones' Q is noisier; ~55 per game, 16 used).
+- **Train on sibling positions directly.** The decisions parquet holds Q for every visited move: encode the
+  position after each move (the dataset now encodes only decision positions) and train toward each move's
+  Q, or with a ranking loss over the siblings. The loss then is the readout the search needs.
+- **One net with the policy's trunk.** The policy's features already capture what one move changes (79% top
+  move in main turns); a value head on that trunk, or a Q head next to the policy head (h · g(move) -> each
+  move's Q), reads them. Its Q per move could also seed the search's new children.
+- **Features for what it misjudges.** It keeps food it won't spend and skips eggs: little in the
+  observation says how many turns remain, what food the hand can still use, or how many eggs fit. Read the
+  failing decisions (main turn, extra egg) to find what's missing.
+- **Use it only where it's right.** Per phase, net or playout at the leaf (food payments: net; eggs and main
+  turn: playouts), or a mix that shifts with the round. Needs a Rust option; the sibling check per phase says
+  where.
+- **Truncated playouts** (below): a few random moves, then the net, so the net judges a position after the
+  move's consequences have played out.
 - **More positions per game with mixed targets.** 16 per game was chosen with result-only targets, when
   a game's positions shared one label. With search values each has its own, and the net no longer
   memorizes: 32 per game may help (its gathered observations, ~7 GB, approach the laptop's memory).
