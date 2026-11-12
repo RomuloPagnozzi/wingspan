@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wingspan lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <strong>Wingspan lab</strong>
+    <nav>
+      <a href="#now">Now</a>
+      <a href="#progress">Progress</a>
+      <a href="#games">Games</a>
+      <a href="#gen">Generations</a>
+      <a href="#matches">Matches</a>
+      <a href="#nets">Nets</a>
+      <a href="#queue">Queue</a>
+    </nav>
+    <span class="key"><span><i class="kind policy"></i>policy net</span><span><i class="kind value"></i>value net</span></span>
+    <span id="clock" class="muted"></span>
+  </header>
+  <main id="main"><p class="muted">Reading the games (the first load after a start takes a while)…</p></main>
+  <div id="tip" hidden></div>
+  <dialog id="confirm">
+    <h3 id="confirm-title"></h3>
+    <p class="muted" id="confirm-text"></p>
+    <pre id="confirm-commands"></pre>
+    <form method="dialog"><button value="no">Cancel</button><button value="yes" class="primary" id="confirm-yes"></button></form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -13,6 +13,8 @@ from multiprocessing import Pool
 
 import pandas as pd
 
+from lab import ledger
+
 def run(task):
     import wingspan_rs
 
@@ -59,4 +61,7 @@ if __name__ == "__main__":
     tab = r.groupby("phase").agg(decisions=("agree", "size"), moves=("n", "mean"), search_keeps_policy_top=("agree", "mean"),
                                  prior_on_top=("prior_top", "mean"), visits_on_prior_top=("visits_on_prior_top", "mean"))  # fmt: skip
     tab.loc["all"] = [len(r), r.n.mean(), r.agree.mean(), r.prior_top.mean(), r.visits_on_prior_top.mean()]
-    print(tab.sort_values("decisions", ascending=False).round(2).to_string())
+    tab = tab.sort_values("decisions", ascending=False)
+    print(tab.round(2).to_string())
+    ledger.record("prior_vs_search", folder=args.folder, policy=args.policy, net=ledger.net_id(args.policy), games=args.games,
+                  phases=tab.reset_index().to_dict("records"))  # fmt: skip

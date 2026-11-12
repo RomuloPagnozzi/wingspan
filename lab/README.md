@@ -14,6 +14,8 @@ Experiments, tuning and the training pipeline. Strategies come from `wingspan.ai
 | `train_value.py`, `train_policy.py` | train the value and the policy net on a dataset |
 | `prior_vs_search.py` | self-play: how often the search keeps the policy's top move |
 | `sibling_values.py` | does a leaf evaluation (value nets, score gap, playouts) rank sibling moves as the search's Q does |
+| `ledger.py` | the project's history: every finished run, training and verdict appends a line to `experiments/data/ledger.jsonl` |
+| `ui/` | the lab UI, a **prototype** (far from what we want): progress of the self-play loop, matches, nets, and a job queue for the loop's commands |
 | `cloud.py`, `cloud_agent.py` | self-play on a rented server (outdated, see docs/INBOX.md) |
 | `explainer/` | interactive page explaining the encoder (outdated, see docs/INBOX.md) |
 
@@ -26,6 +28,7 @@ uv run python -m lab.summary experiments/data/DIR   # results of runs (also whil
 uv run python -m lab.tune -c TUNING.yaml            # Optuna study -> experiments/tuning/<study_name>/
 uv run python -m lab.dataset experiments/data/selfplay/* --out experiments/data/datasets/selfplay
 uv run --group train python -m lab.train_value experiments/data/datasets/selfplay
+uv run python -m lab.ui                            # the lab UI, http://127.0.0.1:8770
 ```
 
 Always pass `--record-decisions`: legal moves, visits and Q per move are what any later analysis needs.

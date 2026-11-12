@@ -28,6 +28,7 @@ run that played it, e.g. selfplay_g1: training reports validation per folder), a
 
 import argparse
 import json
+from collections import Counter
 from contextlib import nullcontext
 from multiprocessing import Pool
 from pathlib import Path
@@ -39,6 +40,7 @@ import pyarrow.parquet as pq
 from numpy.lib.format import open_memmap
 
 import wingspan_rs
+from lab import ledger
 from wingspan.ai.encoding import PHASES, action_feature_names, player_feature_names, shared_feature_names
 from wingspan.ai.rust import state_json
 from wingspan.engine.core import ScoringMode, init_registries, initiate_state
@@ -164,6 +166,7 @@ def build(srcs: list[Path], out: Path, workers: int = 7, max_games: int | None =
     )  # fmt: skip
     (out / "meta.json").write_text(json.dumps(meta))
     print(f"{n:,} decisions, {m:,} moves from {len(game_ids):,} games -> {out}")
+    ledger.record("dataset", out=out, games=len(game_ids), decisions=n, moves=m, window=Counter(folders))
 
 
 def load(path: Path) -> tuple[dict[str, np.ndarray], dict]:

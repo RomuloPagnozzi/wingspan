@@ -17,12 +17,14 @@ generations).
 import argparse
 import hashlib
 import time
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 import torch
 from numpy.lib.format import open_memmap
 
+from lab import ledger
 from lab.dataset import load
 from wingspan.ai.nets import ValueNet, export_value_net
 
@@ -86,14 +88,22 @@ def root_q(a: dict) -> np.ndarray:
     return 50 * q / np.maximum(np.add.reduceat(visits, off), 1)
 
 
-def report(name: str, pred: np.ndarray, z: np.ndarray, rounds: np.ndarray) -> str:
+def scores(pred: np.ndarray, z: np.ndarray, rounds: np.ndarray) -> dict:
+    """MSE and winner accuracy over the decided games (None when `pred` has no sign to read), over all
+    positions and per round."""
+
     def stats(m):
         decided = m & (z != 0)
-        acc = f"{np.mean(np.sign(pred[decided]) == z[decided]):.0%}" if pred.any() else "–"  # no sign to read
-        return f"{np.mean((pred[m] - z[m]) ** 2):.3f}/{acc}"
+        acc = np.mean(np.sign(pred[decided]) == z[decided]) if pred.any() else None
+        return {"mse": np.mean((pred[m] - z[m]) ** 2), "acc": acc}
 
-    by_round = "  ".join(f"r{r} {stats(rounds == r)}" for r in (1, 2, 3, 4))
-    return f"{name:22} all {stats(np.ones_like(z, bool))}   {by_round}"
+    return {"all": stats(np.ones_like(z, bool))} | {f"r{r}": stats(rounds == r) for r in (1, 2, 3, 4)}
+
+
+def report(name: str, pred: np.ndarray, z: np.ndarray, rounds: np.ndarray) -> str:
+    cell = lambda s: f"{s['mse']:.3f}/" + ("–" if s["acc"] is None else f"{s['acc']:.0%}")
+    s = scores(pred, z, rounds)
+    return f"{name:22} all {cell(s['all'])}   " + "  ".join(f"r{r} {cell(s[f'r{r}'])}" for r in (1, 2, 3, 4))
 
 
 def main():
@@ -179,7 +189,7 @@ def main():
                 ms.append(m.cpu().numpy())
         return np.concatenate(vs), np.concatenate(ms)
 
-    best, best_state = float("inf"), None
+    best, best_state, epochs = float("inf"), None, []
     sample = np.sort(np.random.default_rng(1).choice(train, min(len(train), len(val)), replace=False))
     x_val, x_sample = x[val], x[sample]  # in memory: evaluated every epoch
     # x is read in large blocks, sequentially: with scattered rows, the OS re-reads the file from disk
@@ -206,16 +216,22 @@ def main():
         v_val, m_val = evaluate(x_val)
         v_tr, _ = evaluate(x_sample)
         val_mse = float(np.mean((v_val - z[val]) ** 2))
-        print(f"epoch {epoch:2}  train MSE {np.mean((v_tr - z[sample]) ** 2):.3f}  val MSE {val_mse:.3f}  "
-              f"val margin MSE {np.mean((m_val - margin[val]) ** 2):.3f}  ({time.time() - t0:.0f}s)", flush=True)  # fmt: skip
+        epochs.append({"train_mse": np.mean((v_tr - z[sample]) ** 2), "val_mse": val_mse,
+                       "val_margin_mse": np.mean((m_val - margin[val]) ** 2)})  # fmt: skip
+        print(f"epoch {epoch:2}  train MSE {epochs[-1]['train_mse']:.3f}  val MSE {val_mse:.3f}  "
+              f"val margin MSE {epochs[-1]['val_margin_mse']:.3f}  ({time.time() - t0:.0f}s)", flush=True)  # fmt: skip
         if val_mse < best:
             best, best_state = val_mse, {k: t.detach().cpu().clone() for k, t in net.state_dict().items()}
 
     net.load_state_dict(best_state)
     v_val = evaluate(x_val)[0]
     print(report("value net (best epoch)", v_val, z[val], rounds[val]))
+    validation = [{"name": "all", "positions": len(val), "line": scores(line, z[val], rounds[val]),
+                   "net": scores(v_val, z[val], rounds[val])}]  # fmt: skip
     for f in sorted(set(folder)):
         m = folder == f
+        validation.append({"name": f, "positions": m.sum(), "line": scores(line[m], z[val][m], rounds[val][m]),
+                           "net": scores(v_val[m], z[val][m], rounds[val][m])})  # fmt: skip
         print(f"{f} ({m.sum():,} positions)")
         print(report("  line on score gap", line[m], z[val][m], rounds[val][m]))
         print(report("  value net", v_val[m], z[val][m], rounds[val][m]))
@@ -224,6 +240,9 @@ def main():
                 "val_mse": best, "args": vars(args) | {"out": str(args.out), "dataset": str(args.dataset)}}, args.out)  # fmt: skip
     export_value_net(net, args.out.with_suffix(".bin"), MARGIN_SCALE)  # for mcts_rs (value_net=...)
     print(f"saved {args.out} and {args.out.with_suffix('.bin')}")
+    ledger.record("train_value", out=args.out, net=ledger.net_id(args.out.with_suffix(".bin")), args=vars(args),
+                  window=Counter(meta["folders"]), positions={"train": len(train), "val": len(val)}, epochs=epochs,
+                  val_mse=best, validation=validation)  # fmt: skip
 
 
 if __name__ == "__main__":

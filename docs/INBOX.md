@@ -13,8 +13,9 @@ Ideas and pending work, unprioritized. An idea becomes an experiment when it's r
   to the Rust engine (the server builds the extension) and to the provider we end up using.
 - **Explainer** (`lab/explainer/`): the interactive page explaining the encoder and the nets. Refresh it with
   current data (its build read games that no longer exist) and the networks as they are.
-- **Lab UI**: a browser UI for experiments, runs and data exploration, built like the game's UI, to replace
-  reading tables in the terminal. Big; start from scratch.
+- **Lab UI**: a browser UI for experiments, runs and data exploration, to replace reading tables in the
+  terminal. A prototype exists (`lab/ui`: loop progress, matches, nets, a job queue, `lab/ledger.py` for the
+  history), far from what we want: the real one is still to design.
 
 ## Ideas
 
